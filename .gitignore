@@ -1,0 +1,16 @@
+# Gitignore settings for ESPHome
+# This is an example and may include too much for your use-case.
+# You can modify this file to suit your needs.
+/.esphome/
+/secrets.yaml
+
+# Claude AI 项目配置
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+
+# 参考资料 (ST 编译产物、PDF 等大文件)
+资料/
+/test_roboto.ttf

@@ -1,0 +1,57 @@
+// LVGL 兼容头文件 — 补齐 lambda 中缺失的 LVGL C API 声明
+// ESPHome 2026 的 LVGL managed component 使用 opaque lv_obj_t (PIMPL 模式)，
+// struct _lv_obj_t 仅在 .c 文件中定义，用户 lambda 不可见。
+//
+// 核心原则：
+//   ESPHome 生成的非复合 widget (bar/label/led/obj) 是 lv_obj_t* 全局变量，
+//   因此 id(widget) 直接返回 lv_obj_t*，不需要 ->obj_ 间接访问。
+//   移除所有 ->obj_ 后，函数调用仅需函数声明 + 指针前向声明即可编译。
+//
+// 本头文件提供：
+//   1. #include <lvgl.h> 获得类型前向声明 (lv_obj_t 等)
+//   2. 显式包含核心头文件 (部分 managed_components 会裁剪 widget 头)
+//   3. extern "C" 声明所有用到的 LVGL C API 函数
+//      (managed_components 未包含单独的 widget 头文件，但函数已在库中链接)
+#pragma once
+
+#ifndef LV_CONF_H
+#define LV_CONF_SKIP 1
+#endif
+
+#include <lvgl.h>
+
+// ── 显式包含核心头文件以提供 lv_obj_t 完整定义 ──
+#include <src/core/lv_obj.h>
+#include <src/core/lv_obj_pos.h>
+#include <src/core/lv_obj_style.h>
+#include <src/core/lv_obj_tree.h>
+
+// ── 手动声明所需的 LVGL C API ──
+// managed_components 中无单独的 widget 头文件 (src/widgets/ 不存在),
+// 但 lv_label_set_text / lv_bar_set_value 等函数已在 LVGL 库中链接,
+// 只需提供符合 LVGL ABI 的 C 链接声明即可。
+extern "C" {
+
+// src/widgets/lv_label.h
+void lv_label_set_text(lv_obj_t * obj, const char * text);
+
+// src/widgets/lv_bar.h
+int32_t lv_bar_get_value(const lv_obj_t * obj);
+void lv_bar_set_value(lv_obj_t * obj, int32_t value, lv_anim_enable_t anim);
+
+// src/widgets/lv_led.h
+void lv_led_set_brightness(lv_obj_t * led, uint8_t bright);
+void lv_led_set_color(lv_obj_t * led, lv_color_t color);
+
+// src/core/lv_obj_pos.h
+void lv_obj_set_x(lv_obj_t * obj, int32_t x);
+void lv_obj_set_y(lv_obj_t * obj, int32_t y);
+
+// src/core/lv_obj_style.h
+void lv_obj_set_style_text_color(lv_obj_t * obj, lv_color_t color, uint32_t sel);
+void lv_obj_set_style_bg_color(lv_obj_t * obj, lv_color_t color, uint32_t sel);
+
+// src/core/lv_scr.h
+lv_obj_t * lv_scr_act(void);
+
+}

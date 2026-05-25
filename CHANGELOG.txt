@@ -1,0 +1,414 @@
+╔══════════════════════════════════════════════════════════════════╗
+║        智能前级2.0 — 固件迭代记录 (ESP32-S3 + ESPHome)          ║
+║        最后更新: 2026-05-13                                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+文件清单:
+  智能前级2.0.yaml  — 主配置 (ESPHome + LVGL UI)
+  pga2311.h         — PGA2311 音量控制 IC 驱动 (SPI3_HOST)
+  msgeq7.h          — MSGEQ7 七段频谱分析器 + NTC 温度驱动
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【迭代1】McIntosh "Blue Power" UI 重设计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+目标: 参考麦景图(McIntosh)风格, 打造专业级 HiFi 前级 UI
+
+修改文件: 智能前级2.0.yaml
+
+  ▸ 色彩体系全面替换
+    - 背景: #050510 深蓝黑 (原黑色)
+    - 主文字: #D8E4F0 冷白 (原纯白)
+    - 强调色: #0090E8 麦景图蓝光 (原普通蓝)
+    - 次要文字: #4A6890 蓝灰
+    - 频谱渐变: 7阶蓝色 #003868→#004888→#005CA8→#006EC0→#0080D8→#0094F0→#00A8FF
+               (低音深蓝→高音亮蓝, 原为彩虹色)
+    - 峰值线: #FFFFFF 白色 (专业表头风格)
+    - 频谱轨道: #0C1628 深蓝底色
+
+  ▸ 新增 UI 元素
+    - 7 条白色峰值保持线 (peak_0~peak_6, h=2px, opa=180)
+    - 7 个频率标签 (63/160/400/1k/2.5k/6k/16kHz)
+    - 状态栏分隔线 (0x102040, y=15, h=1)
+
+  ▸ 布局调整
+    - 频谱条高度: 122→100px
+    - 音量条高度: 匹配 100px
+    - 频谱起始 x=68, 每条 w=46, 间距 6px
+
+  ▸ 设置页更新
+    - 背景色统一 0x050510
+    - 滑块背景色 color_track (#0C1628)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【迭代2】MSGEQ7 硬件调试 (5项修正)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+目标: 解决 MSGEQ7 在 3.3V 供电下的时序/噪声/校准问题
+
+修改文件: msgeq7.h
+
+  ▸ 修正1: STROBE 延时加倍
+    - STROBE 低电平延时: 20μs→40μs (3.3V 输出建立需 ≥36μs)
+    - STROBE 高电平延时: 20μs→40μs
+    - 原因: 3.3V 供电下模拟摆幅小, 输出建立比 5V 慢
+
+  ▸ 修正2: 噪声门限提升
+    - NOISE_GATE: 3→8
+    - 原因: 3.3V 供电底噪约 100-200mV, 对应 ADC ≈ 8-15/255
+    - 效果: 静音时频谱不再跳动
+
+  ▸ 修正3: NTC 温度 IIR 低通滤波
+    - 新增 _ntc_smooth 变量, NTC_IIR_ALPHA=0.15f
+    - 时间常数约 7s (@10s 读取间隔)
+    - 原因: 中值滤波后仍有 ±0.3°C 抖动
+
+  ▸ 修正4: 确认 3.3V 供电安全
+    - MSGEQ7 工作电压 2.7~5.5V, 3.3V 在规格内
+    - ESP32-S3 GPIO 无需分压, 直连安全
+
+  ▸ 修正5: 零漂校准
+    - 新增 _r_offset[7] / _l_offset[7] 数组
+    - setup() 丢弃前3帧期间采集偏置平均值
+    - read() 中减去偏置后再缩放
+    - 原因: 每片 MSGEQ7 静态偏置不同, 减去后静音更干净
+    - 启动时 ESP_LOGI 输出偏置值供调试
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【迭代3】ESP32-S3 性能极限榨取
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+目标: 最大化 ESP32-S3 运行效率, 消除所有性能瓶颈
+
+修改文件: 智能前级2.0.yaml + msgeq7.h + pga2311.h
+
+  ── A. sdkconfig 硬件调优 (智能前级2.0.yaml) ──
+
+    ▸ CPU 频率锁定 240MHz
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+
+    ▸ 缓存配置
+      数据缓存: 32KB→64KB  (CONFIG_ESP32S3_DATA_CACHE_SIZE_64KB)
+      指令缓存: 16KB→32KB  (CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE_32KB)
+      缓存行:   32B→64B    (数据+指令, 提升 DMA/PSRAM 命中率)
+
+    ▸ PSRAM 配置
+      八线模式: CONFIG_SPIRAM_MODE_OCT
+      80MHz:    CONFIG_SPIRAM_SPEED_80M
+      指令取自 PSRAM: CONFIG_SPIRAM_FETCH_INSTRUCTIONS (释放 Flash 带宽)
+      只读数据取自 PSRAM: CONFIG_SPIRAM_RODATA (字体 glyph 不抢 Flash)
+      允许 malloc: CONFIG_SPIRAM_USE_MALLOC
+
+    ▸ LVGL 渲染加速
+      SIMD 指令: CONFIG_LV_USE_DRAW_SW_ASM
+      硬件 FPU:  CONFIG_LV_DRAW_SW_ASM_ASSUME_VFP
+
+  ── B. SPI 速度提升 (智能前级2.0.yaml) ──
+
+    ▸ TFT 显示 SPI2_HOST: 40MHz→80MHz (ESP32-S3 SPI2 支持 DMA)
+    ▸ 显示组件 data_rate: 40MHz→80MHz
+
+  ── C. LVGL 缓冲区 (智能前级2.0.yaml) ──
+
+    ▸ buffer_size: 25%→100% (全帧 428×142×2=121KB, PSRAM 容纳)
+    ▸ 效果: 零撕裂渲染, 脏区单次传输
+
+  ── D. 频段增益整数化 (msgeq7.h) ──
+
+    ▸ float BAND_GAIN[7] → int BAND_GAIN_Q8[7]
+      {230, 256, 282, 320, 371, 435, 512}
+      等效增益: ×0.90, ×1.00, ×1.10, ×1.25, ×1.45, ×1.70, ×2.00
+    ▸ 运算: (float)r_val * BAND_GAIN[i] → (r_val * BAND_GAIN_Q8[i]) >> 8
+    ▸ 收益: 14 次 float 乘法 → 14 次 int 乘法+移位, 约 5x 加速
+
+  ── E. 单锁快照更新 (智能前级2.0.yaml) ──
+
+    ▸ 原来: 8 个 ESPHome interval action (14 次 get_combined/get_peak 加锁)
+    ▸ 现在: 1 个 interval lambda
+      - msgeq7::get_frame() 一次加锁拷贝 combined[7]+peak[7]+temperature
+      - 直接 LVGL API: lv_bar_set_value(bar, val, LV_ANIM_OFF)
+      - 值变化才更新: lv_bar_get_value() != val 时才 set
+      - 峰值线位置: lv_obj_set_y() 直接设置
+
+  ── F. PGA2311 SPI 时钟 ──
+
+    ▸ 初版: 4MHz
+    ▸ 性能迭代曾提至 10MHz (错误)
+    ▸ 详见迭代4修正
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【迭代4】PGA2311 SPI 致命超频修正 ★安全修正★
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+修改文件: pga2311.h
+
+  ▸ 问题: SPI 时钟从 4MHz 优化到 10MHz, 超出芯片绝对上限
+  ▸ 依据: TI PGA2311 Datasheet Page 6, Timing Requirements
+          fSCLK 最大 6.25MHz (时钟周期最少 160ns)
+  ▸ 危险: 超频 60% 会导致移位寄存器错位
+          数据错位时, 微小音量可能被解码为 0xFF (+31.5dB)
+          → 瞬间满功率输出, 可烧毁喇叭/永久损伤听力
+  ▸ 修正: clock_speed_hz: 10000000 → 4000000
+  ▸ 理由: 4MHz 下 16bit 传输仅 4μs, 相比 15ms fade 步进可忽略
+          音量渐变瓶颈不在 SPI 速度, 安全第一
+  ▸ 安全范围: ≤6.25MHz (建议 ≤6MHz 留余量)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【迭代5】音频检测自动输入切换
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+目标: 当检测到音频输入时自动切换到对应通道, 多路同时输入按优先级选择
+
+修改文件: 智能前级2.0.yaml
+
+  ▸ 新增全局变量 auto_input
+    - 类型: bool, restore_value=true, 默认 true (开启)
+    - 控制自动切换功能的启用/禁用
+
+  ▸ 新增脚本 auto_switch_input
+    - 触发条件: 任意音频传感器状态变化 (on_press / on_release)
+    - 防抖: 500ms 延迟等待所有传感器稳定 (mode: restart 自动重启计时)
+    - 优先级: CD(0) > DAC(1) > PC(2) > AUX(3)
+    - 切换逻辑:
+      1. 检查 auto_input 开关 / system_ready / switching_input / standby
+      2. 扫描所有 4 路音频传感器, 取最高优先级的活跃通道
+      3. 所有通道无信号 → 保持当前输入 (不切走)
+      4. 目标通道与当前相同 → 跳过
+      5. 目标通道不同 → 执行 switch_input 脚本 (含继电器切换/音量渐变)
+
+  ▸ 修改 4 路音频检测传感器 (audio_cd/dac/pc/aux)
+    - 新增 on_press → script.execute: auto_switch_input
+    - 新增 on_release → script.execute: auto_switch_input
+    - 保留原有滤波: delayed_on 100ms / delayed_off 500ms
+
+  ▸ 新增 HA 模板开关 auto_input_switch
+    - 名称: "自动输入切换"
+    - 图标: mdi:swap-horizontal
+    - restore_mode: RESTORE_DEFAULT_ON
+    - turn_on → auto_input=true
+    - turn_off → auto_input=false
+
+  ▸ 修改状态栏 lbl_audio
+    - 新增 A:/M: 前缀指示自动/手动模式
+    - A:CD DA PC AX = 自动模式
+    - M:CD DA PC AX = 手动模式
+    - x 位置调整: 88→70 (为前缀腾出空间)
+
+  场景示例:
+    - 仅 CD 有信号 → 自动切到 CD
+    - CD+DAC 同时有信号 → 切到 CD (优先级高)
+    - 当前在 CD, CD 停止, DAC 有信号 → 自动切到 DAC
+    - 所有输入无信号 → 保持当前通道
+    - auto_input=false → 不自动切换, 仅显示音频状态
+
+  ▸ 修改状态栏音频通道指示
+    - 原: 单个灰色 lbl_audio ("A:CD DA PC AX" / "-- ")
+      有信号和无信号都是灰色, 难以区分
+    - 新: 5 个独立标签
+      lbl_auto_mode: A:/M: 前缀 (灰色, 指示自动/手动模式)
+      lbl_sig_cd/da/pc/aux: 各通道独立指示
+        有信号 → #0090E8 麦景图亮蓝 (醒目)
+        无信号 → #1A2A40 深蓝黑 (几乎隐形)
+    - 效果: 一眼可见哪个通道有音频输入
+
+  ▸ 修改 WiFi / BLE 连接指示
+    - WiFi 原: 连接="WiFi"绿色, 断开="----"红色 (不直观)
+    - BLE 原: 连接="BLE"蓝色, 断开=""深色 (完全看不到)
+    - 改为: 固定文字 + 颜色区分 (与音频通道指示统一风格)
+      WiFi 已连接 → #00CC66 绿色, 未连接 → #2A3A50 暗灰 (始终显示 "WiFi")
+      BLE  已连接 → #0090E8 蓝色, 未连接 → #2A3A50 暗灰 (始终显示 "BLE")
+    - BLE x 位置调整: 380→385
+
+  ▸ 状态栏全面图标化 (LED 圆点替代文字)
+    - 设计理念: 专业 HiFi 设备 LED 指示灯风格, 亮=有效/暗=无效
+    - 删除文字标签: lbl_mute(MUTE), lbl_auto_mode(A:/M:),
+      lbl_sig_cd/da/pc/ax(CD/DA/PC/AX), lbl_wifi(WiFi), lbl_ble(BLE)
+    - 新增 obj 圆点 LED (radius=3/4, 圆形):
+      mute_led:    6×6  红#FF3300=静音 / 暗#0A1830=正常
+      auto_led:    6×6  蓝#0090E8=自动 / 灰#4A6890=手动
+      sig_cd_led:  6×6  蓝#0090E8=有信号 / 暗#0A1830=无信号
+      sig_dac_led: 6×6  (同上)
+      sig_pc_led:  6×6  (同上)
+      sig_aux_led: 6×6  (同上)
+      wifi_led:    8×8  绿#00CC66=已连接 / 暗#2A3A50=未连接
+      ble_led:     8×8  蓝#0090E8=已连接 / 暗#2A3A50=未连接
+    - 保留文字: lbl_input (当前输入名), lbl_temp (温度值)
+    - 颜色更新: 在 50ms interval lambda 中直接调用
+      lv_obj_set_style_bg_color() 确保实时刷新
+
+  ▸ 状态栏 SVG 图标替代 LED 圆点 (迭代6)
+    - 设计理念: 白色透明底 SVG 图标 + LVGL recolor 运行时着色
+      优势: 真实图标 (喇叭/WiFi/蓝牙等) 比圆点更直观, 且只需白色源图
+      着色机制: lv_obj_set_style_img_recolor + img_recolor_opa
+    - 新建 icons/ 目录, 6 个 SVG 图标文件 (源图任意尺寸, resize 自动缩放):
+      icon_mute.svg   → 显示 14×14  喇叭+X 静音图标
+      icon_auto.svg   → 显示 14×14  双向切换箭头图标
+      icon_signal.svg → 显示 12×12  音频信号波形条图标 (4路共用)
+      icon_wifi.svg   → 显示 14×14  WiFi 信号弧图标
+      icon_ble.svg    → 显示 14×14  蓝牙符号图标
+      icon_thermo.svg → 显示 12×12  温度计图标
+    - 新增 YAML image: 顶级组件 (6 个 img_mute/auto/signal/wifi/ble/thermo)
+    - 替换控件: obj 圆点 LED → image 图标
+      mute_icon:    img_mute   红#FF3300=静音 / 暗#0A1830=正常
+      auto_icon:    img_auto   蓝#0090E8=自动 / 灰蓝#4A6890=手动
+      sig_cd_icon:  img_signal 蓝#0090E8=有信号 / 暗#0A1830=无信号
+      sig_dac_icon: img_signal (同上)
+      sig_pc_icon:  img_signal (同上)
+      sig_aux_icon: img_signal (同上)
+      wifi_icon:    img_wifi   绿#00CC66=已连接 / 暗灰#2A3A50=未连接
+      ble_icon:     img_ble    蓝#0090E8=已连接 / 暗灰#2A3A50=未连接
+      thermo_icon:  img_thermo 灰#5A7A9A=常亮 (温度计, 在温度文字前)
+    - lambda 更新: lv_obj_set_style_bg_color → lv_obj_set_style_img_recolor
+      + lv_obj_set_style_img_recolor_opa(opa=COVER) 确保完全着色
+    - 温度: 新增温度计图标在数值左侧 (thermo_icon x=288)
+    - 保留文字: lbl_input (当前输入名), lbl_temp (温度数值)
+    - 用户可随时替换 icons/ 目录下的 SVG/PNG 文件, 保持文件名不变
+      源图任意尺寸 (如 40×40, 128×128 均可), resize 参数自动缩放到显示尺寸
+
+  ▸ 高端 HiFi 品牌风格图标扩展 (迭代7)
+    - 参考品牌: McIntosh(VU表/Power Guard), Accuphase(指针表/平衡端子),
+      Mark Levinson(极简/相位), Marantz(纯直通), NAD(数字/模拟标识)
+    - 新增 9 个图标文件 (icons/ 目录共 15 个):
+      icon_power.svg    14×14  电源/待机 (IEC标准电源符号)
+      icon_vu.svg       14×14  VU电平表 (McIntosh标志性双指针)
+      icon_headphone.svg 14×14 耳机 (全品牌通用)
+      icon_direct.svg   14×14  直通/纯音模式 (Marantz Pure Direct)
+      icon_phase.svg    14×14  相位指示 (Mark Levinson)
+      icon_clip.svg     14×14  削波/过载警告 (专业音频)
+      icon_digital.svg  12×12  数字输入 (NAD/Cambridge Audio 风格)
+      icon_analog.svg   12×12  模拟输入 (正弦波+A标识)
+      icon_balance.svg  14×14  平衡连接/XLR (Accuphase)
+    - 状态栏新增启用图标:
+      input_analog_icon / input_digital_icon: 输入类型 (同位重叠)
+        CD/AUX → img_analog (正弦波, 灰#5A7A9A)
+        DAC/PC → img_digital (0/1, 灰#5A7A9A)
+        实现方式: lv_obj_add_flag/clear_flag(LV_OBJ_FLAG_HIDDEN) 切换显隐
+      power_icon: 电源状态
+        工作 → img_power 绿#00CC66, 待机 → 暗橙#7A4A20
+    - 预留图标 (已注册 image, 功能待扩展):
+      img_vu / img_headphone / img_direct / img_phase / img_balance_conn
+    - 状态栏新布局:
+      [输入名] [类型] [静音] [自动] [信号×4]  ... [温度计+温度] [电源] [WiFi] [BLE]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【当前参数速查表】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  硬件平台:
+    MCU:     ESP32-S3 @ 240MHz
+    PSRAM:   八线 80MHz, 64KB 数据缓存, 32KB 指令缓存
+    显示:    NV3007 2.79" TFT 428×142, SPI2_HOST @ 80MHz, RGB565
+    音量IC:  PGA2311, SPI3_HOST @ 4MHz, CS=IO42/CLK=IO41/MOSI=IO2
+    频谱IC:  MSGEQ7, RST=IO45/STB=IO39/R_OUT=IO3/L_OUT=IO9
+    NTC:     IO4 (ADC1_CH3, 10kΩ+9.4kΩ@25°C 分压, B=3950)
+    编码器:  IO17(A)/IO18(B)/IO14(按键)
+    继电器:  IO5(IN1)/IO6(IN2)/IO7(IN3)/IO15(IN4)
+    静音:    IO16 (硬件静音 GPIO)
+    背光:    IO1 (LEDC PWM 5kHz)
+    音频检测: IO10(CD)/IO11(DAC)/IO12(PC)/IO13(AUX)
+    I2C:     SDA=IO38, SCL=IO40 @ 400kHz (预留)
+
+  MSGEQ7 参数:
+    供电:     3.3V (安全, 芯片规格 2.7~5.5V)
+    STROBE:   40μs 低 + 40μs 高 (3.3V 需要更长建立时间)
+    RESET:    100μs 高脉冲 + 100μs 后等待
+    噪声门限: 8 (0-255 量纲, 3.3V 底噪约 8-15)
+    零漂校准: setup() 3帧采样, 存于 _r_offset[7]/_l_offset[7]
+    频段增益: Q8 定点 {230,256,282,320,371,435,512}
+    平滑系数: 上升 0.35, 下降 0.12
+    峰值衰减: 每秒保留 0.49, 帧率无关 (powf)
+    NTC IIR:  α=0.15, 约 7s 时间常数 @10s 间隔
+    ADC:      频谱 12dB 衰减, NTC 6dB 衰减 + curve_fitting 校准
+    读取频率: 频谱 20Hz (50ms), NTC 0.1Hz (10s)
+
+  PGA2311 参数:
+    SPI 时钟: 4MHz (绝对上限 6.25MHz, 安全余量 36%)
+    协议:     CS低 → 16bit (R8+L8) → CS高
+    数值:     0=静音, 1=-95.5dB, 192≈0dB, 255=+31.5dB
+    Fade:     双区间渐变 (>10dB:0.12, >3dB:0.08, ≤3dB:0.18), 15ms 步进
+
+  LVGL 参数:
+    缓冲区:   100% 全帧 (~121KB, PSRAM)
+    颜色深度: 16bit RGB565
+    刷新:     仅脏区, partial_refresh
+    渲染加速: SIMD + FPU
+
+  UI 布局 (主页面 428×142):
+    状态栏:   y=0~15 (输入源+类型图标/静音/自动/信号×4/温度计+温度/电源/WiFi/BLE)
+    分隔线:   y=15, h=1
+    音量条:   x=4, y=18, w=16, h=100
+    音量标签: x=24, y=22 (百分比/dB/平衡)
+    频谱条:   x=68起, y=18, w=46×7, gap=6, h=100
+    峰值线:   跟随频谱 x, h=2, 白色 opa=180
+    频率标签: y=120, 居中对齐 (63/160/400/1k/2.5k/6k/16k)
+
+  UI 布局 (设置页 428×142):
+    三列 flex 布局
+    左列: 最大音量 (10~255)
+    中列: 声道平衡 (-20~20)
+    右列: 输入选择 (CD/DAC/PC/AUX) + 屏幕亮度 (0~100)
+
+  按键手势:
+    单击 (<500ms): 唤醒屏幕 或 LVGL encoder enter
+    双击 (<400ms×2): 切换主页面/设置页
+    长按 (≥800ms): 待机切换
+
+  自动输入切换:
+    开关: auto_input (默认开启, HA auto_input_switch 可控)
+    优先级: CD > DAC > PC > AUX
+    触发: 音频传感器 on_press/on_release → auto_switch_input 脚本
+    防抖: 500ms (mode:restart, 等所有传感器稳定)
+    状态栏图标: mute_icon(喇叭)/auto_icon(切换)/sig_cd~aux_icon(波形)/wifi_icon(WiFi)/ble_icon(蓝牙)/thermo_icon(温度计)
+    图标着色: 亮色=有效(蓝/绿/红), 暗色=无效(#0A1830/#2A3A50)
+    图标文件: icons/ 目录下 6 个白色透明底 SVG, 用户可替换
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【已知注意事项】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. LVGL 对象指针访问
+     代码中使用 id(spec_0)->obj_ 访问 LVGL 对象
+     如果编译失败, 可能需要改为 id(spec_0)->lv_obj 或其他成员名
+     (取决于 ESPHome 版本)
+
+  2. PSRAM 指令/只读缓存
+     CONFIG_SPIRAM_FETCH_INSTRUCTIONS / CONFIG_SPIRAM_RODATA
+     要求固件大小不超过 PSRAM 可用空间, 否则启动失败
+     如遇启动问题, 尝试关闭这两个选项
+
+  3. MSGEQ7 零漂校准前提
+     假设启动时无音频输入, 如果开机时有信号, 偏置值会偏高
+     导致正常播放时频谱偏低 — 可通过 ESP_LOGI 输出验证
+
+  4. NTC 温度范围限制
+     使用 6dB 衰减 (0~2.5V), 0°C 时 NTC≈31kΩ → V≈2.5V
+     低于 0°C 可能削顶, 室内前级场景可接受
+
+  5. PGA2311 SPI 绝对不可超频
+     fSCLK 最高 6.25MHz, 超频可导致数据错位 → 瞬间满输出
+     这不是性能问题, 是安全隐患 (可烧毁喇叭/损伤听力)
+     当前 4MHz 是安全值, 如需提速也不应超过 6MHz
+
+  6. SPI 总线分离
+     显示 SPI2_HOST (DMA, 80MHz) 与 PGA2311 SPI3_HOST (4MHz)
+     两者独立, 无总线共享冲突
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【升级检查清单 — 每次修改前必读】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  □ PGA2311 SPI 时速 ≤ 6.25MHz? (当前 4MHz ✓)
+  □ MSGEQ7 STROBE 延时 ≥ 36μs? (当前 40μs ✓)
+  □ NOISE_GATE 匹配供电电压? (3.3V → 8 ✓)
+  □ LVGL buffer 在 PSRAM 可容纳? (121KB < 8MB ✓)
+  □ sdkconfig 选项与 ESP-IDF 版本兼容?
+  □ LVGL obj_ 成员名与 ESPHome 版本匹配?
+  □ 零漂校准日志正常? (启动时查看 _r_offset/_l_offset)
+  □ NTC 温度显示稳定? (IIR 平滑后无闪烁)
+  □ 自动切换防抖合理? (当前 500ms, 传感器已有 100ms/500ms 滤波)
+  □ auto_input 状态栏图标着色正确? (蓝=自动, 灰蓝=手动)
+  □ SVG 图标文件在 icons/ 目录? (6个文件, ESPHome编译时读取)
+  □ 图标 recolor 机制正常? (lv_obj_set_style_img_recolor + opa=COVER)

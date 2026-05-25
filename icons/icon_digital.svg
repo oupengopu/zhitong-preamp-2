@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+  <!-- 数字输入标识 (0/1数字信号) -->
+  <text x="1" y="5" font-family="monospace" font-size="5" fill="white">0</text>
+  <text x="7" y="5" font-family="monospace" font-size="5" fill="white">1</text>
+  <line x1="0.5" y1="6.5" x2="11.5" y2="6.5" stroke="white" stroke-width="0.5" opacity="0.5"/>
+  <text x="2" y="10.5" font-family="monospace" font-size="4.5" fill="white">D</text>
+</svg>

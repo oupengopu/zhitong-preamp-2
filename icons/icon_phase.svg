@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
+  <!-- 相位指示 (Mark Levinson风格, 正相/反相) -->
+  <circle cx="7" cy="7" r="5.5" fill="none" stroke="white" stroke-width="1"/>
+  <text x="7" y="10.5" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold" fill="white">∅</text>
+</svg>

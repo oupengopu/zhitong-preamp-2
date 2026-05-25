@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
+  <!-- 蓝牙符号 -->
+  <path d="M4.5 2l5 4.5-5 4.5" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="4.5" y1="2" x2="4.5" y2="11" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M7 4.5l-2.5 2.5 2.5 2.5" fill="none" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+</svg>

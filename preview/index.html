@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能前级2.0 UI 预览 — 三屏设计</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --accent: #10B981; --accent-shadow: rgba(16,185,129,0.3); }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Montserrat', sans-serif;
+    flex-direction: column;
+    gap: 16px;
+    padding: 40px 20px;
+  }
+
+  .device {
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 40px color-mix(in srgb, var(--accent) 20%, transparent);
+    border: 1px solid #2a2a4a;
+  }
+
+  .screen {
+    width: 856px;
+    height: 284px;
+    background: #111827;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ═══ 页面通用 ===================== */
+  .page {
+    position: absolute; inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 1;
+  }
+  .page.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 2;
+  }
+
+  /* ═══ 第一屏：控制界面 (展示) ═══ */
+  .status-bar {
+    position: absolute; top: 2px; left: 0; right: 0; height: 48px;
+    display: flex; align-items: center; padding: 0 8px; z-index: 10;
+  }
+  .status-bar .mdi { font-size: 36px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; cursor: pointer; }
+  .src-icon { color: #333; }
+  .src-icon.signal { color: var(--accent); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 50%, transparent); }
+
+  .led { width: 14px; height: 14px; border-radius: 50%; position: absolute; top: 58px; transition: all 0.3s; }
+  .led.on  { background: var(--accent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); animation: breathe 2s ease-in-out infinite; }
+  .led.on.strong { animation: none; box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 90%, transparent); }
+  .led.off { background: #444; }
+  .led-0 { left: 18px; } .led-1 { left: 62px; } .led-2 { left: 106px; } .led-3 { left: 150px; }
+
+  .separator { position: absolute; top: 50px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #EF4444, #F59E0B, #10B981, #3B82F6, #8B5CF6, transparent); opacity: 0.7; background-size: 300% 100%; animation: shimmer 30s ease-in-out infinite; }
+
+  .db-label {
+    position: absolute; top: 76px; left: 0; right: 0; text-align: center;
+    font-size: 32px; font-weight: 700; color: var(--accent); height: 40px; line-height: 40px;
+    font-family: 'Montserrat', sans-serif; letter-spacing: 1px;
+  }
+
+  .volume-bar-wrap {
+    position: absolute; top: 118px; left: 10px; right: 10px; height: 52px;
+    background: #E9E8E8; opacity: 0.42; border-radius: 26px; overflow: hidden;
+  }
+  .volume-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #000), var(--accent));
+    border-radius: 26px;
+    transition: width 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.2);
+    position: relative;
+  }
+  .volume-bar-fill::after {
+    content: '';
+    position: absolute; top: 2px; left: 4px; right: 4px; height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.25), transparent);
+    border-radius: 26px 26px 0 0;
+  }
+
+  /* 声道平衡条 (主页面) */
+  .bal-row {
+    width: 100%; height: 28px; position: absolute; top: 222px;
+  }
+  .bal-label {
+    position: absolute; top: 0; width: 24px; height: 28px;
+    font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700;
+    text-align: center; line-height: 28px; color: #8E9FB8; transition: color 0.3s;
+  }
+  .bal-label.l { left: 112px; }
+  .bal-label.r { left: 720px; }
+  .bal-track {
+    position: absolute; top: 12px; left: 140px; width: 576px; height: 4px;
+    background: #444; border-radius: 2px;
+  }
+  .bal-dot {
+    position: absolute; top: 7px; width: 16px; height: 14px;
+    background: var(--accent); border-radius: 3px;
+    transition: left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  .bal-value {
+    text-align: center; font-size: 11px; color: #4A6890;
+    font-family: 'Montserrat', sans-serif; height: 16px; line-height: 16px; margin-top: 28px;
+  }
+
+  .right-status {
+    position: absolute; right: 8px; top: 0; height: 48px;
+    display: flex; align-items: center; gap: 8px; font-family: 'Montserrat', sans-serif;
+  }
+  .right-status .temp { font-size: 16px; color: #F1F5F9; display: flex; align-items: center; gap: 2px; }
+  .right-status .temp .deg { font-size: 12px; color: #8E9FB8; }
+  .right-status .icon { font-size: 28px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; }
+
+  /* ═══ 第二屏：立体声频谱 ═══ */
+  .spec-status {
+    position: absolute; top: 0; left: 0; right: 0; height: 32px;
+    display: flex; align-items: center; padding: 0 8px; z-index: 5;
+    background: linear-gradient(to bottom, rgba(17,24,39,0.7), transparent);
+    pointer-events: none;
+  }
+  .spec-status .input-name { font-size: 18px; color: rgba(255,255,255,0.3); font-family: 'Montserrat', sans-serif; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+  .spec-status .input-name .mdi { font-size: 22px; color: var(--accent); }
+  .spec-status .spec-temp { position: absolute; right: 8px; font-size: 16px; color: rgba(255,255,255,0.25); font-family: 'Montserrat', sans-serif; }
+
+  .spec-area {
+    position: absolute; top: 32px; left: 0; right: 0; bottom: 28px;
+    display: flex;
+    padding: 0 6px;
+  }
+  .vu-meter-row {
+    position: absolute; bottom: 17px; left: 6px; right: 6px; height: 8px;
+    display: flex; gap: 4px;
+  }
+  .vu-meter-wrap {
+    flex: 1;
+    background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;
+    position: relative;
+  }
+  .vu-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, #000), var(--accent));
+    border-radius: 4px;
+    transition: width 0.08s ease-out;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .vu-meter-fill::after {
+    content: '';
+    position: absolute; top: 1px; left: 2px; right: 2px; height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+    border-radius: 4px 4px 0 0;
+    pointer-events: none;
+  }
+  .ch-group {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+  }
+  .ch-group .bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.1s ease;
+    position: relative;
+    min-height: 1%;
+    overflow: hidden;
+    box-shadow: 0 -2px 8px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  .ch-group .bar::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 30%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.15), transparent);
+    border-radius: 2px 2px 0 0;
+    pointer-events: none;
+  }
+  .ch-group .bar .peak {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: rgba(255,255,255,0.7);
+    transition: top 0.12s ease;
+  }
+  .ch-divider {
+    width: 8px;
+    flex-shrink: 0;
+  }
+  .ch-label {
+    position: absolute;
+    top: 4px;
+    font-size: 8px;
+    font-family: 'Montserrat', sans-serif;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 2px;
+    pointer-events: none;
+  }
+  .ch-label.l { left: 14px; }
+  .ch-label.r { right: 14px; }
+
+  .freq-bar {
+    position: absolute; bottom: 2px; left: 0; right: 0;
+    display: flex;
+    padding: 0 6px;
+    pointer-events: none;
+  }
+  .freq-bar .freq-group {
+    flex: 1;
+    display: flex;
+    justify-content: space-around;
+  }
+  .freq-bar .freq-group span {
+    flex: 1;
+    text-align: center;
+    font-size: 7px;
+    color: rgba(255,255,255,0.15);
+    font-family: 'Montserrat', sans-serif;
+  }
+  .freq-divider {
+    width: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ═══ 第三屏：设置页面 (glassmorphism) ═══ */
+  .page-settings {
+    background: rgba(17,24,39,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .settings-grid {
+    display: flex;
+    height: 100%;
+    padding: 8px 6px;
+    gap: 4px;
+  }
+  .settings-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .settings-col:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .settings-col + .settings-col {
+    border-left: none;
+    padding-left: 8px;
+  }
+  .settings-label {
+    color: #4A6890;
+    font-size: 11px;
+    font-family: 'Montserrat', sans-serif;
+    text-align: center;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .settings-slider-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .settings-slider-track {
+    width: 100%;
+    height: 6px;
+    background: #1E2A3E;
+    border-radius: 3px;
+    position: relative;
+  }
+  .settings-slider-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.2s ease;
+  }
+  .settings-slider-fill.bal-fill {
+    position: absolute; top: 0;
+    width: 50%;
+    transition: width 0.2s ease, left 0.2s ease;
+  }
+  .settings-slider-thumb {
+    position: absolute; top: -4px;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-left: -7px;
+    transition: left 0.2s ease;
+    cursor: pointer;
+  }
+  .settings-slider-thumb:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .settings-slider-thumb.bal-thumb {
+    background: #34D399;
+  }
+  .settings-value {
+    color: #8E9FB8;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    font-family: 'Montserrat', sans-serif;
+    margin-top: 2px;
+  }
+  .settings-select {
+    background: #0A1628;
+    color: #E2E8F0;
+    border: 1px solid #1E2A3E;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+    width: 100%;
+  }
+  .settings-select:focus { border-color: var(--accent); outline: none; }
+  .settings-focused {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  /* ── 页面指示灯 ── */
+  .page-dots {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .page-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #2A3A50;
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .page-dot.active { background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .page-dot:hover { background: #4A6890; }
+
+  /* ── 控制面板 ── */
+  .controls {
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center;
+    background: #1a1a2e; padding: 20px 30px; border-radius: 12px; border: 1px solid #2a2a4a;
+  }
+  .controls label {
+    color: #8E9FB8; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Montserrat', sans-serif;
+  }
+  .controls input[type="range"] { width: 120px; accent-color: var(--accent); }
+  .controls select {
+    background: #111827; color: #F1F5F9; border: 1px solid #2a2a4a;
+    padding: 4px 8px; border-radius: 4px; font-family: 'Montserrat', sans-serif;
+  }
+  .check-group {
+    display: flex; gap: 12px; align-items: center; color: #F1F5F9;
+    font-size: 12px; font-family: 'Montserrat', sans-serif;
+  }
+  .check-group label { flex-direction: row; cursor: pointer; }
+
+  .title {
+    color: #8E9FB8; font-size: 14px; font-family: 'Montserrat', sans-serif;
+    letter-spacing: 2px; text-align: center;
+  }
+  .info-badge {
+    background: #1a1a2e;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #2a2a4a;
+    color: #8E9FB8;
+    font-size: 13px;
+    font-family: 'Montserrat', sans-serif;
+    text-align: center;
+  }
+  .info-badge strong { color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .screen { transform: scale(0.5); margin: -142px 0; }
+  }
+  @media (max-width: 500px) {
+    .screen { transform: scale(0.35); margin: -184px 0; }
+  }
+
+  /* ═══ UI 动画关键帧 ═══ */
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.18); opacity: 1; }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes scaleBounce {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.18); }
+    65% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+  @keyframes fadeInScale {
+    0% { opacity: 0; transform: scale(0.7); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes powerPulse {
+    0%, 100% { filter: drop-shadow(0 0 4px var(--accent)); }
+    50% { filter: drop-shadow(0 0 14px var(--accent)); }
+  }
+  @keyframes slideInRight {
+    0% { transform: translateX(40px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideInLeft {
+    0% { transform: translateX(-40px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  .db-label.bounce { animation: scaleBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .page.active.animate-in { animation: fadeInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .settings-slider-track { box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+  .settings-select { transition: border-color 0.3s, box-shadow 0.3s; }
+  .settings-select:focus { border-color: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); outline: none; }
+  .settings-slider-thumb { transition: left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s; }
+  .page-dot { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+</style>
+</head>
+<body>
+
+<div class="title">智能前级2.0 — 三屏设计 · 立体声频谱 · 编码器操作</div>
+<div class="info-badge">
+  🎯 <strong>第一屏</strong> 控制展示 ｜ 10s 无操作 → <strong>第二屏</strong> 立体声频谱 ｜ 编码器双击 → <strong>第三屏</strong> 设置
+  <span style="display:block;font-size:11px;margin-top:4px;color:#4A6890;">
+    📟 编码器: 旋转=音量(大字浮层) ｜ 单击=确认/唤醒 ｜ 双击=切换设置页 ｜ 长按=待机/AP配网
+  </span>
+  <span style="display:block;font-size:11px;margin-top:2px;color:#4A6890;">
+    当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">10</span>s 后自动跳转频谱
+  </span>
+</div>
+
+<div class="device">
+<div class="screen" id="screen">
+
+  <!-- ═══ 第一屏：控制界面 (展示) ═══ -->
+  <div class="page active" id="pageMain">
+    <div class="status-bar">
+      <span class="mdi mdi-disc-player src-icon active" id="src0"></span>
+      <span class="mdi mdi-chip src-icon" id="src1"></span>
+      <span class="mdi mdi-laptop src-icon" id="src2"></span>
+      <span class="mdi mdi-audio-input-stereo-minijack src-icon" id="src3"></span>
+      <div style="flex:1"></div>
+      <div class="right-status">
+        <div class="icon" style="color:var(--accent);font-size:24px;width:30px;"><span class="mdi mdi-thermometer"></span></div>
+        <div class="temp"><span id="tempVal">32.5</span><span class="deg">°C</span></div>
+        <div class="icon" id="muteIcon" style="color:#EF4444;display:none;"><span class="mdi mdi-volume-off"></span></div>
+        <div class="icon" id="powerIcon"><span class="mdi mdi-power"></span></div>
+        <div class="icon" id="bleIcon" style="font-size:26px;width:34px;"><span class="mdi mdi-bluetooth"></span></div>
+        <div class="icon" id="wifiIcon" style="font-size:24px;width:34px;"><span class="mdi mdi-wifi"></span></div>
+      </div>
+    </div>
+    <div class="led led-0 on" id="led0"></div>
+    <div class="led led-1 off" id="led1"></div>
+    <div class="led led-2 off" id="led2"></div>
+    <div class="led led-3 off" id="led3"></div>
+    <div class="separator"></div>
+    <div class="db-label" id="dbLabel">-32.0dB</div>
+    <div class="volume-bar-wrap"><div class="volume-bar-fill" id="volFill"></div></div>
+    <div class="bal-row">
+      <span class="bal-label l" id="balLabelL">L</span>
+      <span class="bal-label r" id="balLabelR">R</span>
+      <div class="bal-track"></div>
+      <div class="bal-dot" id="balDot" style="left:420px"></div>
+      <div class="bal-value" id="balVal">平衡</div>
+    </div>
+
+  </div>
+
+  <!-- ═══ 第二屏：立体声频谱 (14条) ═══ -->
+  <div class="page" id="pageSpectrum">
+    <div class="spec-status">
+      <div class="input-name"><span class="mdi mdi-radio" id="specSrcIcon"></span><span id="specInputName" style="font-size:18px;">CD</span></div>
+      <span class="spec-temp" id="specTemp" style="font-size:16px;">32.5°C</span>
+    </div>
+
+    <span class="ch-label l">L</span>
+    <span class="ch-label r">R</span>
+
+    <div class="spec-area">
+      <div class="ch-group" id="specLeft">
+        <div class="bar" style="background:#064E3B;"><div class="peak"></div></div>
+        <div class="bar" style="background:#065F46;"><div class="peak"></div></div>
+        <div class="bar" style="background:#047857;"><div class="peak"></div></div>
+        <div class="bar" style="background:#059669;"><div class="peak"></div></div>
+        <div class="bar" style="background:#10B981;"><div class="peak"></div></div>
+        <div class="bar" style="background:#34D399;"><div class="peak"></div></div>
+        <div class="bar" style="background:#6EE7B7;"><div class="peak"></div></div>
+      </div>
+      <div class="ch-divider"></div>
+      <div class="ch-group" id="specRight">
+        <div class="bar" style="background:#064E3B;"><div class="peak"></div></div>
+        <div class="bar" style="background:#065F46;"><div class="peak"></div></div>
+        <div class="bar" style="background:#047857;"><div class="peak"></div></div>
+        <div class="bar" style="background:#059669;"><div class="peak"></div></div>
+        <div class="bar" style="background:#10B981;"><div class="peak"></div></div>
+        <div class="bar" style="background:#34D399;"><div class="peak"></div></div>
+        <div class="bar" style="background:#6EE7B7;"><div class="peak"></div></div>
+      </div>
+    </div>
+
+    <!-- VU 电平条 (L/R 声道独立) -->
+    <div class="vu-meter-row">
+      <div class="vu-meter-wrap"><div class="vu-meter-fill" id="vuFillL" style="width:0%"></div></div>
+      <div class="vu-meter-wrap"><div class="vu-meter-fill" id="vuFillR" style="width:0%"></div></div>
+    </div>
+
+    <div class="freq-bar">
+      <div class="freq-group">
+        <span>63</span><span>160</span><span>400</span><span>1k</span><span>2.5k</span><span>6k</span><span>16k</span>
+      </div>
+      <div class="freq-divider"></div>
+      <div class="freq-group">
+        <span>63</span><span>160</span><span>400</span><span>1k</span><span>2.5k</span><span>6k</span><span>16k</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 第三屏：设置页面 ═══ -->
+  <div class="page page-settings" id="pageSettings">
+    <div class="settings-grid">
+      <!-- 左列：最大音量 + 开机音量 -->
+      <div class="settings-col">
+        <div class="settings-label">最大音量</div>
+        <div class="settings-slider-wrap" data-focus-index="0">
+          <div class="settings-slider-track">
+            <div class="settings-slider-fill" id="sMaxVolFill" style="width:63%"></div>
+            <div class="settings-slider-thumb" id="sMaxVolThumb" style="left:63%"></div>
+          </div>
+        </div>
+        <div class="settings-value" id="sMaxVolVal">160</div>
+        <div class="settings-label">开机音量</div>
+        <div class="settings-slider-wrap" data-focus-index="1">
+          <div class="settings-slider-track">
+            <div class="settings-slider-fill" id="sPowerOnFill" style="width:43%"></div>
+            <div class="settings-slider-thumb" id="sPowerOnThumb" style="left:43%"></div>
+          </div>
+        </div>
+        <div class="settings-value" id="sPowerOnVal">110</div>
+      </div>
+
+      <!-- 中列：声道平衡 -->
+      <div class="settings-col">
+        <div class="settings-label">声道平衡</div>
+        <div class="settings-slider-wrap" data-focus-index="3">
+          <div class="settings-slider-track" style="background:linear-gradient(to right, #1A2A40, #1E2A3E, #1A2A40);">
+            <div class="settings-slider-fill bal-fill" id="sBalFill" style="width:50%;left:50%"></div>
+            <div class="settings-slider-thumb bal-thumb" id="sBalThumb" style="left:50%"></div>
+          </div>
+        </div>
+        <div class="settings-value" id="sBalVal">平衡</div>
+        <div class="settings-label" style="margin-top:1px;font-size:11px;color:#8E9FB8;font-weight:500;">固件:v2.0.0</div>
+        <div class="settings-label" style="font-size:11px;color:#8E9FB8;font-weight:500;" id="sIpAddr">IP:192.168.1.100</div>
+      </div>
+
+      <!-- 右列：输入选择 + 亮度 + 超时 -->
+      <div class="settings-col">
+        <div class="settings-label">输入选择</div>
+        <select class="settings-select" data-focus-index="4" id="sInputSelect" onchange="onUserAction('input',parseInt(this.value))">
+          <option value="0">CD</option>
+          <option value="1">DAC</option>
+          <option value="2">PC</option>
+          <option value="3">AUX</option>
+        </select>
+        <div class="settings-label" style="margin-top:4px;">屏幕亮度</div>
+        <div class="settings-slider-wrap" style="flex:0.5;" data-focus-index="5">
+          <div class="settings-slider-track">
+            <div class="settings-slider-fill" style="background:#FFFFFF;width:80%" id="sBrightFill"></div>
+            <div class="settings-slider-thumb" id="sBrightThumb" style="left:80%;background:#FFFFFF;"></div>
+          </div>
+        </div>
+        <div class="settings-value" id="sBrightVal">80%</div>
+        <div class="settings-label" style="margin-top:2px;">息屏超时</div>
+        <div class="settings-slider-wrap" style="flex:0.5;" data-focus-index="6">
+          <div class="settings-slider-track">
+            <div class="settings-slider-fill" style="width:12%" id="sTimeoutFill"></div>
+            <div class="settings-slider-thumb" id="sTimeoutThumb" style="left:12%"></div>
+          </div>
+        </div>
+        <div class="settings-value" id="sTimeoutVal">5分钟</div>
+        <div class="settings-label" style="margin-top:2px;">主题色彩</div>
+        <select class="settings-select" data-focus-index="2" id="sThemeSelect" onchange="setTheme(parseInt(this.value))">
+          <option value="0">绿</option>
+          <option value="1">红</option>
+          <option value="2">蓝</option>
+          <option value="3">紫</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 音量浮层 (透明覆盖, 2秒自动消失) ═══ -->
+  <div class="page" id="pageVolumeBig" style="z-index:20;background:transparent;pointer-events:none;display:flex;align-items:center;justify-content:center;">
+    <div id="volBigLabel" style="font-family:'Montserrat',sans-serif;font-size:42px;font-weight:600;color:var(--accent);text-shadow:0 0 30px var(--accent-shadow);letter-spacing:1px;">-32.0dB</div>
+  </div>
+</div>
+</div>
+
+<!-- 页面指示点 -->
+<div class="page-dots">
+  <div class="page-dot active" onclick="showPage(0)" title="控制屏"></div>
+  <div class="page-dot" onclick="showPage(1)" title="频谱屏"></div>
+  <div class="page-dot" onclick="showPage(2)" title="设置屏"></div>
+</div>
+
+<!-- 控制面板 -->
+<div class="controls">
+  <label>音量
+    <input type="range" min="0" max="100" value="60" id="volSlider" oninput="onUserAction('volume',this.value)">
+  </label>
+  <label>输入
+    <select id="inputSelect" style="display:none;">
+      <option value="0">CD</option><option value="1">DAC</option>
+      <option value="2">PC</option><option value="3">AUX</option>
+    </select>
+  </label>
+  <label>温度 °C
+    <input type="range" min="20" max="60" value="32" id="tempSlider" oninput="setTemp(this.value)">
+  </label>
+  <label>平衡
+    <input type="range" min="-20" max="20" value="0" id="balSlider" oninput="onUserAction('balance',this.value)">
+  </label>
+  <label>亮度
+    <input type="range" min="0" max="100" value="80" id="brightSlider" oninput="onUserAction('brightness',this.value)">
+  </label>
+  <label>超时(分)
+    <input type="range" min="1" max="60" value="5" id="timeoutSlider" oninput="onUserAction('timeout',this.value)">
+  </label>
+  <label>开机音量
+    <input type="range" min="10" max="255" value="110" id="powerOnSlider" oninput="onUserAction('poweron',this.value)">
+  </label>
+  <label>最大音量
+    <input type="range" min="10" max="255" value="160" id="maxVolSlider" oninput="onUserAction('maxvol',this.value)">
+  </label>
+  <div class="check-group">
+    <label><input type="checkbox" id="chkWifi" checked onchange="onUserAction('wifi')"> WiFi</label>
+    <label><input type="checkbox" id="chkBle" onchange="onUserAction('ble')"> BLE</label>
+    <label><input type="checkbox" id="chkStandby" onchange="toggleStandby()"> 待机</label>
+    <label><input type="checkbox" id="chkMute" onchange="toggleMute()"> 静音</label>
+  </div>
+  <div class="check-group" style="margin-top:6px;">
+    <label style="color:#4A6890;font-size:10px;">信号:</label>
+    <label><input type="checkbox" id="sig0" checked onchange="toggleSignal(0)"> CD</label>
+    <label><input type="checkbox" id="sig1" onchange="toggleSignal(1)"> DAC</label>
+    <label><input type="checkbox" id="sig2" onchange="toggleSignal(2)"> PC</label>
+    <label><input type="checkbox" id="sig3" checked onchange="toggleSignal(3)"> AUX</label>
+  </div>
+</div>
+
+<script>
+  const state = {
+    input: 0, volume: 60, temp: 32.5, balance: 0,
+    wifi: true, ble: false, standby: false, muted: false,
+    maxVolume: 160, powerOnLimit: 110, brightness: 80, displayTimeout: 5,
+    currentPage: 0,  // 0=main, 1=spectrum, 2=settings
+    idleTimer: null, idleCount: 30, specInterval: null, volBigTimer: null,
+    signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
+    theme: 0,  // 0=绿, 1=红, 2=蓝, 3=紫
+    settingsFocus: 0,
+    settingsActive: -1
+  };
+
+  const ACCENT_COLORS = ['#10B981', '#EF4444', '#3B82F6', '#8B5CF6'];
+  const THEMES = ['绿', '红', '蓝', '紫'];
+  const SPEC_COLORS = [
+    ['#064E3B','#065F46','#047857','#059669','#10B981','#34D399','#6EE7B7'], // 绿
+    ['#4E0606','#5F0E0E','#781A1A','#962828','#B93A3A','#D36060','#E79494'], // 红
+    ['#0E1E4E','#16285F','#1E3478','#284296','#3A5AB9','#607AD3','#94AEE7'], // 蓝
+    ['#2E0E4E','#3E1A5F','#4E2878','#5E3A96','#7A52B9','#9A78D3','#C0A8E7'], // 紫
+  ];
+
+  function getAccent() { return ACCENT_COLORS[state.theme] || ACCENT_COLORS[0]; }
+  const SRC_NAMES = ['CD','DAC','PC','AUX'];
+  const SRC_MDIS = ['mdi-disc-player','mdi-chip','mdi-laptop','mdi-audio-input-stereo-minijack'];
+  const PAGE_NAMES = ['控制屏', '立体声频谱', '设置屏'];
+
+  function onUserAction(type, val) {
+    if (type === 'volume') { state.volume = parseInt(val); updateVolume(); showVolumeBig(); updateLed(state.input); return; }
+    else if (type === 'input') { setInput(parseInt(val), true); }
+    else if (type === 'balance') { state.balance = parseInt(val); updateBalance(); updateSettingsBalance(); }
+    else if (type === 'wifi' || type === 'ble') updateStatus();
+    else if (type === 'brightness') { state.brightness = parseInt(val); updateSettingsBrightness(); }
+    else if (type === 'timeout') { state.displayTimeout = parseInt(val); updateSettingsTimeout(); }
+    else if (type === 'poweron') { state.powerOnLimit = parseInt(val); updateSettingsPowerOn(); }
+    else if (type === 'maxvol') { state.maxVolume = parseInt(val); updateSettingsMaxVol(); }
+    showPage(0);
+    resetIdleTimer();
+  }
+
+  function showPage(idx) {
+    if (state.standby && idx !== 0) return;
+    const prev = state.currentPage;
+    state.currentPage = idx;
+    const pages = document.querySelectorAll('.page');
+    pages.forEach((el, i) => {
+      el.classList.toggle('active', i === idx);
+      el.classList.remove('animate-in');
+    });
+    // Add slide animation direction
+    if (idx !== prev) {
+      const activePage = pages[idx];
+      if (activePage) {
+        activePage.classList.add('animate-in');
+        // Remove animation class after it completes
+        setTimeout(() => activePage.classList.remove('animate-in'), 400);
+      }
+    }
+    document.querySelectorAll('.page-dot').forEach((el, i) => {
+      el.classList.toggle('active', i === idx);
+    });
+    document.getElementById('pageName').textContent = PAGE_NAMES[idx] || '音量';
+
+    if (idx === 0) stopSpec();
+    if (idx === 1) startSpec();
+    if (idx === 2) { stopSpec(); updateSettings(); state.settingsFocus = 0; state.settingsActive = -1; updateSettingsFocus(); }
+
+    if (idx !== 0 && state.idleTimer) {
+      // Don't clear timer on manual page switch, let it run
+    }
+  }
+
+  function resetIdleTimer() {
+    if (state.standby) return;
+    state.idleCount = 30;
+    document.getElementById('idleCountdown').textContent = '30';
+    if (state.idleTimer) clearInterval(state.idleTimer);
+    state.idleTimer = setInterval(() => {
+      // Don't count down on settings page or volume big overlay
+      if (state.currentPage === 2 || state.currentPage === 3) {
+        state.idleCount = 10;
+        document.getElementById('idleCountdown').textContent = '10';
+        return;
+      }
+      state.idleCount--;
+      document.getElementById('idleCountdown').textContent = state.idleCount;
+      if (state.idleCount <= 0) {
+        clearInterval(state.idleTimer);
+        state.idleTimer = null;
+        // 主页有信号 → 频谱；频谱无信号 → 主页
+        if (state.currentPage === 0 && state.signalDetected[state.input]) {
+          showPage(1);
+        } else if (state.currentPage === 1 && !state.signalDetected[state.input]) {
+          showPage(0);
+        }
+      }
+    }, 1000);
+  }
+
+  function setInput(idx, skipReset) {
+    state.input = idx;
+    document.getElementById('inputSelect').value = idx;
+    document.getElementById('sInputSelect').value = idx;
+    // LED: 当前选中根据信号强度显示, 其余熄灭
+    for (let i = 0; i < 4; i++) {
+      updateLed(i);
+    }
+    // 输入图标: 有信号就点亮（绿色），无信号灰色
+    const ids = ['src0','src1','src2','src3'];
+    ids.forEach((id, i) => {
+      const base = SRC_MDIS[i].replace('mdi-','');
+      document.getElementById(id).className = 'mdi mdi-' + base + ' src-icon' + (state.signalDetected[i] ? ' signal' : '');
+    });
+    if (!skipReset) onUserAction('input', idx);
+  }
+
+  function updateVolume() {
+    const pct = state.volume;
+    const reg = pct / 100 * 255;
+    const db = reg < 1 ? -96 : (reg - 255) * 0.5;
+    document.getElementById('dbLabel').textContent = db.toFixed(1) + 'dB';
+    document.getElementById('volFill').style.width = pct + '%';
+    document.getElementById('volSlider').value = pct;
+    // dB label bounce animation
+    const lbl = document.getElementById('dbLabel');
+    lbl.classList.remove('bounce');
+    void lbl.offsetWidth; // force reflow
+    lbl.classList.add('bounce');
+  }
+
+  function updateSettingsFocus() {
+    const idx = state.settingsFocus;
+    const active = state.settingsActive;
+    document.querySelectorAll('[data-focus-index]').forEach(el => {
+      const i = parseInt(el.dataset.focusIndex);
+      if (i === idx) {
+        el.classList.add('settings-focused');
+        el.style.outlineWidth = (active === i) ? '3px' : '2px';
+      } else {
+        el.classList.remove('settings-focused');
+      }
+    });
+  }
+
+  // 键盘模拟编码器导航（设置页: ↑↓, Enter, Esc）
+  document.addEventListener('keydown', (e) => {
+    if (state.currentPage !== 2) return;
+    const N = 7;
+    if (e.key === 'ArrowDown') {
+      state.settingsFocus = (state.settingsFocus + 1) % N;
+      updateSettingsFocus();
+    } else if (e.key === 'ArrowUp') {
+      state.settingsFocus = (state.settingsFocus - 1 + N) % N;
+      updateSettingsFocus();
+    } else if (e.key === 'Enter') {
+      if (state.settingsActive < 0) {
+        state.settingsActive = state.settingsFocus;
+      } else {
+        state.settingsActive = -1;
+      }
+      updateSettingsFocus();
+    } else if (e.key === 'Escape') {
+      state.settingsActive = -1;
+      showPage(0);
+    }
+  });
+
+  function updateBalance() {
+    const bal = state.balance;
+    const balDot = document.getElementById('balDot');
+    if (!balDot) return;
+    // 匹配 YAML 1x: dot_x = 210 + bal * 144 / 20, clamp [66, 354]
+    // HTML 2x:        dot_x = 420 + bal * 288 / 20, clamp [132, 708]
+    let dotX = 420 + bal * 288 / 20;
+    if (dotX < 132) dotX = 132;
+    if (dotX > 708) dotX = 708;
+    balDot.style.left = dotX + 'px';
+    const lblL = document.getElementById('balLabelL');
+    const lblR = document.getElementById('balLabelR');
+    if (lblL) lblL.style.color = bal < 0 ? getAccent() : '#8E9FB8';
+    if (lblR) lblR.style.color = bal > 0 ? getAccent() : '#8E9FB8';
+    const balVal = document.getElementById('balVal');
+    if (bal === 0) balVal.textContent = '平衡';
+    else balVal.textContent = (bal < 0 ? 'L' : 'R') + Math.abs(bal);
+  }
+
+  function showVolumeBig() {
+    const reg = state.volume / 100 * 255;
+    const db = reg < 1 ? -96 : (reg - 255) * 0.5;
+    document.getElementById('volBigLabel').textContent = db.toFixed(1) + 'dB';
+
+    const overlay = document.getElementById('pageVolumeBig');
+    overlay.classList.add('active');
+    overlay.style.animation = 'none';
+    void overlay.offsetWidth;
+    overlay.style.animation = 'fadeInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    state.currentPage = 3;
+    resetIdleTimer();
+    clearTimeout(state.volBigTimer);
+    state.volBigTimer = setTimeout(() => {
+      overlay.classList.remove('active');
+      if (state.currentPage === 3) showPage(0);
+    }, 2000);
+  }
+
+  function setTemp(val) {
+    state.temp = parseFloat(val);
+    document.getElementById('tempVal').textContent = state.temp.toFixed(1);
+    document.getElementById('specTemp').textContent = state.temp.toFixed(1) + '°C';
+  }
+
+  // ── 第三屏设置页更新 ──
+  function updateSettings() {
+    updateSettingsMaxVol();
+    updateSettingsPowerOn();
+    updateSettingsBalance();
+    updateSettingsBrightness();
+    updateSettingsTimeout();
+    document.getElementById('sThemeSelect').value = state.theme;
+  }
+
+  function updateSettingsMaxVol() {
+    const pct = Math.min(100, (state.maxVolume / 255) * 100);
+    document.getElementById('sMaxVolFill').style.width = pct + '%';
+    document.getElementById('sMaxVolThumb').style.left = pct + '%';
+    document.getElementById('sMaxVolVal').textContent = state.maxVolume;
+  }
+
+  function updateSettingsPowerOn() {
+    const pct = Math.min(100, (state.powerOnLimit / 255) * 100);
+    document.getElementById('sPowerOnFill').style.width = pct + '%';
+    document.getElementById('sPowerOnThumb').style.left = pct + '%';
+    document.getElementById('sPowerOnVal').textContent = state.powerOnLimit;
+  }
+
+  function updateSettingsBalance() {
+    const bal = state.balance;
+    const center = 50 + (bal / 20) * 50;
+    document.getElementById('sBalFill').style.width = Math.abs(bal / 20) * 50 + '%';
+    document.getElementById('sBalFill').style.left = bal <= 0 ? center : '50%';
+    document.getElementById('sBalThumb').style.left = center + '%';
+    if (bal === 0) document.getElementById('sBalVal').textContent = '平衡';
+    else document.getElementById('sBalVal').textContent = (bal < 0 ? 'L' : 'R') + Math.abs(bal);
+  }
+
+  function updateSettingsBrightness() {
+    const pct = state.brightness;
+    document.getElementById('sBrightFill').style.width = pct + '%';
+    document.getElementById('sBrightThumb').style.left = pct + '%';
+    document.getElementById('sBrightVal').textContent = pct + '%';
+  }
+
+  function updateSettingsTimeout() {
+    const pct = (state.displayTimeout / 60) * 100;
+    document.getElementById('sTimeoutFill').style.width = pct + '%';
+    document.getElementById('sTimeoutThumb').style.left = pct + '%';
+    document.getElementById('sTimeoutVal').textContent = state.displayTimeout + '分钟';
+  }
+
+  function updateStatus() {
+    state.wifi = document.getElementById('chkWifi').checked;
+    state.ble = document.getElementById('chkBle').checked;
+    document.getElementById('wifiIcon').style.color = state.wifi ? '#FFFFFF' : '#333';
+    document.getElementById('bleIcon').style.color = state.ble ? '#FFFFFF' : '#333';
+  }
+
+  function toggleStandby() {
+    state.standby = document.getElementById('chkStandby').checked;
+    const pwr = document.getElementById('powerIcon');
+    pwr.style.color = state.standby ? '#666' : getAccent();
+    pwr.style.animation = state.standby ? 'none' : 'powerPulse 2s ease-in-out infinite';
+    if (state.standby) {
+      if (state.idleTimer) clearInterval(state.idleTimer);
+      showPage(0);
+    } else resetIdleTimer();
+  }
+
+  function toggleMute() {
+    state.muted = document.getElementById('chkMute').checked;
+    const el = document.getElementById('muteIcon');
+    el.style.display = state.muted ? '' : 'none';
+    updateLed(state.input);
+  }
+
+  // ── 信号检测模拟 ──
+  function toggleSignal(idx) {
+    state.signalDetected[idx] = document.getElementById('sig' + idx).checked;
+    updateLed(idx);
+    const ids = ['src0','src1','src2','src3'];
+    ids.forEach((id, i) => {
+      const base = SRC_MDIS[i].replace('mdi-','');
+      document.getElementById(id).className = 'mdi mdi-' + base + ' src-icon' + (state.signalDetected[i] ? ' signal' : '');
+    });
+  }
+
+  // ── LED 更新 (信号强度) ──
+  function updateLed(idx) {
+    const el = document.getElementById('led' + idx);
+    if (!el) return;
+    const isSelected = idx === state.input;
+    const hasSignal = state.signalDetected[idx];
+    if (!isSelected || !hasSignal) {
+      el.className = 'led led-' + idx + ' off';
+      el.style.background = '#444';
+      el.style.animation = '';
+      el.style.opacity = '';
+    } else if (state.muted) {
+      el.className = 'led led-' + idx + ' off';
+      el.style.background = '#333';
+      el.style.animation = '';
+      el.style.opacity = '';
+    } else if (state.volume > 50) {
+      el.className = 'led led-' + idx + ' on strong';
+      el.style.background = '';
+      el.style.animation = 'none';
+      el.style.opacity = '1';
+    } else {
+      el.className = 'led led-' + idx + ' on';
+      el.style.background = '';
+      el.style.animation = '';
+      el.style.opacity = '';
+    }
+  }
+
+  // ── 主题切换 ──
+  function setTheme(idx) {
+    state.theme = idx;
+    const hex = getAccent();
+    document.documentElement.style.setProperty('--accent', hex);
+    const r = parseInt(hex.slice(1,3), 16);
+    const g = parseInt(hex.slice(3,5), 16);
+    const b = parseInt(hex.slice(5,7), 16);
+    const shadow = `rgba(${r},${g},${b},0.3)`;
+    document.documentElement.style.setProperty('--accent-shadow', shadow);
+    // 更新滑块、电源图标颜色等
+    if (state.currentPage === 2) updateSettings();
+    updateSpecColors();
+    updateBalance();
+    const pwr = document.getElementById('powerIcon');
+    if (pwr) {
+      pwr.style.color = state.standby ? '#666' : hex;
+      pwr.style.animation = state.standby ? 'none' : 'powerPulse 2s ease-in-out infinite';
+    }
+  }
+
+  // ── 频谱条颜色跟随主题 ──
+  function updateSpecColors() {
+    const colors = SPEC_COLORS[state.theme] || SPEC_COLORS[0];
+    document.querySelectorAll('#specLeft .bar, #specRight .bar').forEach((el, i) => {
+      el.style.background = colors[i % 7];
+    });
+  }
+
+  // ── 立体声频谱动画 ──
+  function startSpec() {
+    if (state.specInterval) return;
+    const leftBars = document.querySelectorAll('#specLeft .bar');
+    const rightBars = document.querySelectorAll('#specRight .bar');
+    const leftPeaks = document.querySelectorAll('#specLeft .peak');
+    const rightPeaks = document.querySelectorAll('#specRight .peak');
+    const lBases = [18, 28, 42, 58, 40, 25, 15];
+    const rBases = [22, 32, 38, 52, 44, 30, 18];
+    let lPeaks = [...lBases], rPeaks = [...rBases];
+    const TOTAL_H = 246;
+
+    // Update input source display
+    const icon = document.getElementById('specSrcIcon');
+    icon.className = 'mdi ' + SRC_MDIS[state.input];
+    icon.style.color = getAccent();
+    document.getElementById('specInputName').textContent = SRC_NAMES[state.input];
+    document.getElementById('specTemp').textContent = state.temp.toFixed(1) + '°C';
+
+    state.specInterval = setInterval(() => {
+      // 静音时频谱冻结
+      if (state.muted) return;
+      let leftTotal = 0, rightTotal = 0;
+      for (let i = 0; i < 7; i++) {
+        let lh = lBases[i] + (Math.random() - 0.3) * 24;
+        lh = Math.max(2, Math.min(98, lh));
+        leftBars[i].style.height = lh + '%';
+        leftTotal += lh;
+        if (lh > lPeaks[i]) lPeaks[i] = lh;
+        else lPeaks[i] -= 0.35;
+        leftPeaks[i].style.top = Math.max(0, TOTAL_H - (lPeaks[i]/100*TOTAL_H) - 2) + 'px';
+
+        let rh = rBases[i] + (Math.random() - 0.3) * 24;
+        rh = Math.max(2, Math.min(98, rh));
+        rightBars[i].style.height = rh + '%';
+        rightTotal += rh;
+        if (rh > rPeaks[i]) rPeaks[i] = rh;
+        else rPeaks[i] -= 0.35;
+        rightPeaks[i].style.top = Math.max(0, TOTAL_H - (rPeaks[i]/100*TOTAL_H) - 2) + 'px';
+      }
+      // VU 电平条 (L/R 独立)
+      const vuL = leftTotal / 7;
+      const vuR = rightTotal / 7;
+      document.getElementById('vuFillL').style.width = vuL + '%';
+      document.getElementById('vuFillR').style.width = vuR + '%';
+
+      // LED 信号强度指示 (取 L/R 较大值)
+      const vuMax = Math.max(vuL, vuR);
+      const curLed = document.getElementById('led' + state.input);
+      if (curLed) {
+        if (state.muted) {
+          curLed.className = 'led led-' + state.input + ' off';
+        } else if (vuMax > 60) {
+          curLed.className = 'led led-' + state.input + ' on strong';
+          curLed.style.animation = 'none';
+          curLed.style.opacity = '1';
+        } else if (vuMax > 5) {
+          curLed.className = 'led led-' + state.input + ' on';
+          curLed.style.animation = '';
+          curLed.style.opacity = '';
+        } else {
+          curLed.className = 'led led-' + state.input + ' off';
+          curLed.style.background = '#333';
+        }
+      }
+    }, 70);
+  }
+
+  function stopSpec() {
+    if (state.specInterval) { clearInterval(state.specInterval); state.specInterval = null; }
+  }
+
+  setInput(0, true);
+  updateVolume();
+  updateBalance();
+  updateStatus();
+  resetIdleTimer();
+  setTheme(0);
+</script>
+</body>
+</html>
