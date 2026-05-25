@@ -249,20 +249,29 @@ cd preview && py -3.11 -m http.server 8084
 
 ---
 
+## 项目核心
+
+### ⚠️ `send_volume_to_pga` — 本项目最核心的脚本
+此脚本是整个固件的**心脏**，v1.7.2 已经过多轮论证和优化，当前包含 while 循环 + delay 15ms 的阻塞式渐变逻辑是经过验证的**最佳状态**。**绝对禁止修改此脚本**，任何对此脚本的改动（如移除此循环、改为 interval 步进等）都会破坏音量控制的稳定性和时序。
+
+---
+
 ## 关键注意事项
 
 1. **freetype-py 中文路径问题**: Windows 下 `FT_New_Face` 无法加载含中文的绝对路径。修复方案是回退到 `FT_New_Memory_Face` (读取文件到内存再加载)。此补丁需在 freetype-py 升级后重新应用。
 
-2. **LVGL opaque 类型**: ESPHome 2026 managed component 的 lv_obj_t 是 opaque 类型。非复合 widget (bar/label/led/obj) 的 `id()` 直接返回 `lv_obj_t*`，不需要 `->obj_` 间接访问。复合 widget (dropdown/roller) 返回 `LvDropdownType*` 等类型, 需要先强转 `(lv_obj_t*)`。所有 LVGL C API 函数需在 `lvgl_compat.h` 的 `extern "C"` 块中声明。
+2. **freetype-py 中文路径问题**: Windows 下 `FT_New_Face` 无法加载含中文的绝对路径。修复方案是回退到 `FT_New_Memory_Face` (读取文件到内存再加载)。此补丁需在 freetype-py 升级后重新应用。
 
-3. **ESP32-S3 NTC 校准**: 使用 `ADC_ATTEN_DB_6` + `curve_fitting` 校准方案。6dB 衰减虽量程较小 (0~2.5V) 但线性远优于 12dB, 对室内前级足够。
+3. **LVGL opaque 类型**: ESPHome 2026 managed component 的 lv_obj_t 是 opaque 类型。非复合 widget (bar/label/led/obj) 的 `id()` 直接返回 `lv_obj_t*`，不需要 `->obj_` 间接访问。复合 widget (dropdown/roller) 返回 `LvDropdownType*` 等类型, 需要先强转 `(lv_obj_t*)`。所有 LVGL C API 函数需在 `lvgl_compat.h` 的 `extern "C"` 块中声明。
 
-4. **MSGEQ7 时序**: 3.3V 供电时输出建立需 36-40μs (vs 5V 的 18μs), STROBE 低脉冲和 RESET 脉冲均已放宽到 40-100μs。
+4. **ESP32-S3 NTC 校准**: 使用 `ADC_ATTEN_DB_6` + `curve_fitting` 校准方案。6dB 衰减虽量程较小 (0~2.5V) 但线性远优于 12dB, 对室内前级足够。
 
-5. **音频检测反转**: MCP23017 的音频检测 binary_sensor 配置为 INPUT_PULLUP, 且有 `inverted: true`（检测到信号时引脚被拉低）。
+5. **MSGEQ7 时序**: 3.3V 供电时输出建立需 36-40μs (vs 5V 的 18μs), STROBE 低脉冲和 RESET 脉冲均已放宽到 40-100μs。
 
-6. **继电器映射反转**: CPA3/GPA2/GPA1/GPA0 对应继电器 4/3/2/1, 不是顺序映射。
+6. **音频检测反转**: MCP23017 的音频检测 binary_sensor 配置为 INPUT_PULLUP, 且有 `inverted: true`（检测到信号时引脚被拉低）。
 
-7. **MCP23017 地址**: 0x27, I2C bus_a (IO38/IO40)。
+7. **继电器映射反转**: CPA3/GPA2/GPA1/GPA0 对应继电器 4/3/2/1, 不是顺序映射。
 
-8. **PGA2311 SPI 时钟**: 4MHz (数据手册最高 6.25MHz, 留余量)。
+8. **MCP23017 地址**: 0x27, I2C bus_a (IO38/IO40)。
+
+9. **PGA2311 SPI 时钟**: 4MHz (数据手册最高 6.25MHz, 留余量)。

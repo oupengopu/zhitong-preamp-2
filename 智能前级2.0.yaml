@@ -2275,6 +2275,13 @@ script:
           snprintf(buf, sizeof(buf), "%.1fdB", db);
           lv_label_set_text(id(lbl_vol_big), buf);
 
+      # 2 秒后自动返回主页（mode: restart 确保每次旋转都重置计时）
+      - delay: 2s
+      - lvgl.page.show:
+          id: main_page
+          animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+          time: 150ms
+
   # ══════════════════════════════════════════════════════════════
   # ★ V17 巅峰内核：双区间速度渐变 + 软锁释放
   # ══════════════════════════════════════════════════════════════
@@ -2576,7 +2583,7 @@ script:
   - id: auto_switch_input
     mode: restart
     then:
-      - delay: 500ms   # 等待所有传感器稳定, 避免多个信号交叉触发
+      - delay: 200ms   # 等待所有传感器稳定, 避免多个信号交叉触发
       - lambda: |-
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
@@ -2778,6 +2785,8 @@ sensor:
 
             // ═══ 音量调节（仅主/浮层/频谱页）═══
             if (active != id(main_page)->obj && active != id(volume_big_page)->obj && active != id(spectrum_page)->obj) return;
+            // 屏幕熄灭时只唤醒不调音量
+            if (id(display_is_off)) return;
             int new_vol = id(volume_val) + diff;
             if (new_vol < 0) new_vol = 0;
             if (new_vol > id(max_volume)) new_vol = id(max_volume);
@@ -3241,6 +3250,21 @@ interval:
             }
           }
 
+          // ═══ 温度保护提示 (含变化检测) ═══
+          {
+            static bool last_protect = false;
+            bool prot = id(temp_protect);
+            if (prot != last_protect) {
+              last_protect = prot;
+              if (prot) {
+                lv_obj_set_style_text_color(id(lbl_temp_value), lv_color_hex(0xFF0000), LV_PART_MAIN);
+                lv_label_set_text(id(lbl_temp_value), "保护!");
+              } else {
+                lv_obj_set_style_text_color(id(lbl_temp_value), lv_color_hex(0x8E9FB8), LV_PART_MAIN);
+              }
+            }
+          }
+
           // ═══ 静音指示 (含变化检测) ═══
           {
             static bool last_mute = false;
@@ -3367,10 +3391,8 @@ binary_sensor:
     internal: true
 
     on_multi_click:
-      # 三击 → 静音切换（双击已被设置页占用）
+      # 双击 → 静音切换
       - timing:
-          - ON for at most 400ms
-          - OFF for at most 400ms
           - ON for at most 400ms
           - OFF for at most 400ms
           - ON for at most 400ms
@@ -3378,56 +3400,6 @@ binary_sensor:
         then:
           - switch.toggle: soft_mute_switch
           - script.execute: reset_idle_timer
-
-      # 双击 → 切换页面（主页面↔设置页），设置页内双击退出
-      - timing:
-          - ON for at most 400ms
-          - OFF for at most 400ms
-          - ON for at most 400ms
-          - OFF for at least 300ms
-        then:
-          - if:
-              condition:
-                lvgl.page.is_showing: main_page
-              then:
-                # 进入设置页 → 初始化光标
-                - lambda: |-
-                    id(settings_focus_idx) = 0;
-                    id(settings_active_idx) = -1;
-                    lv_color_t hl_color;
-                    switch (id(theme)) {
-                      case 1: hl_color = lv_color_hex(0xEF4444); break;
-                      case 2: hl_color = lv_color_hex(0x3B82F6); break;
-                      case 3: hl_color = lv_color_hex(0x8B5CF6); break;
-                      default: hl_color = lv_color_hex(0x10B981); break;
-                    }
-                    const int N = 7;
-                    lv_obj_t* items[N] = {
-                      id(slider_max_vol), id(slider_power_on_limit), (lv_obj_t*)id(dd_theme),
-                      id(slider_balance), (lv_obj_t*)id(dd_input),
-                      id(slider_brightness), id(slider_display_timeout)
-                    };
-                    for (int i = 0; i < N; i++)
-                      lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
-                    lv_obj_set_style_border_width(id(slider_max_vol), 2, LV_PART_MAIN);
-                    lv_obj_set_style_border_color(id(slider_max_vol), hl_color, LV_PART_MAIN);
-                - lvgl.page.show:
-                    id: settings_page
-                    animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                    time: 200ms
-              else:
-                # 从设置页或其他页 → 返回主页，清除高亮
-                - lambda: |-
-                    id(settings_active_idx) = -1;
-                    const int N = 7;
-                    lv_obj_t* items[N] = {
-                      id(slider_max_vol), id(slider_power_on_limit), (lv_obj_t*)id(dd_theme),
-                      id(slider_balance), (lv_obj_t*)id(dd_input),
-                      id(slider_brightness), id(slider_display_timeout)
-                    };
-                    for (int i = 0; i < N; i++)
-                      lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
-                - lvgl.page.show: main_page
 
       # 单击 → 唤醒屏幕 | 频谱页返回主页 | 设置页切换浏览/调节模式
       - timing:
@@ -3473,7 +3445,7 @@ binary_sensor:
                             // 进入调节模式
                             id(settings_active_idx) = idx;
                             clear_all();
-                            highlight(idx, 3);
+                            highlight(idx, 5);
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）
                             id(settings_active_idx) = -1;
@@ -3491,8 +3463,38 @@ binary_sensor:
                                 animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                                 time: 200ms
                           else:
-                            # 其他页面短按由 encoder enter_button 自动处理
-                            - script.execute: reset_idle_timer
+                            - if:
+                                condition:
+                                  lvgl.page.is_showing: main_page
+                                then:
+                                  # 主页单击 → 进入设置页
+                                  - lambda: |-
+                                      id(settings_focus_idx) = 0;
+                                      id(settings_active_idx) = -1;
+                                      lv_color_t hl_color;
+                                      switch (id(theme)) {
+                                        case 1: hl_color = lv_color_hex(0xEF4444); break;
+                                        case 2: hl_color = lv_color_hex(0x3B82F6); break;
+                                        case 3: hl_color = lv_color_hex(0x8B5CF6); break;
+                                        default: hl_color = lv_color_hex(0x10B981); break;
+                                      }
+                                      const int N = 7;
+                                      lv_obj_t* items[N] = {
+                                        id(slider_max_vol), id(slider_power_on_limit), (lv_obj_t*)id(dd_theme),
+                                        id(slider_balance), (lv_obj_t*)id(dd_input),
+                                        id(slider_brightness), id(slider_display_timeout)
+                                      };
+                                      for (int i = 0; i < N; i++)
+                                        lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
+                                      lv_obj_set_style_border_width(id(slider_max_vol), 2, LV_PART_MAIN);
+                                      lv_obj_set_style_border_color(id(slider_max_vol), hl_color, LV_PART_MAIN);
+                                  - lvgl.page.show:
+                                      id: settings_page
+                                      animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                                      time: 200ms
+                                else:
+                                  # 其他页面短按由 encoder enter_button 自动处理
+                                  - script.execute: reset_idle_timer
 
       # 长按 → 待机（关屏+静音+暂停LVGL，WiFi保持）/ 唤醒。
       # 直接操作 standby 全局变量而非 switch 状态，避免 switch 内部状态不一致。
