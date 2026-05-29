@@ -14,10 +14,7 @@
 //      (managed_components 未包含单独的 widget 头文件，但函数已在库中链接)
 #pragma once
 
-#ifndef LV_CONF_H
 #define LV_CONF_SKIP 1
-#endif
-
 #include <lvgl.h>
 
 // ── 显式包含核心头文件以提供 lv_obj_t 完整定义 ──
@@ -25,6 +22,7 @@
 #include <src/core/lv_obj_pos.h>
 #include <src/core/lv_obj_style.h>
 #include <src/core/lv_obj_tree.h>
+#include <src/core/lv_obj_scroll.h>
 
 // ── 手动声明所需的 LVGL C API ──
 // managed_components 中无单独的 widget 头文件 (src/widgets/ 不存在),
@@ -46,12 +44,38 @@ void lv_led_set_color(lv_obj_t * led, lv_color_t color);
 // src/core/lv_obj_pos.h
 void lv_obj_set_x(lv_obj_t * obj, int32_t x);
 void lv_obj_set_y(lv_obj_t * obj, int32_t y);
+void lv_obj_set_height(lv_obj_t * obj, int32_t h);
 
 // src/core/lv_obj_style.h
 void lv_obj_set_style_text_color(lv_obj_t * obj, lv_color_t color, uint32_t sel);
 void lv_obj_set_style_bg_color(lv_obj_t * obj, lv_color_t color, uint32_t sel);
+void lv_obj_set_style_border_width(lv_obj_t * obj, int32_t width, uint32_t sel);
+void lv_obj_set_style_border_color(lv_obj_t * obj, lv_color_t color, uint32_t sel);
+void lv_obj_set_style_border_side(lv_obj_t * obj, lv_border_side_t side, uint32_t sel);
+void lv_obj_set_style_opa(lv_obj_t * obj, lv_opa_t opa, uint32_t sel);
+
+// src/core/lv_obj_scroll.h
+void lv_obj_scroll_to_view(lv_obj_t * obj, lv_anim_enable_t anim_en);
 
 // src/core/lv_scr.h
 lv_obj_t * lv_scr_act(void);
+void lv_scr_load(lv_obj_t * scr);
+void lv_scr_load_anim(lv_obj_t * scr, lv_scr_load_anim_t anim_type, uint32_t time, uint32_t delay, bool auto_del);
 
+}
+
+// ── 主题色辅助函数 (消除 YAML 中 7 处重复 switch-case) ──
+inline lv_color_t get_theme_accent(int theme) {
+  lv_color_t colors[] = {
+    lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6),
+    lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A),
+    lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)
+  };
+  return colors[theme >= 0 && theme < 8 ? theme : 0];
+}
+
+// 主题色名称数组 (font_cn 已包含这些字符)
+inline const char* get_theme_name(int theme) {
+  static const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+  return names[theme >= 0 && theme < 8 ? theme : 0];
 }

@@ -69,17 +69,18 @@ struct SpectrumFrame {
 
 // ═══════════════════════════════════════════════════════════════
 //  内部状态 (外部禁止直接访问, 通过 get_frame() / get_temperature() 读取)
+//  使用 inline 变量 (C++17) 替代 static, 确保 ODR 安全
 // ═══════════════════════════════════════════════════════════════
-static int _r_bands[MSGEQ7_NUM_BANDS] = {0};
-static int _l_bands[MSGEQ7_NUM_BANDS] = {0};
-static int _combined[MSGEQ7_NUM_BANDS] = {0};
-static int _peak[MSGEQ7_NUM_BANDS] = {0};      // combined peak
-static int _peak_l[MSGEQ7_NUM_BANDS] = {0};    // 左声道 peak
-static int _peak_r[MSGEQ7_NUM_BANDS] = {0};    // 右声道 peak
-static float _ntc_temperature = NTC_INVALID;
+inline int _r_bands[MSGEQ7_NUM_BANDS] = {0};
+inline int _l_bands[MSGEQ7_NUM_BANDS] = {0};
+inline int _combined[MSGEQ7_NUM_BANDS] = {0};
+inline int _peak[MSGEQ7_NUM_BANDS] = {0};      // combined peak
+inline int _peak_l[MSGEQ7_NUM_BANDS] = {0};    // 左声道 peak
+inline int _peak_r[MSGEQ7_NUM_BANDS] = {0};    // 右声道 peak
+inline float _ntc_temperature = NTC_INVALID;
 
-static float _smooth_r[MSGEQ7_NUM_BANDS] = {0};
-static float _smooth_l[MSGEQ7_NUM_BANDS] = {0};
+inline float _smooth_r[MSGEQ7_NUM_BANDS] = {0};
+inline float _smooth_l[MSGEQ7_NUM_BANDS] = {0};
 
 static constexpr float SMOOTH_UP   = 0.35f;   // 上升平滑系数 (快响应)
 static constexpr float SMOOTH_DOWN = 0.12f;    // 下降平滑系数 (慢衰减, 视觉更自然)
@@ -87,7 +88,7 @@ static constexpr float SMOOTH_DOWN = 0.12f;    // 下降平滑系数 (慢衰减,
 // ── 峰值衰减 (帧率无关: 用 powf(DECAY, dt) 解耦 FPS) ──
 //   设计目标: 1 秒内峰值衰减到 ~50% (原 0.965 @20Hz ≈ 0.965^20 ≈ 0.49)
 static constexpr float PEAK_DECAY_PER_SEC = 0.49f;  // 每秒保留比例
-static uint32_t _last_read_ms = 0;
+inline uint32_t _last_read_ms = 0;
 
 // ── 频段增益补偿 (MSGEQ7 高频自然衰减, HiFi 频谱通用做法) ──
 // 整数定点: gain = ×N/256, 避免每频段浮点乘法 (7×2=14次 float mul → 14次 int mul+shift)
@@ -108,27 +109,27 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 static constexpr int NOISE_GATE = 8;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
-static adc_oneshot_unit_handle_t _adc_handle = nullptr;
+inline adc_oneshot_unit_handle_t _adc_handle = nullptr;
 
 // ── NTC ADC 校准句柄 (6dB 衰减, 线性远优于 12dB) ──
-static adc_cali_handle_t _adc_cali_ntc = nullptr;
+inline adc_cali_handle_t _adc_cali_ntc = nullptr;
 
 // ── 多核线程安全 (ESP32-S3 双核: display / sensor / animation 可能并发读取) ──
-static portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
+inline portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
 
-static bool _initialized = false;
-static bool _adc_ok = false;  // ADC 初始化成功标志 (防止 _adc_handle==nullptr 时崩溃)
+inline bool _initialized = false;
+inline bool _adc_ok = false;  // ADC 初始化成功标志 (防止 _adc_handle==nullptr 时崩溃)
 
 // ── 零漂校准 (setup 时记录静默偏置, read 时减去) ──
 //   每片 MSGEQ7 的偏置电压不同, 静音时各频段高度不一
 //   在 setup() 的 3 帧丢弃周期中采样平均值作为 _offset, 后续减去
-static int _r_offset[MSGEQ7_NUM_BANDS] = {0};
-static int _l_offset[MSGEQ7_NUM_BANDS] = {0};
+inline int _r_offset[MSGEQ7_NUM_BANDS] = {0};
+inline int _l_offset[MSGEQ7_NUM_BANDS] = {0};
 
 // ── NTC 温度 IIR 低通 (防末位闪烁) ──
 //   中值滤波后仍有 ±0.3°C 抖动, IIR 平滑后显示更稳定
 static constexpr float NTC_IIR_ALPHA = 0.15f;  // 越小越平滑, 0.15 ≈ 7s 时间常数 @10s间隔
-static float _ntc_smooth = NTC_INVALID;
+inline float _ntc_smooth = NTC_INVALID;
 
 // ═══════════════════════════════════════════════════════════════
 //  ADC 内部函数
@@ -258,12 +259,12 @@ static void setup() {
         esp_rom_delay_us(40);
       }
     }
-    // 3帧平均 -> 零漂偏置, 阈值100防止上电爆音污染基准
+    // 3帧平均 -> 零漂偏置, 阈值50: 正常静默偏置约 8-40, >50 可能有音频信号, 舍弃校准
     for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
       int avg_r = r_sum[j] / 3;
       int avg_l = l_sum[j] / 3;
-      _r_offset[j] = (avg_r < 100) ? avg_r : 0;
-      _l_offset[j] = (avg_l < 100) ? avg_l : 0;
+      _r_offset[j] = (avg_r < 50) ? avg_r : 0;
+      _l_offset[j] = (avg_l < 50) ? avg_l : 0;
     }
     ESP_LOGI("msgeq7", "零漂校准: R_offset[%d~%d]=%d/%d/%d/%d/%d/%d/%d",
              0, 6, _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
@@ -402,7 +403,13 @@ static void read() {
     esp_rom_delay_us(40);   // STROBE 高电平 ≥18μs, 3.3V 供电余量给到 40μs
   }
 
-  // 临界区: 更新共享数组 (防止 display/sensor 任务读到半更新数据)
+  // ═══ 临界区: 更新共享数组 ═══
+  //  ⚠️ 绝对禁止在 CRITICAL 块内加入任何 delay、printf、SPI/I2C 操作或
+  //     函数调用。portENTER_CRITICAL 会关闭当前 CPU 核的全部中断，
+  //     任何阻塞操作都将导致 ESP32 核心恐慌 (Core Panic) 和系统崩溃。
+  //     临界区只做纯内存操作 (memcpy/赋值)，计算在外面提前完成。
+  //══════════════════════════════════════════════
+  // (防止 display/sensor 任务读到半更新数据)
   portENTER_CRITICAL(&_mux);
   memcpy(_r_bands, new_r, sizeof(_r_bands));
   memcpy(_l_bands, new_l, sizeof(_l_bands));
@@ -416,6 +423,9 @@ static void read() {
   memcpy(_smooth_r, new_sr, sizeof(_smooth_r));
   memcpy(_smooth_l, new_sl, sizeof(_smooth_l));
 }
+
+// 温度有效判定 (前向声明)
+static bool is_temperature_valid(float t) { return t > -50.0f && t < 150.0f; }
 
 // ═══════════════════════════════════════════════════════════════
 //  读取 NTC 温度
@@ -462,13 +472,13 @@ static void read_ntc() {
 
   // IIR 一阶低通 (防温度末位闪烁: 中值滤波后仍有 ±0.3°C 抖动)
   //   首次采样直接采纳, 后续 α=0.15 平滑 (约 7s 时间常数 @10s 间隔)
-  if (_ntc_smooth < NTC_INVALID + 99.0f) {
+  //   在临界区内读写 _ntc_smooth 和 _ntc_temperature, 防止与 get_temperature() 竞争
+  portENTER_CRITICAL(&_mux);
+  if (!is_temperature_valid(_ntc_smooth)) {
     _ntc_smooth = temp;
   } else {
     _ntc_smooth = _ntc_smooth + NTC_IIR_ALPHA * (temp - _ntc_smooth);
   }
-
-  portENTER_CRITICAL(&_mux);
   _ntc_temperature = _ntc_smooth;
   portEXIT_CRITICAL(&_mux);
 }
@@ -477,6 +487,10 @@ static void read_ntc() {
 //  公开读取接口 (线程安全, 外部唯一访问入口)
 // ═══════════════════════════════════════════════════════════════
 
+/// ═══ 临界区: 读端快照 ═══
+//  ⚠️ 同写端规则：禁止加入 delay/printf/SPI/I2C/函数调用。
+//     临界区只做纯内存操作，持锁时间必须极短。
+//═════════════════════════════════
 // 获取频谱帧快照 (含 combined, peak, temperature), 读端加锁
 static bool get_frame(SpectrumFrame* out) {
   if (out == nullptr) return false;
@@ -541,8 +555,6 @@ static float get_temperature() {
   return val;
 }
 
-// 温度是否有效 (排除 NTC_INVALID 初始标记, 留 99C 余量防 FPU 噪声)
-static bool is_temperature_valid(float t) { return t > NTC_INVALID + 99.0f; }
 
 // ADC 是否可用
 static bool is_ready() { return _initialized && _adc_ok; }

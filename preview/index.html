@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>智能前级2.0 UI 预览 — 三屏设计</title>
+<title>智能前级2.0 UI 预览 — 四屏设计</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
 <style>
@@ -67,6 +67,76 @@
   .led.off { background: #444; }
   .led-0 { left: 18px; } .led-1 { left: 62px; } .led-2 { left: 106px; } .led-3 { left: 150px; }
 
+  /* ═══ 编码器旋钮 ═══ */
+  .encoder-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+  }
+  .encoder-knob {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #3a3a5a, #1a1a2e 70%);
+    border: 3px solid #4a4a6a;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.08s ease-out, border-color 0.2s, box-shadow 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .encoder-knob:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px var(--accent-shadow);
+  }
+  .encoder-knob:active {
+    transform: scale(0.94);
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px var(--accent-shadow);
+  }
+  .encoder-knob .knob-dot {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: background 0.3s;
+  }
+  .encoder-knob.pressed {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-shadow);
+    transform: scale(0.92);
+  }
+  .encoder-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    color: #6a7a90;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .encoder-hint {
+    font-size: 9px;
+    color: #4a5a70;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .encoder-action {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: var(--accent);
+    text-align: center;
+    min-height: 16px;
+    transition: color 0.2s;
+  }
+
   .separator { position: absolute; top: 50px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #EF4444, #F59E0B, #10B981, #3B82F6, #8B5CF6, transparent); opacity: 0.7; background-size: 300% 100%; animation: shimmer 30s ease-in-out infinite; }
 
   .db-label {
@@ -127,6 +197,34 @@
   .right-status .temp { font-size: 16px; color: #F1F5F9; display: flex; align-items: center; gap: 2px; }
   .right-status .temp .deg { font-size: 12px; color: #8E9FB8; }
   .right-status .icon { font-size: 28px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; }
+
+  /* BLE 遥控器状态指示（耳机电量风格） */
+  .ble-remote-indicator {
+    display: flex; align-items: center; gap: 1px; height: 36px;
+    margin-right: -4px;
+  }
+  .ble-remote-indicator .rem-mdi {
+    font-size: 16px; color: #22D3EE;
+    width: 18px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    filter: var(--accent-shadow-sm, drop-shadow(0 0 4px rgba(34,211,238,0.5)));
+  }
+  .ble-remote-batt {
+    display: inline-block; width: 16px; height: 7px;
+    border: 1.5px solid #22D3EE; border-radius: 1.5px;
+    position: relative; flex-shrink: 0;
+  }
+  .ble-remote-batt::after {
+    content: '';
+    position: absolute; right: -3.5px; top: 1px;
+    width: 2.5px; height: 3px;
+    background: #22D3EE; border-radius: 0 1px 1px 0;
+  }
+  .ble-remote-batt-fill {
+    height: 100%; border-radius: 0.5px;
+    transition: width 0.3s, background 0.3s;
+    position: absolute; left: 0; top: 0; min-width: 0;
+  }
 
   /* ═══ 第二屏：立体声频谱 ═══ */
   .spec-status {
@@ -233,115 +331,186 @@
     flex-shrink: 0;
   }
 
-  /* ═══ 第三屏：设置页面 (glassmorphism) ═══ */
+  /* ═══ 第三屏：设置页面 — 单列列表 ═══ */
   .page-settings {
-    background: rgba(17,24,39,0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(17,24,39,0.95);
   }
-  .settings-grid {
-    display: flex;
+  .settings-list {
     height: 100%;
-    padding: 8px 6px;
-    gap: 4px;
-  }
-  .settings-col {
-    flex: 1;
+    overflow-y: auto;
+    padding: 4px 6px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 6px 8px;
-    background: rgba(255,255,255,0.03);
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.06);
-    transition: border-color 0.3s, background 0.3s;
+    gap: 2px;
   }
-  .settings-col:hover {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.1);
-  }
-  .settings-col + .settings-col {
-    border-left: none;
-    padding-left: 8px;
-  }
-  .settings-label {
-    color: #4A6890;
-    font-size: 11px;
-    font-family: 'Montserrat', sans-serif;
-    text-align: center;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-  .settings-slider-wrap {
-    flex: 1;
+  .settings-list::-webkit-scrollbar { width: 3px; }
+  .settings-list::-webkit-scrollbar-track { background: transparent; }
+  .settings-list::-webkit-scrollbar-thumb { background: #2A3A50; border-radius: 2px; }
+  .settings-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0 4px;
+    height: 90px;
+    padding: 0 8px;
+    border-radius: 0;
+    background: #162032;
+    border-left: 3px solid transparent;
+    transition: background 0.2s, border-left-width 0.2s;
+    flex-shrink: 0;
+    gap: 4px;
   }
-  .settings-slider-track {
+  .settings-row.read-only {
+    background: #111827;
+  }
+  .settings-row.focused {
+    border-left: 3px solid var(--accent);
+    border-left-color: var(--accent);
+    background: #1E2D42;
+  }
+  .settings-row.adjusting {
+    background: #25374F;
+  }
+  .settings-row .label {
+    color: #4A6890;
+    font-size: 18px;
+    font-family: 'Montserrat', sans-serif;
+    width: 80px;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+  .settings-row .icon {
+    width: 30px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 24px;
+    color: var(--accent);
+    line-height: 90px;
+  }
+  .settings-row.read-only .icon {
+    color: #6B7280;
+  }
+  .settings-row .bar-wrap {
+    flex: 1;
+    height: 12px;
+    min-width: 0;
+    transition: height 0.2s;
+  }
+  .settings-row.adjusting .bar-wrap {
+    height: 24px;
+  }
+  .settings-row .settings-bar {
     width: 100%;
-    height: 6px;
+    height: 100%;
     background: #1E2A3E;
     border-radius: 3px;
-    position: relative;
+    overflow: hidden;
   }
-  .settings-slider-fill {
+  .settings-row .settings-bar-fill {
     height: 100%;
     background: var(--accent);
     border-radius: 3px;
     transition: width 0.2s ease;
   }
-  .settings-slider-fill.bal-fill {
-    position: absolute; top: 0;
-    width: 50%;
-    transition: width 0.2s ease, left 0.2s ease;
+  .settings-row .settings-bar-fill.white-fill {
+    background: #FFFFFF;
   }
-  .settings-slider-thumb {
-    position: absolute; top: -4px;
-    width: 14px; height: 14px;
-    background: var(--accent);
-    border-radius: 50%;
-    margin-left: -7px;
-    transition: left 0.2s ease;
-    cursor: pointer;
-  }
-  .settings-slider-thumb:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
-  .settings-slider-thumb.bal-thumb {
-    background: #34D399;
-  }
-  .settings-value {
+  .settings-row .val {
+    width: 50px;
+    flex-shrink: 0;
+    text-align: right;
     color: #8E9FB8;
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 600;
-    text-align: center;
     font-family: 'Montserrat', sans-serif;
-    margin-top: 2px;
   }
-  .settings-select {
-    background: #0A1628;
+  .settings-row .val.input-val {
     color: #E2E8F0;
-    border: 1px solid #1E2A3E;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 14px;
-    text-align: center;
-    cursor: pointer;
-    width: 100%;
+    width: 50px;
   }
-  .settings-select:focus { border-color: var(--accent); outline: none; }
-  .settings-focused {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 4px;
+  .settings-row .val.val-wide {
+    width: 160px;
   }
-  .settings-row {
+  .theme-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .no-bar {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ═══ 第四屏：蓝牙遥控 ═══ */
+  .page-ble {
+    background: rgba(17,24,39,0.95);
+  }
+  .ble-list {
+    height: 100%;
+    overflow-y: auto;
+    padding: 4px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ble-list::-webkit-scrollbar { width: 3px; }
+  .ble-list::-webkit-scrollbar-track { background: transparent; }
+  .ble-list::-webkit-scrollbar-thumb { background: #2A3A50; border-radius: 2px; }
+  .ble-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 4px;
+    height: 42px;
+    padding: 0 8px;
+    border-radius: 0;
+    background: #162032;
+    border-left: 3px solid transparent;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .ble-row.title-row {
+    height: 36px;
+    background: #162032;
+  }
+  .ble-row.focused {
+    border-left: 3px solid var(--accent);
+    background: #1E2D42;
+  }
+  .ble-row.read-only {
+    background: #111827;
+  }
+  .ble-row .icon {
+    width: 30px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 24px;
+    color: var(--accent);
+    line-height: 42px;
+  }
+  .ble-row.read-only .icon {
+    color: #6B7280;
+  }
+  .ble-row .label {
+    color: #F1F5F9;
+    font-size: 16px;
+    font-family: 'Montserrat', sans-serif;
+    flex: 1;
+  }
+  .ble-row .sub {
+    color: #8E9FB8;
+    font-size: 13px;
+    font-family: 'Montserrat', sans-serif;
+    text-align: right;
+  }
+  .ble-row .rssi {
+    color: #4A6890;
+    font-size: 12px;
+    font-family: 'Montserrat', sans-serif;
+    text-align: right;
+    width: 60px;
+  }
+  .ble-row.hidden-row {
+    display: none;
   }
 
   /* ── 页面指示灯 ── */
@@ -422,10 +591,6 @@
     0% { opacity: 0; transform: scale(0.7); }
     100% { opacity: 1; transform: scale(1); }
   }
-  @keyframes powerPulse {
-    0%, 100% { filter: drop-shadow(0 0 4px var(--accent)); }
-    50% { filter: drop-shadow(0 0 14px var(--accent)); }
-  }
   @keyframes slideInRight {
     0% { transform: translateX(40px); opacity: 0; }
     100% { transform: translateX(0); opacity: 1; }
@@ -441,6 +606,17 @@
   .settings-select:focus { border-color: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); outline: none; }
   .settings-slider-thumb { transition: left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s; }
   .page-dot { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .page-debug .debug-list { display:flex; flex-direction:column; gap:1px; padding:4px; width:100%; }
+  .debug-row { display:flex; align-items:center; height:32px; padding:0 8px; background:transparent; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .debug-row .label { color:#9AB0CC; font-size:14px; font-family:'Montserrat',sans-serif; flex:1; letter-spacing:0.3px; }
+  .debug-row .icon { width:26px; flex-shrink:0; text-align:center; font-size:16px; color:#6B7280; }
+  .debug-row.title-row { height:40px; border-bottom:1px solid rgba(255,255,255,0.08); }
+  .debug-row.title-row .label { color:#F1F5F9; font-size:16px; font-weight:600; }
+  .debug-row.title-row .icon { color:var(--accent); font-size:20px; }
+  .debug-row.back-row { height:36px; cursor:pointer; border-bottom:none; margin-top:4px; }
+  .debug-row.back-row .label { color:#6B7280; font-size:13px; }
+  .debug-row.back-row.focused { background:rgba(255,255,255,0.05); border-radius:4px; }
+  .debug-row.back-row.focused .label { color:#E5E7EB; }
 </style>
 </head>
 <body>
@@ -452,7 +628,7 @@
     📟 编码器: 旋转=音量(大字浮层) ｜ 单击=确认/唤醒 ｜ 双击=切换设置页 ｜ 长按=待机/AP配网
   </span>
   <span style="display:block;font-size:11px;margin-top:2px;color:#4A6890;">
-    当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">10</span>s 后自动跳转频谱
+    设置→蓝牙遥控 → <strong>第四屏</strong> BLE遥控器配对管理 ｜ 当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">10</span>s 后自动跳转频谱
   </span>
 </div>
 
@@ -468,11 +644,18 @@
       <span class="mdi mdi-audio-input-stereo-minijack src-icon" id="src3"></span>
       <div style="flex:1"></div>
       <div class="right-status">
+        <div class="icon" id="autoSwitchIcon" style="font-size:22px;width:30px;"><span class="mdi mdi-swap-horizontal"></span></div>
         <div class="icon" style="color:var(--accent);font-size:24px;width:30px;"><span class="mdi mdi-thermometer"></span></div>
         <div class="temp"><span id="tempVal">32.5</span><span class="deg">°C</span></div>
         <div class="icon" id="muteIcon" style="color:#EF4444;display:none;"><span class="mdi mdi-volume-off"></span></div>
-        <div class="icon" id="powerIcon"><span class="mdi mdi-power"></span></div>
         <div class="icon" id="bleIcon" style="font-size:26px;width:34px;"><span class="mdi mdi-bluetooth"></span></div>
+        <!-- BLE 遥控器指示（耳机电量风格） -->
+        <div class="ble-remote-indicator" id="bleRemoteIndicator">
+          <span class="rem-mdi mdi mdi-bluetooth"></span>
+          <div class="ble-remote-batt">
+            <div class="ble-remote-batt-fill" id="bleRemoteBattFill"></div>
+          </div>
+        </div>
         <div class="icon" id="wifiIcon" style="font-size:24px;width:34px;"><span class="mdi mdi-wifi"></span></div>
       </div>
     </div>
@@ -542,75 +725,166 @@
     </div>
   </div>
 
-  <!-- ═══ 第三屏：设置页面 ═══ -->
+  <!-- ═══ 第三屏：设置页面 (单列列表) ═══ -->
   <div class="page page-settings" id="pageSettings">
-    <div class="settings-grid">
-      <!-- 左列：最大音量 + 开机音量 -->
-      <div class="settings-col">
-        <div class="settings-label">最大音量</div>
-        <div class="settings-slider-wrap" data-focus-index="0">
-          <div class="settings-slider-track">
-            <div class="settings-slider-fill" id="sMaxVolFill" style="width:63%"></div>
-            <div class="settings-slider-thumb" id="sMaxVolThumb" style="left:63%"></div>
-          </div>
-        </div>
-        <div class="settings-value" id="sMaxVolVal">160</div>
-        <div class="settings-label">开机音量</div>
-        <div class="settings-slider-wrap" data-focus-index="1">
-          <div class="settings-slider-track">
-            <div class="settings-slider-fill" id="sPowerOnFill" style="width:43%"></div>
-            <div class="settings-slider-thumb" id="sPowerOnThumb" style="left:43%"></div>
-          </div>
-        </div>
-        <div class="settings-value" id="sPowerOnVal">110</div>
+    <div class="settings-list" id="settingsList">
+      <!-- Row 0: 最大音量 -->
+      <div class="settings-row focused" data-row="0">
+        <span class="mdi mdi-volume-high icon"></span>
+        <span class="label">最大音量</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barMaxVol" style="width:63%"></div></div></div>
+        <span class="val" id="valMaxVol">160</span>
       </div>
-
-      <!-- 中列：声道平衡 -->
-      <div class="settings-col">
-        <div class="settings-label">声道平衡</div>
-        <div class="settings-slider-wrap" data-focus-index="3">
-          <div class="settings-slider-track" style="background:linear-gradient(to right, #1A2A40, #1E2A3E, #1A2A40);">
-            <div class="settings-slider-fill bal-fill" id="sBalFill" style="width:50%;left:50%"></div>
-            <div class="settings-slider-thumb bal-thumb" id="sBalThumb" style="left:50%"></div>
-          </div>
-        </div>
-        <div class="settings-value" id="sBalVal">平衡</div>
-        <div class="settings-label" style="margin-top:1px;font-size:11px;color:#8E9FB8;font-weight:500;">固件:v2.0.0</div>
-        <div class="settings-label" style="font-size:11px;color:#8E9FB8;font-weight:500;" id="sIpAddr">IP:192.168.1.100</div>
+      <!-- Row 1: 开机上限 -->
+      <div class="settings-row" data-row="1">
+        <span class="mdi mdi-restart icon"></span>
+        <span class="label">开机上限</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barPowerOn" style="width:43%"></div></div></div>
+        <span class="val" id="valPowerOn">110</span>
       </div>
+      <!-- Row 2: 声道平衡 -->
+      <div class="settings-row" data-row="2">
+        <span class="mdi mdi-tune-vertical icon"></span>
+        <span class="label">声道平衡</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barBalance" style="width:50%"></div></div></div>
+        <span class="val" id="valBalance">平衡</span>
+      </div>
+      <!-- Row 3: 输入选择 -->
+      <div class="settings-row" data-row="3">
+        <span class="mdi mdi-swap-horizontal-bold icon"></span>
+        <span class="label">输入选择</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valInput">CD</span>
+      </div>
+      <!-- Row 4: 输入自动切换 -->
+      <div class="settings-row" data-row="4">
+        <span class="mdi mdi-swap-horizontal icon"></span>
+        <span class="label" style="width:110px">输入自动切换</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valAutoSwitch">自动</span>
+      </div>
+      <!-- Row 5: 屏幕亮度 -->
+      <div class="settings-row" data-row="5">
+        <span class="mdi mdi-brightness-6 icon"></span>
+        <span class="label">屏幕亮度</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill white-fill" id="barBrightness" style="width:80%"></div></div></div>
+        <span class="val" id="valBrightness">80%</span>
+      </div>
+      <!-- Row 6: 息屏超时 -->
+      <div class="settings-row" data-row="6">
+        <span class="mdi mdi-timer-outline icon"></span>
+        <span class="label">息屏超时</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barTimeout" style="width:8%"></div></div></div>
+        <span class="val" id="valTimeout">5分钟</span>
+      </div>
+      <!-- Row 7: 主题色彩 -->
+      <div class="settings-row" data-row="7">
+        <span class="mdi mdi-palette icon"></span>
+        <span class="label">主题色彩</span>
+        <div class="no-bar"></div>
+        <div class="theme-dot" id="themeDot" style="background:var(--accent)"></div>
+        <span class="val input-val" id="valTheme">翠绿</span>
+      </div>
+      <!-- Row 8: 蓝牙遥控 (导航项) -->
+      <div class="settings-row read-only" data-row="8">
+        <span class="mdi mdi-bluetooth icon"></span>
+        <span class="label">蓝牙遥控</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valBleStatus">未连接</span>
+      </div>
+      <!-- Row 9: 固件版本 (read-only) -->
+      <div class="settings-row read-only" data-row="9">
+        <span class="mdi mdi-information-outline icon"></span>
+        <span class="label">固件版本</span>
+        <div class="no-bar"></div>
+        <span class="val" id="valFirmware">v2.0.0</span>
+      </div>
+      <!-- Row 10: IP地址 (read-only) -->
+      <div class="settings-row read-only" data-row="10">
+        <span class="mdi mdi-ip-network icon"></span>
+        <span class="label">IP地址</span>
+        <div class="no-bar"></div>
+        <span class="val val-wide" id="valIp">192.168.1.100</span>
+      </div>
+    </div>
+  </div>
 
-      <!-- 右列：输入选择 + 亮度 + 超时 -->
-      <div class="settings-col">
-        <div class="settings-label">输入选择</div>
-        <select class="settings-select" data-focus-index="4" id="sInputSelect" onchange="onUserAction('input',parseInt(this.value))">
-          <option value="0">CD</option>
-          <option value="1">DAC</option>
-          <option value="2">PC</option>
-          <option value="3">AUX</option>
-        </select>
-        <div class="settings-label" style="margin-top:4px;">屏幕亮度</div>
-        <div class="settings-slider-wrap" style="flex:0.5;" data-focus-index="5">
-          <div class="settings-slider-track">
-            <div class="settings-slider-fill" style="background:#FFFFFF;width:80%" id="sBrightFill"></div>
-            <div class="settings-slider-thumb" id="sBrightThumb" style="left:80%;background:#FFFFFF;"></div>
-          </div>
-        </div>
-        <div class="settings-value" id="sBrightVal">80%</div>
-        <div class="settings-label" style="margin-top:2px;">息屏超时</div>
-        <div class="settings-slider-wrap" style="flex:0.5;" data-focus-index="6">
-          <div class="settings-slider-track">
-            <div class="settings-slider-fill" style="width:12%" id="sTimeoutFill"></div>
-            <div class="settings-slider-thumb" id="sTimeoutThumb" style="left:12%"></div>
-          </div>
-        </div>
-        <div class="settings-value" id="sTimeoutVal">5分钟</div>
-        <div class="settings-label" style="margin-top:2px;">主题色彩</div>
-        <select class="settings-select" data-focus-index="2" id="sThemeSelect" onchange="setTheme(parseInt(this.value))">
-          <option value="0">绿</option>
-          <option value="1">红</option>
-          <option value="2">蓝</option>
-          <option value="3">紫</option>
-        </select>
+  <!-- ═══ 第四屏：蓝牙遥控 ═══ -->
+  <div class="page page-ble" id="pageBle">
+    <div class="ble-list" id="bleList">
+      <!-- Row 0: 标题 -->
+      <div class="ble-row title-row">
+        <span class="mdi mdi-bluetooth icon"></span>
+        <span class="label" style="color:#F1F5F9;font-size:18px;">蓝牙遥控</span>
+      </div>
+      <!-- Row 1: 连接状态 -->
+      <div class="ble-row" id="bleStatusRow">
+        <span class="label sub" id="lblBleStatus">未连接</span>
+      </div>
+      <!-- Row 1.5: 电池电量 -->
+      <div class="ble-row read-only" id="bleBatteryRow" style="height:32px;">
+        <span class="mdi mdi-battery icon" style="font-size:24px;color:#6B7280;"></span>
+        <span class="label" style="color:#8E9FB8;font-size:14px;width:40px;">电池</span>
+        <span class="sub" id="lblBleBattery" style="color:#4A6890;font-size:14px;width:60px;">--</span>
+      </div>
+      <!-- Row 2: 扫描按钮 -->
+      <div class="ble-row focused" data-ble-row="0" id="bleScanRow">
+        <span class="mdi mdi-restart icon"></span>
+        <span class="label" id="lblScanBtn">开始扫描</span>
+      </div>
+      <!-- Row 3-5: 设备槽 -->
+      <div class="ble-row hidden-row" data-ble-row="1" id="bleDevRow0">
+        <span class="label" id="lblBleDev0" style="color:#8E9FB8;">--</span>
+        <span class="rssi" id="lblBleRssi0">--</span>
+      </div>
+      <div class="ble-row hidden-row" data-ble-row="2" id="bleDevRow1">
+        <span class="label" id="lblBleDev1" style="color:#8E9FB8;">--</span>
+        <span class="rssi" id="lblBleRssi1">--</span>
+      </div>
+      <div class="ble-row hidden-row" data-ble-row="3" id="bleDevRow2">
+        <span class="label" id="lblBleDev2" style="color:#8E9FB8;">--</span>
+        <span class="rssi" id="lblBleRssi2">--</span>
+      </div>
+      <!-- Raw HID 事件 (调试) -->
+      <div class="ble-row hidden-row" id="bleRawEventRow" style="height:32px;">
+        <span class="label" id="lblBleRawEvent" style="color:#4A6890;font-size:11px;font-family:monospace;">--</span>
+      </div>
+      <!-- Row 6: 返回 -->
+      <div class="ble-row read-only" data-ble-row="4" id="bleBackRow">
+        <span class="mdi mdi-swap-horizontal icon"></span>
+        <span class="label sub" id="lblBleBack">返回设置</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 第五屏：诊断信息 (内存监控) ═══ -->
+  <div class="page page-debug" id="pageDebug">
+    <div class="debug-list">
+      <div class="debug-row title-row">
+        <span class="mdi mdi-chip icon"></span>
+        <span class="label">诊断信息</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgCpu">CPU 占用: -- %</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgHeap">内部堆: -- / -- KB</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgMinHeap">最小空闲: -- KB (全时段低水位)</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgPsram">PSRAM: -- / -- KB</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgMinPsram">PSRAM最小空闲: -- KB</span>
+      </div>
+      <div class="debug-row">
+        <span class="label" id="lblDbgUptime">运行时间: --</span>
+      </div>
+      <div class="debug-row back-row" id="dbgBackRow">
+        <span class="mdi mdi-swap-horizontal icon"></span>
+        <span class="label">返回设置</span>
       </div>
     </div>
   </div>
@@ -627,6 +901,17 @@
   <div class="page-dot active" onclick="showPage(0)" title="控制屏"></div>
   <div class="page-dot" onclick="showPage(1)" title="频谱屏"></div>
   <div class="page-dot" onclick="showPage(2)" title="设置屏"></div>
+  <div class="page-dot" onclick="showPage(3)" title="蓝牙遥控"></div>
+  <div class="page-dot" onclick="showPage(4)" title="诊断信息"></div>
+</div>
+
+<!-- 编码器旋钮模拟 -->
+<div class="encoder-wrap">
+  <div class="encoder-knob" id="encoderKnob" title="旋转=调音量/导航 | 单击=确认 | 双击=静音 | 长按=返回主页/待机">
+    <div class="knob-dot"></div>
+  </div>
+  <div class="encoder-action" id="encoderAction"></div>
+  <div class="encoder-hint">滚轮:旋转 点击:操作<br>双击:静音 长按:返回</div>
 </div>
 
 <!-- 控制面板 -->
@@ -671,6 +956,11 @@
     <label><input type="checkbox" id="sig2" onchange="toggleSignal(2)"> PC</label>
     <label><input type="checkbox" id="sig3" checked onchange="toggleSignal(3)"> AUX</label>
   </div>
+  <div class="check-group">
+    <label style="color:#4A6890;font-size:10px;">功能:</label>
+    <label><input type="checkbox" id="chkAutoSwitch" checked onchange="onUserAction('auto_switch')"> 自动切换</label>
+    <label><input type="checkbox" id="chkBleConnected" onchange="toggleBleConnected()"> BLE遥控</label>
+  </div>
 </div>
 
 <script>
@@ -678,37 +968,63 @@
     input: 0, volume: 60, temp: 32.5, balance: 0,
     wifi: true, ble: false, standby: false, muted: false,
     maxVolume: 160, powerOnLimit: 110, brightness: 80, displayTimeout: 5,
-    currentPage: 0,  // 0=main, 1=spectrum, 2=settings
+    autoSwitch: true,
+    currentPage: 0,  // 0=main, 1=spectrum, 2=settings, 3=ble_remote
+    volBigVisible: false,  // 大字音量浮层是否可见
     idleTimer: null, idleCount: 30, specInterval: null, volBigTimer: null,
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
-    theme: 0,  // 0=绿, 1=红, 2=蓝, 3=紫
+    theme: 0,  // 0=翠绿, 1=赤红, 2=天蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
     settingsFocus: 0,
-    settingsActive: -1
+    settingsActive: -1,
+    // BLE 遥控状态
+    bleRemoteConnected: false,
+    bleRemoteHasPeer: false,  // 是否有过配对(BDA持久化)
+    bleRemoteScanning: false,
+    bleRemoteDeviceCount: 0,
+    bleRemoteFocus: 0,  // 默认焦点在扫描按钮 (0=scan, 1-3=devices, 4=back)
+    bleRemoteDevices: [],  // [{name, rssi}]
+    bleRemoteScanTimer: null,
+    bleRemoteBattery: -1,  // -1 = 未知
+    bleRawEvent: '',
+    // 诊断页 (内存监控)
+    freeHeap: 198, minFreeHeap: 164, totalHeap: 320,
+    freePsram: 6840, minFreePsram: 5820, totalPsram: 8192,
+    uptimeSeconds: 0, debugInterval: null,
+    cpuLoad: 12.5,  // 模拟 CPU 占用率 (%)
+    // 三击检测
+    clickCount: 0, clickTimer: null,
+    // 页面空闲自动返回
+    pageIdleTimer: null
   };
 
-  const ACCENT_COLORS = ['#10B981', '#EF4444', '#3B82F6', '#8B5CF6'];
-  const THEMES = ['绿', '红', '蓝', '紫'];
+  const ACCENT_COLORS = ['#10B981', '#EF4444', '#3B82F6', '#8B5CF6', '#0071E3', '#CD9B4A', '#06B6D4', '#F97316'];
+  const THEMES = ['翠绿', '赤红', '天蓝', '紫色', '麦景图蓝', '金嗓子金', '柏林青', '南瓜橙'];
+  const PAGE_NAMES = ['控制屏', '立体声频谱', '设置屏', '蓝牙遥控', '诊断信息'];
   const SPEC_COLORS = [
-    ['#064E3B','#065F46','#047857','#059669','#10B981','#34D399','#6EE7B7'], // 绿
-    ['#4E0606','#5F0E0E','#781A1A','#962828','#B93A3A','#D36060','#E79494'], // 红
-    ['#0E1E4E','#16285F','#1E3478','#284296','#3A5AB9','#607AD3','#94AEE7'], // 蓝
-    ['#2E0E4E','#3E1A5F','#4E2878','#5E3A96','#7A52B9','#9A78D3','#C0A8E7'], // 紫
+    ['#064E3B','#065F46','#047857','#059669','#10B981','#34D399','#6EE7B7'], // 0 翠绿
+    ['#4E0606','#5F0E0E','#781A1A','#962828','#B93A3A','#D36060','#E79494'], // 1 赤红
+    ['#0E1E4E','#16285F','#1E3478','#284296','#3A5AB9','#607AD3','#94AEE7'], // 2 天蓝
+    ['#2E0E4E','#3E1A5F','#4E2878','#5E3A96','#7A52B9','#9A78D3','#C0A8E7'], // 3 紫色
+    ['#002D5C','#003D7A','#004D99','#005EB8','#0071E3','#3B94F7','#7BB8FF'], // 4 麦景图蓝
+    ['#4A3720','#6B4F2E','#8C683C','#AD804A','#CD9B4A','#DDB56A','#EED49A'], // 5 金嗓子金
+    ['#003D47','#005666','#007085','#0089A4','#06B6D4','#38D0EA','#7AE4F5'], // 6 柏林青
+    ['#5C2800','#7A3600','#994400','#B85200','#F97316','#FA9540','#FBB570'], // 7 南瓜橙
   ];
 
   function getAccent() { return ACCENT_COLORS[state.theme] || ACCENT_COLORS[0]; }
   const SRC_NAMES = ['CD','DAC','PC','AUX'];
   const SRC_MDIS = ['mdi-disc-player','mdi-chip','mdi-laptop','mdi-audio-input-stereo-minijack'];
-  const PAGE_NAMES = ['控制屏', '立体声频谱', '设置屏'];
 
   function onUserAction(type, val) {
     if (type === 'volume') { state.volume = parseInt(val); updateVolume(); showVolumeBig(); updateLed(state.input); return; }
     else if (type === 'input') { setInput(parseInt(val), true); }
-    else if (type === 'balance') { state.balance = parseInt(val); updateBalance(); updateSettingsBalance(); }
+    else if (type === 'balance') { state.balance = parseInt(val); updateBalance(); updateBarBalance(); }
     else if (type === 'wifi' || type === 'ble') updateStatus();
-    else if (type === 'brightness') { state.brightness = parseInt(val); updateSettingsBrightness(); }
-    else if (type === 'timeout') { state.displayTimeout = parseInt(val); updateSettingsTimeout(); }
-    else if (type === 'poweron') { state.powerOnLimit = parseInt(val); updateSettingsPowerOn(); }
-    else if (type === 'maxvol') { state.maxVolume = parseInt(val); updateSettingsMaxVol(); }
+    else if (type === 'brightness') { state.brightness = parseInt(val); updateBarBrightness(); }
+    else if (type === 'timeout') { state.displayTimeout = parseInt(val); updateBarTimeout(); }
+    else if (type === 'poweron') { state.powerOnLimit = parseInt(val); updateBarPowerOn(); }
+    else if (type === 'maxvol') { state.maxVolume = parseInt(val); updateBarMaxVol(); }
+    else if (type === 'auto_switch') { state.autoSwitch = document.getElementById('chkAutoSwitch').checked; updateAutoSwitch(); }
     showPage(0);
     resetIdleTimer();
   }
@@ -736,9 +1052,20 @@
     });
     document.getElementById('pageName').textContent = PAGE_NAMES[idx] || '音量';
 
+    // 切页时关闭大字音量浮层
+    if (state.volBigVisible) {
+      document.getElementById('pageVolumeBig').classList.remove('active');
+      state.volBigVisible = false;
+      clearTimeout(state.volBigTimer);
+    }
+
+    if (prev === 4) stopDebugRefresh();
     if (idx === 0) stopSpec();
     if (idx === 1) startSpec();
-    if (idx === 2) { stopSpec(); updateSettings(); state.settingsFocus = 0; state.settingsActive = -1; updateSettingsFocus(); }
+    if (idx === 2) { stopSpec(); stopDebugRefresh(); updateSettings(); state.settingsFocus = 0; state.settingsActive = -1; updateSettingsFocus(); startPageIdleTimer(10); }
+    if (idx === 3) { stopSpec(); stopDebugRefresh(); updateBlePage(); startPageIdleTimer(10); }
+    if (idx === 4) { stopSpec(); updateDebugPage(); startDebugRefresh(); startPageIdleTimer(30); }
+    if (idx <= 1) clearPageIdleTimer();
 
     if (idx !== 0 && state.idleTimer) {
       // Don't clear timer on manual page switch, let it run
@@ -747,27 +1074,23 @@
 
   function resetIdleTimer() {
     if (state.standby) return;
+    resetPageIdleTimer();
     state.idleCount = 30;
     document.getElementById('idleCountdown').textContent = '30';
     if (state.idleTimer) clearInterval(state.idleTimer);
     state.idleTimer = setInterval(() => {
-      // Don't count down on settings page or volume big overlay
-      if (state.currentPage === 2 || state.currentPage === 3) {
-        state.idleCount = 10;
-        document.getElementById('idleCountdown').textContent = '10';
-        return;
-      }
       state.idleCount--;
       document.getElementById('idleCountdown').textContent = state.idleCount;
       if (state.idleCount <= 0) {
         clearInterval(state.idleTimer);
         state.idleTimer = null;
-        // 主页有信号 → 频谱；频谱无信号 → 主页
+        // 自动页面切换仅限主页和频谱页
         if (state.currentPage === 0 && state.signalDetected[state.input]) {
           showPage(1);
         } else if (state.currentPage === 1 && !state.signalDetected[state.input]) {
           showPage(0);
         }
+        // 设置页/蓝牙遥控页不自动跳转
       }
     }, 1000);
   }
@@ -775,7 +1098,6 @@
   function setInput(idx, skipReset) {
     state.input = idx;
     document.getElementById('inputSelect').value = idx;
-    document.getElementById('sInputSelect').value = idx;
     // LED: 当前选中根据信号强度显示, 其余熄灭
     for (let i = 0; i < 4; i++) {
       updateLed(i);
@@ -806,37 +1128,183 @@
   function updateSettingsFocus() {
     const idx = state.settingsFocus;
     const active = state.settingsActive;
-    document.querySelectorAll('[data-focus-index]').forEach(el => {
-      const i = parseInt(el.dataset.focusIndex);
-      if (i === idx) {
-        el.classList.add('settings-focused');
-        el.style.outlineWidth = (active === i) ? '3px' : '2px';
-      } else {
-        el.classList.remove('settings-focused');
+    document.querySelectorAll('.settings-row').forEach((el, i) => {
+      el.classList.toggle('focused', i === idx && active < 0);
+      el.classList.toggle('adjusting', i === idx && active === idx);
+      // Read-only rows (9,10) don't get focused style
+      if (i === 9 || i === 10) {
+        el.classList.toggle('focused', false);
+        el.classList.toggle('adjusting', false);
+        el.style.borderLeftColor = i === idx ? 'var(--accent)' : 'transparent';
+        el.style.background = i === idx ? '#1E2D42' : '#111827';
       }
     });
   }
 
-  // 键盘模拟编码器导航（设置页: ↑↓, Enter, Esc）
+  // 键盘模拟编码器导航
   document.addEventListener('keydown', (e) => {
-    if (state.currentPage !== 2) return;
-    const N = 7;
-    if (e.key === 'ArrowDown') {
-      state.settingsFocus = (state.settingsFocus + 1) % N;
-      updateSettingsFocus();
-    } else if (e.key === 'ArrowUp') {
-      state.settingsFocus = (state.settingsFocus - 1 + N) % N;
-      updateSettingsFocus();
-    } else if (e.key === 'Enter') {
-      if (state.settingsActive < 0) {
-        state.settingsActive = state.settingsFocus;
-      } else {
-        state.settingsActive = -1;
+    // ── 设置页键盘处理 ──
+    if (state.currentPage === 2) {
+      const N = 11;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+          e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+          e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
       }
-      updateSettingsFocus();
-    } else if (e.key === 'Escape') {
-      state.settingsActive = -1;
-      showPage(0);
+      if (e.key === 'ArrowDown') {
+        let next = state.settingsFocus + 1;
+        if (next >= N) next = 0;
+        state.settingsFocus = next;
+        updateSettingsFocus();
+        const row = document.querySelector(`.settings-row[data-row="${next}"]`);
+        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp') {
+        let next = state.settingsFocus - 1;
+        if (next < 0) next = N - 1;
+        state.settingsFocus = next;
+        updateSettingsFocus();
+        const row = document.querySelector(`.settings-row[data-row="${next}"]`);
+        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (e.key === 'Enter') {
+        const idx = state.settingsFocus;
+        // Row 8: 蓝牙遥控 → 导航到蓝牙遥控页
+        if (idx === 8) {
+          state.bleRemoteFocus = 0;
+          showPage(3);
+          return;
+        }
+        if (idx === 9) {
+          // 固件版本：三击进入诊断页
+          state.clickCount++;
+          if (state.clickTimer) clearTimeout(state.clickTimer);
+          if (state.clickCount >= 3) {
+            state.clickCount = 0;
+            state.clickTimer = null;
+            showPage(4);
+            return;
+          }
+          state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
+          return;
+        }
+        if (idx > 7) return;  // 只读项(10)不进调节
+        if (state.settingsActive < 0) {
+          state.settingsActive = idx;
+        } else {
+          state.settingsActive = -1;
+        }
+        updateSettingsFocus();
+      } else if (e.key === 'Escape') {
+        state.settingsActive = -1;
+        showPage(0);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const idx = state.settingsActive;
+        if (idx < 0) return;
+        const step = e.key === 'ArrowRight' ? 1 : -1;
+        switch (idx) {
+          case 0: {
+            let v = state.maxVolume + step;
+            if (v < 10) v = 10; if (v > 255) v = 255;
+            state.maxVolume = v;
+            updateBarMaxVol();
+            document.getElementById('maxVolSlider').value = v;
+            break;
+          }
+          case 1: {
+            let v = state.powerOnLimit + step;
+            if (v < 10) v = 10; if (v > 255) v = 255;
+            state.powerOnLimit = v;
+            updateBarPowerOn();
+            document.getElementById('powerOnSlider').value = v;
+            break;
+          }
+          case 2: {
+            let v = state.balance + step;
+            if (v < -20) v = -20; if (v > 20) v = 20;
+            state.balance = v;
+            updateBarBalance();
+            updateBalance();
+            document.getElementById('balSlider').value = v;
+            break;
+          }
+          case 3: {
+            let v = state.input + step;
+            if (v < 0) v = 3; if (v > 3) v = 0;
+            setInput(v, true);
+            document.getElementById('valInput').textContent = SRC_NAMES[v];
+            break;
+          }
+          case 4: {
+            state.autoSwitch = !state.autoSwitch;
+            document.getElementById('chkAutoSwitch').checked = state.autoSwitch;
+            document.getElementById('valAutoSwitch').textContent = state.autoSwitch ? '自动' : '手动';
+            document.getElementById('autoSwitchIcon').style.color = state.autoSwitch ? getAccent() : '#444';
+            break;
+          }
+          case 5: {
+            let v = state.brightness + step;
+            if (v < 0) v = 0; if (v > 100) v = 100;
+            state.brightness = v;
+            updateBarBrightness();
+            document.getElementById('brightSlider').value = v;
+            break;
+          }
+          case 6: {
+            let v = state.displayTimeout + step;
+            if (v < 1) v = 1; if (v > 60) v = 60;
+            state.displayTimeout = v;
+            updateBarTimeout();
+            document.getElementById('timeoutSlider').value = v;
+            break;
+          }
+          case 7: {
+            let v = state.theme + step;
+            if (v < 0) v = 7; if (v > 7) v = 0;
+            setTheme(v);
+            break;
+          }
+        }
+      }
+      return;
+    }
+
+    // ── 蓝牙遥控页键盘处理 ──
+    if (state.currentPage === 3) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+          e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const diff = e.key === 'ArrowDown' ? 1 : -1;
+        const count = state.bleRemoteDeviceCount;
+        const validIndices = [0];
+        for (let i = 0; i < count && i < 3; i++) validIndices.push(i + 1);
+        validIndices.push(4);
+        const pos = validIndices.indexOf(state.bleRemoteFocus);
+        let newPos = (pos >= 0 ? pos : 0) + diff;
+        if (newPos < 0) newPos = validIndices.length - 1;
+        if (newPos >= validIndices.length) newPos = 0;
+        state.bleRemoteFocus = validIndices[newPos];
+        updateBleFocus();
+      } else if (e.key === 'Enter') {
+        const f = state.bleRemoteFocus;
+        if (f === 0) {
+          if (state.bleRemoteScanning) { stopBleScan(); }
+          else { startBleScan(); }
+        } else if (f >= 1 && f <= 3) {
+          const devIdx = f - 1;
+          if (devIdx < state.bleRemoteDeviceCount) { connectBleDevice(devIdx); }
+        } else if (f === 4) {
+          // 已连接→断开（留在蓝牙页），未连接→返回设置
+          if (state.bleRemoteConnected) {
+            disconnectBle();
+          } else {
+            showPage(2);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        showPage(2);
+      }
+      return;
     }
   });
 
@@ -869,12 +1337,12 @@
     overlay.style.animation = 'none';
     void overlay.offsetWidth;
     overlay.style.animation = 'fadeInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    state.currentPage = 3;
+    state.volBigVisible = true;
     resetIdleTimer();
     clearTimeout(state.volBigTimer);
     state.volBigTimer = setTimeout(() => {
       overlay.classList.remove('active');
-      if (state.currentPage === 3) showPage(0);
+      state.volBigVisible = false;
     }, 2000);
   }
 
@@ -882,68 +1350,77 @@
     state.temp = parseFloat(val);
     document.getElementById('tempVal').textContent = state.temp.toFixed(1);
     document.getElementById('specTemp').textContent = state.temp.toFixed(1) + '°C';
+    document.getElementById('specTemp').style.color = getAccent();
   }
 
-  // ── 第三屏设置页更新 ──
+  // ── 第三屏设置页更新 (9行单列) ──
   function updateSettings() {
-    updateSettingsMaxVol();
-    updateSettingsPowerOn();
-    updateSettingsBalance();
-    updateSettingsBrightness();
-    updateSettingsTimeout();
-    document.getElementById('sThemeSelect').value = state.theme;
+    updateBarMaxVol();
+    updateBarPowerOn();
+    updateBarBalance();
+    updateBarBrightness();
+    updateBarTimeout();
+    updateThemeRow();
+    updateAutoSwitch();
   }
 
-  function updateSettingsMaxVol() {
+  function updateAutoSwitch() {
+    state.autoSwitch = document.getElementById('chkAutoSwitch').checked;
+    document.getElementById('valAutoSwitch').textContent = state.autoSwitch ? '自动' : '手动';
+    document.getElementById('autoSwitchIcon').style.color = state.autoSwitch ? getAccent() : '#444';
+  }
+
+  function updateBarMaxVol() {
     const pct = Math.min(100, (state.maxVolume / 255) * 100);
-    document.getElementById('sMaxVolFill').style.width = pct + '%';
-    document.getElementById('sMaxVolThumb').style.left = pct + '%';
-    document.getElementById('sMaxVolVal').textContent = state.maxVolume;
+    document.getElementById('barMaxVol').style.width = pct + '%';
+    document.getElementById('valMaxVol').textContent = state.maxVolume;
   }
 
-  function updateSettingsPowerOn() {
+  function updateBarPowerOn() {
     const pct = Math.min(100, (state.powerOnLimit / 255) * 100);
-    document.getElementById('sPowerOnFill').style.width = pct + '%';
-    document.getElementById('sPowerOnThumb').style.left = pct + '%';
-    document.getElementById('sPowerOnVal').textContent = state.powerOnLimit;
+    document.getElementById('barPowerOn').style.width = pct + '%';
+    document.getElementById('valPowerOn').textContent = state.powerOnLimit;
   }
 
-  function updateSettingsBalance() {
+  function updateBarBalance() {
     const bal = state.balance;
-    const center = 50 + (bal / 20) * 50;
-    document.getElementById('sBalFill').style.width = Math.abs(bal / 20) * 50 + '%';
-    document.getElementById('sBalFill').style.left = bal <= 0 ? center : '50%';
-    document.getElementById('sBalThumb').style.left = center + '%';
-    if (bal === 0) document.getElementById('sBalVal').textContent = '平衡';
-    else document.getElementById('sBalVal').textContent = (bal < 0 ? 'L' : 'R') + Math.abs(bal);
+    const pct = ((bal + 20) / 40) * 100;
+    document.getElementById('barBalance').style.width = pct + '%';
+    if (bal === 0) document.getElementById('valBalance').textContent = '平衡';
+    else document.getElementById('valBalance').textContent = (bal < 0 ? 'L' : 'R') + Math.abs(bal);
   }
 
-  function updateSettingsBrightness() {
+  function updateBarBrightness() {
     const pct = state.brightness;
-    document.getElementById('sBrightFill').style.width = pct + '%';
-    document.getElementById('sBrightThumb').style.left = pct + '%';
-    document.getElementById('sBrightVal').textContent = pct + '%';
+    document.getElementById('barBrightness').style.width = pct + '%';
+    document.getElementById('valBrightness').textContent = pct + '%';
   }
 
-  function updateSettingsTimeout() {
+  function updateBarTimeout() {
     const pct = (state.displayTimeout / 60) * 100;
-    document.getElementById('sTimeoutFill').style.width = pct + '%';
-    document.getElementById('sTimeoutThumb').style.left = pct + '%';
-    document.getElementById('sTimeoutVal').textContent = state.displayTimeout + '分钟';
+    document.getElementById('barTimeout').style.width = pct + '%';
+    document.getElementById('valTimeout').textContent = state.displayTimeout + '分钟';
+  }
+
+  function updateThemeRow() {
+    document.getElementById('valTheme').textContent = THEMES[state.theme] || THEMES[0];
+    document.getElementById('valInput').textContent = SRC_NAMES[state.input];
+    document.getElementById('valInput').textContent = SRC_NAMES[state.input];
+    document.getElementById('valFirmware').textContent = 'v2.0.0';
+    document.getElementById('valIp').textContent = state.wifi ? '192.168.1.100' : '---.---.---.---';
   }
 
   function updateStatus() {
     state.wifi = document.getElementById('chkWifi').checked;
     state.ble = document.getElementById('chkBle').checked;
-    document.getElementById('wifiIcon').style.color = state.wifi ? '#FFFFFF' : '#333';
-    document.getElementById('bleIcon').style.color = state.ble ? '#FFFFFF' : '#333';
+    document.getElementById('wifiIcon').style.color = state.wifi ? getAccent() : '#333';
+    document.getElementById('bleIcon').style.display = state.ble ? '' : 'none';
+    document.getElementById('bleIcon').style.color = state.ble ? getAccent() : '#333';
+    document.getElementById('autoSwitchIcon').style.color = state.autoSwitch ? getAccent() : '#444';
   }
 
   function toggleStandby() {
     state.standby = document.getElementById('chkStandby').checked;
-    const pwr = document.getElementById('powerIcon');
-    pwr.style.color = state.standby ? '#666' : getAccent();
-    pwr.style.animation = state.standby ? 'none' : 'powerPulse 2s ease-in-out infinite';
     if (state.standby) {
       if (state.idleTimer) clearInterval(state.idleTimer);
       showPage(0);
@@ -955,6 +1432,49 @@
     const el = document.getElementById('muteIcon');
     el.style.display = state.muted ? '' : 'none';
     updateLed(state.input);
+  }
+
+  function toggleBleConnected() {
+    state.bleRemoteConnected = document.getElementById('chkBleConnected').checked;
+    if (state.bleRemoteConnected) {
+      state.bleRemoteBattery = 75 + Math.floor(Math.random() * 20);
+    } else { state.bleRemoteBattery = -1; }
+    document.getElementById('valBleStatus').textContent = state.bleRemoteConnected ? '已连接' : '未连接';
+    // 更新状态栏 BLE 图标文字
+    const navLabel = document.querySelector('.settings-row[data-row="8"] .val');
+    if (navLabel) navLabel.textContent = state.bleRemoteConnected ? '已连接' : '未连接';
+    if (state.currentPage === 3) updateBlePage();
+    updateBleRemoteIndicator();
+  }
+
+  // ── BLE 遥控状态栏指示（耳机电量风格） ──
+  function updateBleRemoteIndicator() {
+    const el = document.getElementById('bleRemoteIndicator');
+    const fill = document.getElementById('bleRemoteBattFill');
+    const icon = el?.querySelector('.rem-mdi');
+    const border = el?.querySelector('.ble-remote-batt');
+    if (!el || !fill) return;
+    const connected = state.bleRemoteConnected;
+    const hasPeer = state.bleRemoteHasPeer;
+    const hex = getAccent();
+    const dim = '#555555';
+    if (connected || hasPeer) {
+      el.style.display = '';
+      if (icon) icon.style.color = connected ? hex : dim;
+      if (border) border.style.borderColor = connected ? hex : dim;
+      if (!connected && icon) icon.style.filter = 'none';
+    } else {
+      el.style.display = 'none';
+    }
+    if (connected && state.bleRemoteBattery >= 0) {
+      const pct = Math.min(100, Math.max(0, state.bleRemoteBattery));
+      fill.style.width = (pct / 100 * 14) + 'px';
+      if (pct > 50)      fill.style.background = hex;
+      else if (pct > 20) fill.style.background = '#FBBF24';
+      else               fill.style.background = '#EF4444';
+    } else {
+      fill.style.width = '0px';
+    }
   }
 
   // ── 信号检测模拟 ──
@@ -1007,15 +1527,32 @@
     const b = parseInt(hex.slice(5,7), 16);
     const shadow = `rgba(${r},${g},${b},0.3)`;
     document.documentElement.style.setProperty('--accent-shadow', shadow);
+    document.documentElement.style.setProperty('--accent-shadow-sm', `drop-shadow(0 0 4px ${shadow.replace('0.3','0.5')})`);
+    // 更新 BLE 图标颜色
+    const bleIcon = document.getElementById('bleIcon');
+    if (bleIcon && state.ble) bleIcon.style.color = hex;
+    const remIcon = document.querySelector('.ble-remote-indicator .rem-mdi');
+    const dim = '#555555';
+    if (remIcon) {
+      remIcon.style.color = state.bleRemoteConnected ? hex : dim;
+      remIcon.style.filter = state.bleRemoteConnected ? `drop-shadow(0 0 4px ${hex}80)` : 'none';
+    }
+    const battBorder = document.querySelector('.ble-remote-batt');
+    if (battBorder) battBorder.style.borderColor = state.bleRemoteConnected ? hex : dim;
+    const battFill = document.getElementById('bleRemoteBattFill');
+    if (battFill && state.bleRemoteConnected && state.bleRemoteBattery > 50) battFill.style.background = hex;
+    // WiFi 图标跟随主题
+    const wifiIcon = document.getElementById('wifiIcon');
+    if (wifiIcon && state.wifi) wifiIcon.style.color = hex;
+    // 温度数值跟随主题
+    const tempVal = document.getElementById('tempVal');
+    if (tempVal) tempVal.style.color = hex;
+    const tempDeg = document.querySelector('.temp .deg');
+    if (tempDeg) tempDeg.style.color = hex;
     // 更新滑块、电源图标颜色等
     if (state.currentPage === 2) updateSettings();
     updateSpecColors();
     updateBalance();
-    const pwr = document.getElementById('powerIcon');
-    if (pwr) {
-      pwr.style.color = state.standby ? '#666' : hex;
-      pwr.style.animation = state.standby ? 'none' : 'powerPulse 2s ease-in-out infinite';
-    }
   }
 
   // ── 频谱条颜色跟随主题 ──
@@ -1024,6 +1561,128 @@
     document.querySelectorAll('#specLeft .bar, #specRight .bar').forEach((el, i) => {
       el.style.background = colors[i % 7];
     });
+  }
+
+  // ── BLE 遥控模拟函数 ──
+  function updateBlePage() {
+    const connected = state.bleRemoteConnected;
+    const battery = state.bleRemoteBattery;
+    let statusText = connected ? '已连接: 蓝牙遥控器' : (state.bleRemoteScanning ? '扫描中...' : '未连接');
+    if (connected && battery >= 0) statusText += ' 电池: ' + battery + '%';
+    document.getElementById('lblBleStatus').textContent = statusText;
+    document.getElementById('lblScanBtn').textContent = state.bleRemoteScanning ? '停止扫描' : '开始扫描';
+    document.getElementById('lblBleBack').textContent = connected ? '断开' : '返回设置';
+    // 电池显示
+    const battEl = document.getElementById('lblBleBattery');
+    if (battEl) {
+      if (connected && battery >= 0) {
+        battEl.textContent = battery + '%';
+        battEl.style.color = battery > 20 ? getAccent() : '#EF4444';
+      } else { battEl.textContent = '--'; battEl.style.color = '#4A6890'; }
+    }
+    // 原始HID事件显示
+    if (state.bleRawEvent) {
+      const rawRow = document.getElementById('bleRawEventRow');
+      if (rawRow) rawRow.classList.remove('hidden-row');
+      document.getElementById('lblBleRawEvent').textContent = state.bleRawEvent;
+    }
+    // 更新设备槽
+    for (let i = 0; i < 3; i++) {
+      const row = document.getElementById('bleDevRow' + i);
+      const nameEl = document.getElementById('lblBleDev' + i);
+      const rssiEl = document.getElementById('lblBleRssi' + i);
+      if (i < state.bleRemoteDeviceCount) {
+        const dev = state.bleRemoteDevices[i];
+        row.classList.remove('hidden-row');
+        nameEl.textContent = dev.name;
+        rssiEl.textContent = dev.rssi + 'dBm';
+      } else {
+        row.classList.add('hidden-row');
+      }
+    }
+    updateBleFocus();
+  }
+
+  function updateBleFocus() {
+    const f = state.bleRemoteFocus;
+    document.querySelectorAll('.ble-row[data-ble-row]').forEach(el => {
+      const r = parseInt(el.dataset.bleRow);
+      el.classList.toggle('focused', r === f);
+    });
+    let targetId = null;
+    if (f === 0) targetId = 'bleScanRow';
+    else if (f === 1) targetId = 'bleDevRow0';
+    else if (f === 2) targetId = 'bleDevRow1';
+    else if (f === 3) targetId = 'bleDevRow2';
+    else if (f === 4) targetId = 'bleBackRow';
+    if (targetId) {
+      document.getElementById(targetId).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function startBleScan() {
+    state.bleRemoteScanning = true;
+    state.bleRemoteDeviceCount = 0;
+    state.bleRemoteDevices = [];
+    updateBlePage();
+    // 模拟扫描：1秒后依次发现设备
+    let delay = 800;
+    const mockDevices = [
+      { name: 'BT-Remote-01', rssi: -52 },
+      { name: 'Media-Clicker', rssi: -68 },
+      { name: 'Selfie-Shutter', rssi: -75 }
+    ];
+    mockDevices.forEach((dev, i) => {
+      setTimeout(() => {
+        if (!state.bleRemoteScanning) return;
+        state.bleRemoteDevices.push(dev);
+        state.bleRemoteDeviceCount = state.bleRemoteDevices.length;
+        updateBlePage();
+      }, delay + i * 600);
+    });
+    // 3秒后停止扫描
+    state.bleRemoteScanTimer = setTimeout(() => {
+      stopBleScan();
+    }, 3000);
+  }
+
+  function stopBleScan() {
+    state.bleRemoteScanning = false;
+    if (state.bleRemoteScanTimer) {
+      clearTimeout(state.bleRemoteScanTimer);
+      state.bleRemoteScanTimer = null;
+    }
+    updateBlePage();
+  }
+
+  function connectBleDevice(devIdx) {
+    if (devIdx >= state.bleRemoteDeviceCount) return;
+    const dev = state.bleRemoteDevices[devIdx];
+    document.getElementById('lblBleStatus').textContent = '正在连接: ' + dev.name + '...';
+    // 模拟连接：1秒后成功
+    setTimeout(() => {
+      state.bleRemoteConnected = true;
+      state.bleRemoteHasPeer = true;  // 首次连接标记已配对
+      state.bleRemoteScanning = false;
+      state.bleRemoteBattery = 65 + Math.floor(Math.random() * 30);  // 模拟电池 65~94%
+      state.bleRawEvent = 'Page=0x000C Usage=0x00E9 Val=1';  // CONSUMER_VOLUME_UP
+      if (state.bleRemoteScanTimer) {
+        clearTimeout(state.bleRemoteScanTimer);
+        state.bleRemoteScanTimer = null;
+      }
+      updateBlePage();
+      // 更新设置页 Row 10 状态
+      document.getElementById('valBleStatus').textContent = '已连接';
+      updateBleRemoteIndicator();
+    }, 1000);
+  }
+
+  function disconnectBle() {
+    state.bleRemoteConnected = false;
+    state.bleRemoteBattery = -1;
+    updateBlePage();
+    document.getElementById('valBleStatus').textContent = '未连接';
+    updateBleRemoteIndicator();
   }
 
   // ── 立体声频谱动画 ──
@@ -1098,10 +1757,476 @@
     if (state.specInterval) { clearInterval(state.specInterval); state.specInterval = null; }
   }
 
+  // ═══════════════════════════════════════════════════
+  // 诊断页 (内存监控)
+  // ═══════════════════════════════════════════════════
+  function updateDebugPage() {
+    state.uptimeSeconds++;
+    // 模拟内存值缓慢变化 (带小幅度波动)
+    state.freeHeap = Math.max(80, Math.min(state.totalHeap - 20,
+      state.freeHeap + (Math.random() - 0.5) * 4));
+    state.minFreeHeap = Math.min(state.minFreeHeap, state.freeHeap);
+    state.freePsram = Math.max(4000, Math.min(state.totalPsram - 200,
+      state.freePsram + (Math.random() - 0.5) * 20));
+    state.minFreePsram = Math.min(state.minFreePsram, state.freePsram);
+    // 模拟 CPU 占用率 (波动 2~35%, 偶尔尖峰)
+    state.cpuLoad = Math.max(2, Math.min(99,
+      state.cpuLoad + (Math.random() - 0.5) * 6 + (Math.random() < 0.03 ? 40 : 0)));
+    state.cpuLoad = Math.min(99, Math.max(2, state.cpuLoad));
+
+    const heapUsed = state.totalHeap - state.freeHeap;
+    const psramUsed = state.totalPsram - state.freePsram;
+    document.getElementById('lblDbgHeap').textContent =
+      '内部堆: ' + heapUsed.toFixed(0) + ' / ' + state.totalHeap + ' KB (空闲 ' + state.freeHeap.toFixed(0) + ' KB)';
+    document.getElementById('lblDbgMinHeap').textContent =
+      '最小空闲: ' + state.minFreeHeap.toFixed(0) + ' KB (全时段低水位)';
+    document.getElementById('lblDbgPsram').textContent =
+      'PSRAM: ' + psramUsed.toFixed(0) + ' / ' + state.totalPsram + ' KB (空闲 ' + state.freePsram.toFixed(0) + ' KB)';
+    document.getElementById('lblDbgMinPsram').textContent =
+      'PSRAM最小空闲: ' + state.minFreePsram.toFixed(0) + ' KB';
+    document.getElementById('lblDbgCpu').textContent =
+      'CPU 占用: ' + state.cpuLoad.toFixed(1) + '%' + (state.cpuLoad > 70 ? ' ⚠️' : '');
+
+    // 运行时间显示
+    const totalSec = state.uptimeSeconds;
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    let uptimeStr = '';
+    if (days > 0) uptimeStr += days + '天 ';
+    uptimeStr += String(hours).padStart(2, '0') + '时 ';
+    uptimeStr += String(minutes).padStart(2, '0') + '分 ';
+    uptimeStr += String(secs).padStart(2, '0') + '秒';
+    document.getElementById('lblDbgUptime').textContent = '运行时间: ' + uptimeStr;
+  }
+
+  function startDebugRefresh() {
+    if (state.debugInterval) clearInterval(state.debugInterval);
+    // 首次立即刷新
+    state.uptimeSeconds = 0;
+    state.freeHeap = 198 + Math.random() * 30;
+    state.minFreeHeap = 164;
+    state.freePsram = 6840 + Math.random() * 200;
+    state.minFreePsram = 5820;
+    updateDebugPage();
+    state.debugInterval = setInterval(updateDebugPage, 2000);
+  }
+
+  function stopDebugRefresh() {
+    if (state.debugInterval) { clearInterval(state.debugInterval); state.debugInterval = null; }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // 页面空闲自动返回定时器
+  // ═══════════════════════════════════════════════════
+  function startPageIdleTimer(seconds) {
+    clearPageIdleTimer();
+    if (seconds <= 0) return;
+    state.pageIdleTimer = setTimeout(() => {
+      state.pageIdleTimer = null;
+      // 超时后返回主页（仅在当前页未改变时）
+      if (state.currentPage >= 2 && state.currentPage <= 4) {
+        showPage(0);
+      }
+    }, seconds * 1000);
+  }
+
+  function clearPageIdleTimer() {
+    if (state.pageIdleTimer) {
+      clearTimeout(state.pageIdleTimer);
+      state.pageIdleTimer = null;
+    }
+  }
+
+  function resetPageIdleTimer() {
+    const p = state.currentPage;
+    if (p === 2 || p === 3) startPageIdleTimer(10);
+    else if (p === 4) startPageIdleTimer(30);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // 编码器模拟 (旋钮 + 按键)
+  // ═══════════════════════════════════════════════════
+  const encoder = {
+    knob: document.getElementById('encoderKnob'),
+    action: document.getElementById('encoderAction'),
+    holdTimer: null,
+    clickTimer: null,
+    lastClickMs: 0,
+    holdFired: false,
+    downMs: 0,
+
+    init() {
+      const kn = this.knob;
+      // 滚轮 → 旋转
+      kn.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        this.rotate(e.deltaY > 0 ? 1 : -1);  // 下滚=正向(下移/减音量), 上滚=反向(上移/加音量)
+      });
+      // 鼠标按下
+      kn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        this.downMs = Date.now();
+        this.holdFired = false;
+        kn.classList.add('pressed');
+        // 800ms 长按检测
+        this.holdTimer = setTimeout(() => this.longPress(), 800);
+      });
+      // 鼠标松开
+      kn.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        kn.classList.remove('pressed');
+        clearTimeout(this.holdTimer);
+        const dur = Date.now() - this.downMs;
+        if (this.holdFired) return;  // 长按已触发
+        if (dur < 400) {
+          const now = Date.now();
+          if (now - this.lastClickMs < 400) {
+            // 双击
+            clearTimeout(this.clickTimer);
+            this.lastClickMs = 0;
+            this.doubleClick();
+          } else {
+            // 可能是单击，等 400ms 确认不是双击的第一击
+            this.lastClickMs = now;
+            this.clickTimer = setTimeout(() => {
+              this.lastClickMs = 0;
+              this.singleClick();
+            }, 400);
+          }
+        }
+        // 固件版本三击追踪 (不受双击拦截影响)
+        if (state.currentPage === 2 && state.settingsFocus === 9) {
+          state.clickCount++;
+          if (state.clickTimer) clearTimeout(state.clickTimer);
+          if (state.clickCount >= 3) {
+            state.clickCount = 0;
+            state.clickTimer = null;
+            clearTimeout(this.clickTimer);  // 取消待处理的 singleClick，防止跳回
+            this.lastClickMs = 0;
+            showPage(4);
+          } else {
+            state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
+          }
+        }
+      });
+      // 触摸事件 (移动端)
+      kn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.downMs = Date.now();
+        this.holdFired = false;
+        kn.classList.add('pressed');
+        this.holdTimer = setTimeout(() => this.longPress(), 800);
+      });
+      kn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        kn.classList.remove('pressed');
+        clearTimeout(this.holdTimer);
+        const dur = Date.now() - this.downMs;
+        if (this.holdFired) return;
+        if (dur < 400) {
+          const now = Date.now();
+          if (now - this.lastClickMs < 400) {
+            clearTimeout(this.clickTimer);
+            this.lastClickMs = 0;
+            this.doubleClick();
+          } else {
+            this.lastClickMs = now;
+            this.clickTimer = setTimeout(() => {
+              this.lastClickMs = 0;
+              this.singleClick();
+            }, 400);
+          }
+        }
+        // 固件版本三击追踪 (不受双击拦截影响)
+        if (state.currentPage === 2 && state.settingsFocus === 9) {
+          state.clickCount++;
+          if (state.clickTimer) clearTimeout(state.clickTimer);
+          if (state.clickCount >= 3) {
+            state.clickCount = 0;
+            state.clickTimer = null;
+            clearTimeout(this.clickTimer);  // 取消待处理的 singleClick，防止跳回
+            this.lastClickMs = 0;
+            showPage(4);
+          } else {
+            state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
+          }
+        }
+      });
+      // 也监听屏幕区域的滚轮 (全局音量调节)
+      document.querySelector('.screen').addEventListener('wheel', (e) => {
+        if (e.target.closest('.encoder-wrap')) return;
+        e.preventDefault();
+        this.rotate(e.deltaY > 0 ? 1 : -1);  // 下滚=正向, 上滚=反向
+      });
+    },
+
+    flashAction(text) {
+      if (!this.action) return;
+      this.action.textContent = text;
+      this.action.style.opacity = '1';
+      clearTimeout(this._flashT);
+      this._flashT = setTimeout(() => { this.action.style.opacity = '0'; }, 800);
+    },
+
+    rotate(diff) {
+      const page = state.currentPage;
+      // 屏幕休眠 → 不响应
+      if (state.standby) return;
+
+      // 大字音量浮层可见时，旋转调音量（仅主页/频谱页）
+      if (state.volBigVisible && (page === 0 || page === 1)) {
+        let v = state.volume - diff;
+        if (v < 0) v = 0; if (v > 100) v = 100;
+        if (v !== state.volume) {
+          state.volume = v;
+          updateVolume();
+          updateLed(state.input);
+          showVolumeBig();
+          document.getElementById('volSlider').value = v;
+          this.flashAction((diff > 0 ? '▼ ' : '▲ ') + v);
+        }
+        resetIdleTimer();
+        return;
+      }
+
+      if (page === 0 || page === 1) {
+        // 主页 / 频谱页: 调节音量
+        let v = state.volume - diff;
+        if (v < 0) v = 0; if (v > 100) v = 100;
+        if (v !== state.volume) {
+          state.volume = v;
+          updateVolume();
+          updateLed(state.input);
+          showVolumeBig();
+          document.getElementById('volSlider').value = v;
+          this.flashAction((diff > 0 ? '▼ ' : '▲ ') + v);
+        }
+        // 频谱页调音量 → 自动返回主页
+        if (page === 1) showPage(0);
+      } else if (page === 2) {
+        // 设置页
+        const N = 11;
+        if (state.settingsActive < 0) {
+          // 浏览模式：移动焦点 (无限循环)
+          let next = state.settingsFocus + diff;
+          if (next < 0) next = N - 1;
+          if (next >= N) next = 0;
+          if (next !== state.settingsFocus) {
+            state.settingsFocus = next;
+            updateSettingsFocus();
+            const row = document.querySelector(`.settings-row[data-row="${next}"]`);
+            if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+        } else {
+          // 调节模式：调整当前设置项的值
+          const idx = state.settingsActive;
+          const step = diff;
+          switch (idx) {
+            case 0: {
+              let v = state.maxVolume + step;
+              if (v < 10) v = 10; if (v > 255) v = 255;
+              state.maxVolume = v;
+              updateBarMaxVol();
+              document.getElementById('maxVolSlider').value = v;
+              this.flashAction('最大音量 ' + v);
+              break;
+            }
+            case 1: {
+              let v = state.powerOnLimit + step;
+              if (v < 10) v = 10; if (v > 255) v = 255;
+              state.powerOnLimit = v;
+              updateBarPowerOn();
+              document.getElementById('powerOnSlider').value = v;
+              this.flashAction('开机上限 ' + v);
+              break;
+            }
+            case 2: {
+              let v = state.balance + step;
+              if (v < -20) v = -20; if (v > 20) v = 20;
+              state.balance = v;
+              updateBarBalance();
+              updateBalance();
+              document.getElementById('balSlider').value = v;
+              this.flashAction(v === 0 ? '平衡' : ((v < 0 ? 'L' : 'R') + Math.abs(v)));
+              break;
+            }
+            case 3: {
+              let v = state.input + step;
+              if (v < 0) v = 3; if (v > 3) v = 0;
+              setInput(v, true);
+              document.getElementById('valInput').textContent = SRC_NAMES[v];
+              this.flashAction('输入: ' + SRC_NAMES[v]);
+              break;
+            }
+            case 4: {
+              state.autoSwitch = !state.autoSwitch;
+              document.getElementById('chkAutoSwitch').checked = state.autoSwitch;
+              updateAutoSwitch();
+              this.flashAction(state.autoSwitch ? '自动切换' : '手动切换');
+              break;
+            }
+            case 5: {
+              let v = state.brightness + step;
+              if (v < 0) v = 0; if (v > 100) v = 100;
+              state.brightness = v;
+              updateBarBrightness();
+              document.getElementById('brightSlider').value = v;
+              this.flashAction('亮度 ' + v + '%');
+              break;
+            }
+            case 6: {
+              let v = state.displayTimeout + step;
+              if (v < 1) v = 1; if (v > 60) v = 60;
+              state.displayTimeout = v;
+              updateBarTimeout();
+              document.getElementById('timeoutSlider').value = v;
+              this.flashAction('超时 ' + v + '分钟');
+              break;
+            }
+            case 7: {
+              let v = state.theme + step;
+              if (v < 0) v = 7; if (v > 7) v = 0;
+              setTheme(v);
+              this.flashAction('主题: ' + THEMES[v]);
+              break;
+            }
+          }
+        }
+      } else if (page === 3) {
+        // 蓝牙遥控页：移动焦点（无限循环，跳过隐藏行）
+        const count = state.bleRemoteDeviceCount;
+        // 构建有效焦点索引数组：0=扫描, 1~count=设备槽, 4=返回
+        const validIndices = [0];
+        for (let i = 0; i < count && i < 3; i++) validIndices.push(i + 1);
+        validIndices.push(4);  // 返回按钮始终可达
+        const pos = validIndices.indexOf(state.bleRemoteFocus);
+        let newPos = (pos >= 0 ? pos : 0) + diff;
+        if (newPos < 0) newPos = validIndices.length - 1;
+        if (newPos >= validIndices.length) newPos = 0;
+        const next = validIndices[newPos];
+        if (next !== state.bleRemoteFocus) {
+          state.bleRemoteFocus = next;
+          updateBleFocus();
+        }
+      } else if (page === 4) {
+        // 诊断页：旋转无操作
+      }
+      resetIdleTimer();
+    },
+
+    singleClick() {
+      if (state.standby) return;
+      // 大字音量浮层可见时，单击返回之前页面
+      if (state.volBigVisible) {
+        const overlay = document.getElementById('pageVolumeBig');
+        overlay.classList.remove('active');
+        state.volBigVisible = false;
+        clearTimeout(state.volBigTimer);
+        this.flashAction('返回');
+        resetIdleTimer();
+        return;
+      }
+      const page = state.currentPage;
+      this.flashAction('单击');
+
+      if (page === 0) {
+        // 主页 → 设置页
+        state.settingsFocus = 0;
+        state.settingsActive = -1;
+        showPage(2);
+      } else if (page === 1) {
+        // 频谱页 → 主页
+        showPage(0);
+      } else if (page === 2) {
+        // 设置页
+        const idx = state.settingsFocus;
+        if (idx === 8) {
+          // 蓝牙遥控 → 导航到 BLE 遥控页
+          state.bleRemoteFocus = 0;
+          state.bleRemoteDeviceCount = 0;
+          showPage(3);
+          return;
+        }
+        if (idx > 8) return;  // 只读项(9,10)无反应
+        if (state.settingsActive < 0) {
+          state.settingsActive = idx;
+        } else {
+          state.settingsActive = -1;
+        }
+        updateSettingsFocus();
+      } else if (page === 3) {
+        // 蓝牙遥控页：激活焦点项
+        const f = state.bleRemoteFocus;
+        if (f === 0) {
+          if (state.bleRemoteScanning) { stopBleScan(); }
+          else { startBleScan(); }
+        } else if (f >= 1 && f <= 3) {
+          const devIdx = f - 1;
+          if (devIdx < state.bleRemoteDeviceCount) { connectBleDevice(devIdx); }
+        } else if (f === 4) {
+          // 已连接→断开（留在蓝牙页），未连接→返回设置
+          if (state.bleRemoteConnected) {
+            disconnectBle();
+            this.flashAction('已断开');
+          } else {
+            showPage(2);
+          }
+        }
+      } else if (page === 4) {
+        // 诊断页：单击返回设置页
+        this.flashAction('返回设置');
+        showPage(2);
+      }
+      resetIdleTimer();
+    },
+
+    doubleClick() {
+      if (state.standby) return;
+      // 只在主页(0)和频谱页(1)有效
+      if (state.currentPage > 1) return;
+      // 任意页面双击 → 静音切换
+      state.muted = !state.muted;
+      document.getElementById('chkMute').checked = state.muted;
+      const el = document.getElementById('muteIcon');
+      el.style.display = state.muted ? '' : 'none';
+      updateLed(state.input);
+      this.flashAction(state.muted ? '静音 ON' : '静音 OFF');
+      resetIdleTimer();
+    },
+
+    longPress() {
+      this.holdFired = true;
+      const page = state.currentPage;
+      // 设置页 / 蓝牙遥控页 / 诊断页 → 返回主页面
+      if (page === 2 || page === 3 || page === 4) {
+        this.flashAction('返回主页');
+        clearPageIdleTimer();
+        showPage(0);
+      } else {
+        // 其他页面 → 待机/唤醒
+        state.standby = !state.standby;
+        document.getElementById('chkStandby').checked = state.standby;
+        if (state.standby) {
+          this.flashAction('待机');
+          if (state.idleTimer) clearInterval(state.idleTimer);
+          showPage(0);
+        } else {
+          this.flashAction('唤醒');
+          resetIdleTimer();
+        }
+      }
+    }
+  };
+
+  encoder.init();
+
   setInput(0, true);
   updateVolume();
   updateBalance();
   updateStatus();
+  updateBleRemoteIndicator();
   resetIdleTimer();
   setTheme(0);
 </script>

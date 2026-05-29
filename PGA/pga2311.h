@@ -83,6 +83,7 @@ static void set_volume(int right_vol, int left_vol) {
   if (!_initialized) {
     ESP_LOGW("pga2311", "set_volume called before setup(), initializing now");
     setup();
+    if (!_initialized) return;  // setup() 失败时防止空指针崩溃
   }
 
   right_vol = _clamp(right_vol, 0, 255);
@@ -91,8 +92,6 @@ static void set_volume(int right_vol, int left_vol) {
   if (right_vol == _last_r && left_vol == _last_l) {
     return;
   }
-  _last_r = right_vol;
-  _last_l = left_vol;
 
   spi_transaction_t trans = {};
   trans.flags = SPI_TRANS_USE_TXDATA;
@@ -106,7 +105,11 @@ static void set_volume(int right_vol, int left_vol) {
   esp_err_t ret = spi_device_polling_transmit(_spi_dev, &trans);
   if (ret != ESP_OK) {
     ESP_LOGW("pga2311", "SPI transmit failed: %s", esp_err_to_name(ret));
+    gpio_set_level((gpio_num_t)PGA2311_CS_PIN, 1);
+    return;
   }
+  _last_r = right_vol;
+  _last_l = left_vol;
 
   esp_rom_delay_us(1);
   gpio_set_level((gpio_num_t)PGA2311_CS_PIN, 1);

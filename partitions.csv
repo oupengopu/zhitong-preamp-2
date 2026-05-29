@@ -1,0 +1,7 @@
+# ESP32-S3 16MB Flash Partition Table (OTA)
+# 两块 6MB OTA 分区，剩余 ~4MB 存储空间
+nvs,      data, nvs,       0x009000, 0x005000,
+otadata,  data, ota,       0x00E000, 0x002000,
+app0,     app,  ota_0,     0x010000, 0x600000,
+app1,     app,  ota_1,     0x610000, 0x600000,
+spiffs,   data, spiffs,    0xC10000, 0x3F0000,  # 预留 ~4MB, 当前 YAML 未启用文件系统组件

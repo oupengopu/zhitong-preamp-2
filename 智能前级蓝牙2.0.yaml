@@ -13,9 +13,11 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   includes:
-    - pga2311.h
-    - msgeq7.h
-    - lvgl_compat.h
+    - PGA/pga2311.h
+    - PGA/msgeq7.h
+    - PGA/lvgl_compat.h
+    - PGA/settings_ui.h
+    - PGA/ble_hid_host.h
 
   on_boot:
     # priority 200 -> -100 严格串行: 硬件初始化先于软件恢复
@@ -26,9 +28,13 @@ esphome:
             ESP_LOGD("PGA2311", "Initializing SPI3 and PGA2311 at priority 200");
             pga2311::setup();
             pga2311::set_volume(0, 0);
-            delay(5);
-            pga2311::set_volume(0, 0);
             msgeq7::setup();
+
+    - priority: 150
+      then:
+        - lambda: |-
+            ESP_LOGD("BLE_HID", "Initializing BLE HID Host at priority 150");
+            ble_hid_host::setup();
 
     - priority: -100
       then:
@@ -64,6 +70,7 @@ esphome:
             id(display_timeout_number)->publish_state((float)id(display_timeout_min));
             id(display_brightness_number)->publish_state((float)id(display_brightness));
             id(theme_number)->publish_state((float)id(theme));
+            id(auto_input_switch)->publish_state(id(auto_input));
 
             const char* names[] = {"CD", "DAC", "PC", "AUX"};
             id(input_select)->publish_state(names[id(current_input)]);
@@ -100,6 +107,8 @@ esphome:
 esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
+  flash_size: 16MB
+  partitions: partitions.csv
   framework:
     type: esp-idf
     advanced:
@@ -120,6 +129,7 @@ esp32:
       CONFIG_SPIRAM_USE_MALLOC: "y"                     # 允许 malloc 使用 PSRAM (大缓冲区自动进 PSRAM)
       CONFIG_ESP32S3_DATA_CACHE_SIZE_64KB: "y"          # ★ 数据缓存 64KB (默认 32KB, 大幅减少 PSRAM 未命中)
       CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE_32KB: "y"   # 指令缓存 32KB (默认 16KB)
+      CONFIG_GATTC_ENABLE: "y"                          # 启用 GATT Client (BLE HID Host 遥控器支持)
 psram:
   mode: octal
   speed: 80MHz
@@ -151,7 +161,7 @@ esp32_ble_server:
                   }
                   uint8_t cmd = x[1];
                   uint8_t len = x[2];
-                  if (x.size() < 4 + len) {
+                  if (x.size() < 4 + len + 1) {  // +1 确保CRC字节存在
                     return;
                   }
                   uint8_t crc = cmd ^ len;
@@ -172,7 +182,8 @@ esp32_ble_server:
                       (uint8_t)id(max_volume),
                       (uint8_t)(id(standby) ? 0x01 : 0x00),
                       (uint8_t)id(power_on_limit),
-                      (uint8_t)id(display_timeout_min)
+                      (uint8_t)id(display_timeout_min),
+                      (uint8_t)(id(auto_input) ? 0x01 : 0x00)  // byte 9: 自动输入切换
                     };
                     uint8_t p_len = payload.size();
                     uint8_t p_cmd = 0x80;
@@ -234,13 +245,21 @@ esp32_ble_server:
                     }
                     case 0x04: {
                       if (len < 1) break;
-                      int8_t bal = (int8_t)x[3] - 20;
+                      int bal = (int)x[3] - 20;  // x[3] 范围 0-40 映射到 -20~20
                       if (bal < -20) bal = -20;
                       if (bal > 20)  bal = 20;
                       id(balance) = bal;
                       id(balance_number)->publish_state((float)bal);
                       id(send_volume_to_pga)->execute();
                       id(reset_idle_timer)->execute();
+                      // 同步 LVGL 设置页
+                      lv_bar_set_value(id(bar_balance), bal + 20, LV_ANIM_OFF);
+                      {
+                        char buf[8];
+                        if (bal == 0) lv_label_set_text(id(val_balance), "平衡");
+                        else { snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", bal < 0 ? -bal : bal);
+                          lv_label_set_text(id(val_balance), buf); }
+                      }
                       break;
                     }
                     case 0x05: {
@@ -258,6 +277,9 @@ esp32_ble_server:
                       if (pct > 100.0f) pct = 100.0f;
                       id(volume_number)->publish_state(pct);
                       id(send_volume_to_pga)->execute();
+                      // 同步 LVGL 设置页
+                      lv_bar_set_value(id(bar_max_vol), max_vol, LV_ANIM_OFF);
+                      lv_label_set_text(id(val_max_vol), (std::to_string(max_vol)).c_str());
                       break;
                     }
                     case 0x06: {
@@ -304,6 +326,9 @@ esp32_ble_server:
                       if (pol > 255) pol = 255;
                       id(power_on_limit) = pol;
                       id(power_on_limit_number)->publish_state((float)pol);
+                      // 同步 LVGL 设置页
+                      lv_bar_set_value(id(bar_power_on_limit), pol, LV_ANIM_OFF);
+                      lv_label_set_text(id(val_power_on), (std::to_string(pol)).c_str());
                       break;
                     }
                     case 0x0E: {
@@ -313,6 +338,22 @@ esp32_ble_server:
                       if (tm > 60) tm = 60;
                       id(display_timeout_min) = tm;
                       id(display_timeout_number)->publish_state((float)tm);
+                      // 同步 LVGL 设置页
+                      lv_bar_set_value(id(bar_display_timeout), tm, LV_ANIM_OFF);
+                      {
+                        char buf[8];
+                        snprintf(buf, sizeof(buf), "%d分钟", tm);
+                        lv_label_set_text(id(val_timeout), buf);
+                      }
+                      break;
+                    }
+                    case 0x0F: {
+                      if (len < 1) break;
+                      bool auto_en = x[3] == 0x01;
+                      id(auto_input) = auto_en;
+                      if (auto_en) id(auto_input_switch)->turn_on();
+                      else         id(auto_input_switch)->turn_off();
+                      if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), auto_en ? "自动" : "手动");
                       break;
                     }
                     case 0x10: {
@@ -380,13 +421,10 @@ api:
             uint32_t now = millis();
             if (now - id(last_switch_ms) < 1500) return;
             id(last_switch_ms) = now;
-
-            if      (input_name == "CD")  id(current_input) = 0;
-            else if (input_name == "DAC") id(current_input) = 1;
-            else if (input_name == "PC")  id(current_input) = 2;
-            else if (input_name == "AUX") id(current_input) = 3;
-        - script.execute: switch_input
-        - script.execute: reset_idle_timer
+            if      (input_name == "CD")  { id(current_input) = 0; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+            else if (input_name == "DAC") { id(current_input) = 1; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+            else if (input_name == "PC")  { id(current_input) = 2; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+            else if (input_name == "AUX") { id(current_input) = 3; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
 
 ota:
   - platform: esphome
@@ -431,17 +469,19 @@ spi:
 i2c:
   sda: GPIO38
   scl: GPIO40
-  scan: true
+  scan: false
   id: bus_a
   frequency: 400kHz
 
 # MCP23017 I/O 扩展芯片 (地址 0x27)
-#   继电器 1~4 : GPA3/GPA2/GPA1/GPA0 (CD/DAC/PC/AUX)
+#   继电器 1~4 : GPA0/GPA1/GPA2/GPA3 (CD/DAC/PC/AUX)
 #   硬件静音    : GPA6
-#   音频检测     : GPB3/GPB2/GPB1/GPB0 (CD/DAC/PC/AUX)
+#   音频检测     : GPB0/GPB1/GPB2/GPB3 (CD/DAC/PC/AUX)
 mcp23017:
   - id: mcp23017_hub
     address: 0x27
+    interrupt_pin: GPIO12       # INTB 中断信号 (Port B 音频检测输入)
+    open_drain_interrupt: true  # 开漏 + 低电平有效, ESP32-S3 内部上拉, 防电平冲突
 
 # ═══════════════════════════════════════════════════════════════
 # 字体 — Roboto + Montserrat + MDI 图标
@@ -459,30 +499,20 @@ font:
   - file: "gfonts://Roboto"
     id: font_xlarge
     size: 36
+
+  # ── NotoSansSC 中文字体 (web, 完整字体) ──
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn_small
     size: 14
-    glyphs:
-      - "0123456789"
-      - " !#%&'()*+,-./:;<=>?@"
-      - "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      - "abcdefghijklmnopqrstuvwxyz"
-      - "静音待机输入量平衡亮度超时版本地址居中左右最大上限开声道息屏固件选择幕"
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn
     size: 18
-    glyphs:
-      - "0123456789"
-      - " !#%&'()*+,-./:;<=>?@"
-      - "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      - "abcdefghijklmnopqrstuvwxyz"
-      - "静音待机输入量平衡亮度超时版本地址居中左右最大上限开声道息屏固件选择幕"
 
-  # ── SquareLine: Montserrat 字族 ──
+  # ── Montserrat 字族 (web, 完整字体) ──
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.ttf"
@@ -518,53 +548,56 @@ font:
       url: "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.ttf"
     id: montserrat_30
     size: 30
+  - file:
+      type: web
+      url: "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-.ttf"
+    id: montserrat_36
+    size: 36
 
-  # ── MDI 图标字体 (Material Design Icons) ──
+  # ── MDI 图标字体 (web, 完整字体) ──
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_22
     size: 22
-    glyphs: [
-      "\U000F0960",  # mdi-disc-player
-      "\U000F061A",  # mdi-chip
-      "\U000F0322",  # mdi-laptop
-      "\U000F186C",  # mdi-audio-input-stereo-minijack
-    ]
-
-  # ── MDI 状态栏图标 (各尺寸独立, 仅含所需 glyph 以节省编译资源) ──
+    glyphs: ["󰥠", "󰘚", "󰌢", "󱡬"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_12
     size: 12
-    glyphs: [
-      "\U000F0425",  # mdi-power (电源图标)
-    ]
+    glyphs: ["󰐥", "󰂯"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_16
     size: 16
-    glyphs: [
-      "\U000F050F",  # mdi-thermometer (温度计图标)
-    ]
+    glyphs: ["󰔏", "󰕽"]
+  - file:
+      type: web
+      url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_settings_icons
+    size: 16
+    glyphs: ["󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠"]
+  - file:
+      type: web
+      url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_settings_icons_24
+    size: 24
+    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_24
     size: 24
-    glyphs: [
-      "\U000F05A9",  # mdi-wifi
-    ]
+    glyphs: ["󰖩"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_27
     size: 27
-    glyphs: [
-      "\U000F00AF",  # mdi-bluetooth
-    ]
+    glyphs: ["󰂯"]
+
 
 # ═══════════════════════════════════════════════════════════════
 # 颜色定义 — SquareLine 绿色主题
@@ -613,13 +646,11 @@ color:
 # 输出
 # ═══════════════════════════════════════════════════════════════
 output:
-  # LED 指示灯 (IO16)
-  - platform: gpio
+  # LED 指示灯 PWM (IO16, 支持呼吸/闪烁/渐变)
+  - platform: ledc
     id: led_indicator
-    pin:
-      number: GPIO16
-      mode:
-        output: true
+    pin: GPIO16
+    frequency: 1000Hz
 
   # TFT 背光 PWM (LEDC, IO7)
   - platform: ledc
@@ -637,12 +668,8 @@ light:
     id: display_backlight
     restore_mode: ALWAYS_ON
 
-  # LED 指示灯 (IO16)
-  - platform: binary
-    output: led_indicator
-    name: "LED指示灯"
-    id: led_light
-    restore_mode: ALWAYS_ON
+  # LED 指示灯 (IO16) — 由 interval lambda 直接 PWM 控制 (待机呼吸/WiFi闪烁/静音半亮等)
+  # 无 light entity — 避免与 lambda 争抢输出控制
 
 # ═══════════════════════════════════════════════════════════════
 # 开关
@@ -683,6 +710,8 @@ switch:
     icon: mdi:power
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    # ⚠️ 重要: HA switch ON = 设备运行(非待机), OFF = 待机模式
+    # turn_off = HA关闭开关 → 进入待机, turn_on = HA打开开关 → 退出待机
     turn_off_action:
       - script.execute: enter_standby
     turn_on_action:
@@ -692,13 +721,13 @@ switch:
           then:
             - script.execute: exit_standby
 
-  # ── 输入继电器 (MCP23017 GPA3~GPA0, CD/DAC/PC/AUX) ──
+  # ── 输入继电器 (MCP23017 GPA0~GPA3, CD/DAC/PC/AUX) ──
   - platform: gpio
     id: relay_in1
     name: "继电器-输入1"
     pin:
       mcp23xxx: mcp23017_hub
-      number: 3
+      number: 0
       mode:
         output: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -709,7 +738,7 @@ switch:
     name: "继电器-输入2"
     pin:
       mcp23xxx: mcp23017_hub
-      number: 2
+      number: 1
       mode:
         output: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -720,7 +749,7 @@ switch:
     name: "继电器-输入3"
     pin:
       mcp23xxx: mcp23017_hub
-      number: 1
+      number: 2
       mode:
         output: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -731,13 +760,13 @@ switch:
     name: "继电器-输入4"
     pin:
       mcp23xxx: mcp23017_hub
-      number: 0
+      number: 3
       mode:
         output: true
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
 
-  # ── 自动输入切换开关 (HA 控制) ──
+  # ── 自动输入切换开关 (HA 控制 + LVGL 同步) ──
   - platform: template
     name: "自动输入切换"
     id: auto_input_switch
@@ -746,8 +775,12 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     turn_on_action:
       - globals.set: {id: auto_input, value: 'true'}
+      - lambda: |-
+          if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), "自动");
     turn_off_action:
       - globals.set: {id: auto_input, value: 'false'}
+      - lambda: |-
+          if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), "手动");
 
 # ═══════════════════════════════════════════════════════════════
 # NV3007 2.79" TFT 显示 — ESPHome 官方 mipi_spi 驱动 (CUSTOM 模式)
@@ -919,7 +952,7 @@ lvgl:
   encoders:
     - sensor: volume_encoder
       enter_button: encoder_button
-      long_press_time: 800ms
+      long_press_time: 5000ms  # 避免与 binary_sensor 1500ms 长按冲突, LVGL 长按交由脚本处理
   buffer_size: 100%
   color_depth: 16
   theme:
@@ -941,46 +974,7 @@ lvgl:
       then:
         - if:
             condition:
-              and:
-                - lambda: 'return !id(standby) && id(system_ready);'
-                - lvgl.page.is_showing: main_page
-                - lambda: |-
-                    switch (id(current_input)) {
-                      case 0: return id(audio_cd)->state;
-                      case 1: return id(audio_dac)->state;
-                      case 2: return id(audio_pc)->state;
-                      case 3: return id(audio_aux)->state;
-                      default: return false;
-                    }
-            then:
-              - lvgl.page.show:
-                  id: spectrum_page
-                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                  time: 200ms
-    - timeout: 30s
-      then:
-        - if:
-            condition:
               lvgl.page.is_showing: settings_page
-            then:
-              - lvgl.page.show:
-                  id: main_page
-                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                  time: 200ms
-    - timeout: 35s
-      then:
-        - if:
-            condition:
-              and:
-                - lvgl.page.is_showing: spectrum_page
-                - lambda: |-
-                    switch (id(current_input)) {
-                      case 0: return !id(audio_cd)->state;
-                      case 1: return !id(audio_dac)->state;
-                      case 2: return !id(audio_pc)->state;
-                      case 3: return !id(audio_aux)->state;
-                      default: return true;
-                    }
             then:
               - lvgl.page.show:
                   id: main_page
@@ -992,7 +986,7 @@ lvgl:
       # 先刷新数据, 再亮屏 — 避免唤醒瞬间显示旧数据 (频谱冻结/温度过时)
       - lambda: |-
           if (!id(standby)) {
-            msgeq7::read();
+            // 不调用 msgeq7::read() — interval 50ms 会统一处理
             msgeq7::read_ntc();
             float _ntc = msgeq7::get_temperature();
             if (msgeq7::is_temperature_valid(_ntc)) {
@@ -1005,6 +999,44 @@ lvgl:
       - globals.set: {id: display_is_off, value: 'false'}
 
   pages:
+    # ── 开机闪屏: Zhitong Audio Logo 渐显 (WiFi 就绪后切到主页面) ──
+    - id: splash_page
+      bg_color: 0x050510
+      widgets:
+        # Zhitong Audio 品牌标题
+        - label:
+            id: lbl_splash_title
+            x: 0
+            y: 42
+            width: 428
+            height: 42
+            text: "Zhitong Audio"
+            text_font: montserrat_36
+            text_align: CENTER
+            text_color: 0x10B981
+        # 副标题
+        - label:
+            id: lbl_splash_sub
+            x: 0
+            y: 84
+            width: 428
+            height: 22
+            text: "智能前级2.0"
+            text_font: font_cn
+            text_align: CENTER
+            text_color: 0x8E9FB8
+        # 版本号底部
+        - label:
+            id: lbl_splash_ver
+            x: 0
+            y: 126
+            width: 428
+            height: 12
+            text: "v${firmware_version}"
+            text_font: montserrat_8
+            text_align: CENTER
+            text_color: 0x4A6890
+
     # ── 主页面：SquareLine 绿色风格 428×142 ──
     - id: main_page
       bg_color: 0x111827
@@ -1097,6 +1129,19 @@ lvgl:
             bg_color: 0x444444
             radius: 9999
 
+        # ── 自动切换图标 ──
+        - label:
+            id: lbl_auto_switch
+            x: 245
+            y: 2
+            width: 20
+            height: 16
+            text: "\U000F057D"
+            text_font: mdi_icons_16
+            text_align: CENTER
+            text_color: !lambda |-
+              return id(auto_input) ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+
         # ── 温度计图标 + 温度值 ──
         - label:
             id: lbl_thermo_icon
@@ -1148,19 +1193,6 @@ lvgl:
             text_align: CENTER
             text_color: 0xEF4444
 
-        # ── 电源状态图标 ──
-        - label:
-            id: lbl_power
-            x: 368
-            y: 2
-            width: 16
-            height: 14
-            text: "\U000F0425"
-            text_font: mdi_icons_12
-            text_align: CENTER
-            text_color: !lambda |-
-              return id(standby) ? lv_color_hex(0x666666) : lv_color_hex(0x10B981);
-
         # ── BLE 图标 ──
         - label:
             id: lbl_ble
@@ -1172,7 +1204,86 @@ lvgl:
             text_font: mdi_icons_27
             text_align: CENTER
             text_color: !lambda |-
-              return id(ble_connected) ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x333333);
+              if (!id(ble_connected)) return lv_color_hex(0x333333);
+              return get_theme_accent(id(theme));
+        # ── BLE Remote 指示（蓝牙遥控器连接 + 耳机电量条） ──
+        - label:
+            id: lbl_ble_remote_indicator
+            x: 376
+            y: 13
+            width: 12
+            height: 14
+            text: "\U000F00AF"
+            text_font: mdi_icons_12
+            text_align: CENTER
+            text_color: !lambda |-
+              if (!id(ble_remote_connected)) return lv_color_hex(0x333333);
+              switch (id(theme)) {
+                case 1: return lv_color_hex(0xEF4444);
+                case 2: return lv_color_hex(0x3B82F6);
+                case 3: return lv_color_hex(0x8B5CF6);
+                case 4: return lv_color_hex(0x0071E3);
+                case 5: return lv_color_hex(0xCD9B4A);
+                case 6: return lv_color_hex(0x06B6D4);
+                case 7: return lv_color_hex(0xF97316);
+                default: return lv_color_hex(0x10B981);
+              }
+        # ── BLE Remote 电池条（耳机电量风格） ──
+        - obj:
+            id: ble_remote_batt_outline
+            x: 390
+            y: 16
+            width: 14
+            height: 7
+            bg_opa: 0
+            border_width: 1
+            border_color: !lambda |-
+              if (!id(ble_remote_connected)) return lv_color_hex(0x444444);
+              switch (id(theme)) {
+                case 1: return lv_color_hex(0xEF4444);
+                case 2: return lv_color_hex(0x3B82F6);
+                case 3: return lv_color_hex(0x8B5CF6);
+                case 4: return lv_color_hex(0x0071E3);
+                case 5: return lv_color_hex(0xCD9B4A);
+                case 6: return lv_color_hex(0x06B6D4);
+                case 7: return lv_color_hex(0xF97316);
+                default: return lv_color_hex(0x10B981);
+              }
+            border_opa: !lambda |-
+              return id(ble_remote_connected) ? LV_OPA_COVER : LV_OPA_30;
+            widgets:
+              - bar:
+                  id: ble_remote_batt_fill
+                  width: 12
+                  height: 5
+                  x: 1
+                  y: 1
+                  bg_color: 0x333333
+                  indicator:
+                    bg_color: !lambda |-
+                      int batt = id(ble_remote_battery);
+                      if (!id(ble_remote_connected) || batt < 0) return lv_color_hex(0x333333);
+                      if (batt > 50) {
+                        switch (id(theme)) {
+                          case 1: return lv_color_hex(0xEF4444);
+                          case 2: return lv_color_hex(0x3B82F6);
+                          case 3: return lv_color_hex(0x8B5CF6);
+                          case 4: return lv_color_hex(0x0071E3);
+                          case 5: return lv_color_hex(0xCD9B4A);
+                          case 6: return lv_color_hex(0x06B6D4);
+                          case 7: return lv_color_hex(0xF97316);
+                          default: return lv_color_hex(0x10B981);
+                        }
+                      }
+                      if (batt > 20) return lv_color_hex(0xFBBF24);
+                      return lv_color_hex(0xEF4444);
+                  value: !lambda |-
+                    int batt = id(ble_remote_battery);
+                    if (!id(ble_remote_connected) || batt < 0) return 0;
+                    return batt;
+                  min_value: 0
+                  max_value: 100
+                  radius: 1
         # ── WiFi 图标 ──
         - label:
             id: lbl_wifi
@@ -1184,8 +1295,17 @@ lvgl:
             text_font: mdi_icons_24
             text_align: CENTER
             text_color: !lambda |-
-              if (wifi::global_wifi_component->is_connected()) return lv_color_hex(0xFFFFFF);
-              return lv_color_hex(0x333333);
+              if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x333333);
+              switch (id(theme)) {
+                case 1: return lv_color_hex(0xEF4444);
+                case 2: return lv_color_hex(0x3B82F6);
+                case 3: return lv_color_hex(0x8B5CF6);
+                case 4: return lv_color_hex(0x0071E3);
+                case 5: return lv_color_hex(0xCD9B4A);
+                case 6: return lv_color_hex(0x06B6D4);
+                case 7: return lv_color_hex(0xF97316);
+                default: return lv_color_hex(0x10B981);
+              }
 
         # ════════════════════════════════════════════
         # 分隔线
@@ -1294,6 +1414,19 @@ lvgl:
             text_font: montserrat_8
             text_align: CENTER
             text_color: 0x4A6890
+
+        # ── 恢复出厂设置消息 (默认隐藏, 长按 10s 时显示) ──
+        - label:
+            id: lbl_factory_msg
+            x: 20
+            y: 50
+            width: 388
+            height: 30
+            text: ""
+            text_font: font_cn
+            text_align: CENTER
+            text_color: 0xF97316
+            hidden: true
     # ── 全屏频谱页 (30秒无操作后自动切换, 立体声14条) ──
     - id: spectrum_page
       bg_color: 0x111827
@@ -1748,7 +1881,7 @@ lvgl:
     # ── 音量大字体浮层 (透明覆盖, 2秒后自动返回主页) ──
     - id: volume_big_page
       bg_color: 0x111827
-      bg_opa: 0%
+      bg_opa: 90%
       widgets:
         - label:
             id: lbl_vol_big
@@ -1761,221 +1894,773 @@ lvgl:
             text_align: CENTER
             text_font: montserrat_30
 
-    # ── 设置页面 (横屏 428×142, 绿色主题) ──
+    # ── 蓝牙遥控设置页 ──
+    - id: ble_remote_page
+      bg_color: 0x111827
+      layout:
+        type: flex
+        flex_flow: column
+        pad_row: 2
+      pad_all: 4
+      widgets:
+        # ── Row 0: 标题 ──
+        - obj:
+            id: ble_row_title
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  text: "\U000F00AF"  # mdi-bluetooth
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "蓝牙遥控"
+                  text_font: font_cn
+                  text_color: 0xF1F5F9
+                  width: 120
+
+        # ── Row 1: 连接状态 ──
+        - obj:
+            id: ble_row_status
+            height: 40
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: lbl_ble_status
+                  text: !lambda |-
+                    return id(ble_remote_scan_status);
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 200
+
+        # ── Row 2: 扫描按钮 ──
+        - obj:
+            id: ble_row_scan
+            height: 42
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_ble_scan
+                  text: "\U000F0709"  # mdi-restart (重新扫描)
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: !lambda |-
+                    return id(ble_remote_scanning) ? std::string("停止扫描") : std::string("开始扫描");
+                  text_font: font_cn
+                  text_color: 0xF1F5F9
+                  width: 120
+
+        # ── Row 3-5: 设备槽 (3 个, 默认隐藏) ──
+        - obj:
+            id: ble_row_dev0
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            hidden: true
+            widgets:
+              - label:
+                  id: lbl_ble_dev0
+                  text: ""
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 200
+              - label:
+                  id: lbl_ble_rssi0
+                  text: ""
+                  text_font: montserrat_12
+                  text_color: 0x4A6890
+                  text_align: RIGHT
+                  width: 60
+
+        - obj:
+            id: ble_row_dev1
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            hidden: true
+            widgets:
+              - label:
+                  id: lbl_ble_dev1
+                  text: ""
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 200
+              - label:
+                  id: lbl_ble_rssi1
+                  text: ""
+                  text_font: montserrat_12
+                  text_color: 0x4A6890
+                  text_align: RIGHT
+                  width: 60
+
+        - obj:
+            id: ble_row_dev2
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            hidden: true
+            widgets:
+              - label:
+                  id: lbl_ble_dev2
+                  text: ""
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 200
+              - label:
+                  id: lbl_ble_rssi2
+                  text: ""
+                  text_font: montserrat_12
+                  text_color: 0x4A6890
+                  text_align: RIGHT
+                  width: 60
+
+        # ── Row 5: HID 原始事件 ──
+        - label:
+            id: lbl_ble_hid_event
+            text: "HID: --"
+            text_font: montserrat_12
+            text_color: 0x4A6890
+            width: 420
+            height: 18
+            pad_all: 2
+        # ── Row 6: 返回按钮 ──
+        - obj:
+            id: ble_row_back
+            height: 42
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_ble_back
+                  text: "\U000F057D"  # mdi-swap-horizontal
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  id: lbl_ble_back
+                  text: !lambda |-
+                    return id(ble_remote_connected) ? std::string("断开") : std::string("返回设置");
+                  text_font: font_cn
+                  text_color: 0x8E9FB8
+                  width: 120
+
+    # ── 诊断信息页 (内存监控) ──
+    - id: debug_page
+      bg_color: 0x111827
+      layout:
+        type: flex
+        flex_flow: column
+        pad_row: 2
+      pad_all: 4
+      widgets:
+        # ── Row 0: 标题 ──
+        - obj:
+            id: dbg_row_title
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  text: "\U000F0611"  # mdi-chip
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "诊断信息"
+                  text_font: font_cn
+                  text_color: 0xF1F5F9
+                  width: 120
+
+        # ── Row 1: Free Internal Heap ──
+        - obj:
+            id: dbg_row_heap
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  id: lbl_dbg_heap
+                  text: "内部堆: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 250
+
+        # ── Row 2: Min Free Heap ──
+        - obj:
+            id: dbg_row_minheap
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  id: lbl_dbg_minheap
+                  text: "最小空闲: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 250
+
+        # ── Row 3: Free PSRAM ──
+        - obj:
+            id: dbg_row_psram
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  id: lbl_dbg_psram
+                  text: "PSRAM: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 250
+
+        # ── Row 4: Min Free PSRAM ──
+        - obj:
+            id: dbg_row_minpsram
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  id: lbl_dbg_minpsram
+                  text: "PSRAM最小空闲: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 250
+
+        # ── Row 5: 运行时间 ──
+        - obj:
+            id: dbg_row_uptime
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  id: lbl_dbg_uptime
+                  text: "运行时间: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 250
+
+        # ── Row 6: 返回按钮 ──
+        - obj:
+            id: dbg_row_back
+            height: 42
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F057D"  # mdi-swap-horizontal
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "返回设置"
+                  text_font: font_cn
+                  text_color: 0x8E9FB8
+                  width: 120
+
+    # ── 设置页面 (单列列表，选中→进入→调节→确认) ──
     - id: settings_page
       bg_color: 0x111827
       layout:
         type: flex
-        flex_flow: row
-        pad_column: 6
+        flex_flow: column
+        pad_row: 2
       pad_all: 4
       widgets:
-        # ── 左列：最大音量 + 开机音量 ──
+        # ── Row 0: 最大音量 ──
         - obj:
+            id: row_max_vol
+            height: 90
             layout:
               type: flex
-              flex_flow: column
-              pad_row: 2
-            pad_all: 2
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
             widgets:
               - label:
+                  id: icon_max_vol
+                  text: "\U000F057E"  # mdi-volume-high
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
                   text: "最大音量"
-                  text_font: font_cn_small
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - slider:
-                  id: slider_max_vol
-                  width: 130
-                  height: 14
+                  width: 80
+              - bar:
+                  id: bar_max_vol
+                  height: 16
                   min_value: 10
                   max_value: 255
                   value: !lambda return (float)id(max_volume);
                   bg_color: color_track
                   indicator:
                     bg_color: color_accent
-                  on_value:
-                    then:
-                      - lambda: |-
-                          id(max_volume) = (int)x;
-                          if (id(volume_val) > id(max_volume)) id(volume_val) = id(max_volume);
-                          id(max_volume_number)->publish_state((float)id(max_volume));
-                      - script.execute: send_volume_to_pga
               - label:
-                  text: "开机音量"
-                  text_font: font_cn_small
+                  id: val_max_vol
+                  width: 50
+                  text: !lambda |-
+                    static char buf[8];
+                    snprintf(buf, sizeof(buf), "%d", id(max_volume));
+                    return buf;
+                  text_font: montserrat_16
+                  text_align: RIGHT
+                  text_color: 0x8E9FB8
+
+        # ── Row 1: 开机上限 ──
+        - obj:
+            id: row_power_on
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_power_on
+                  text: "\U000F0709"  # mdi-restart
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "开机上限"
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - slider:
-                  id: slider_power_on_limit
-                  width: 130
-                  height: 14
+                  width: 80
+              - bar:
+                  id: bar_power_on_limit
+                  height: 12
                   min_value: 10
                   max_value: 255
                   value: !lambda return (float)id(power_on_limit);
                   bg_color: color_track
                   indicator:
                     bg_color: color_accent
-                  on_value:
-                    then:
-                      - lambda: |-
-                          id(power_on_limit) = (int)x;
-                          if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
-                          id(power_on_limit_number)->publish_state((float)id(power_on_limit));
-                      - script.execute: send_volume_to_pga
               - label:
-                  text: "主题色彩"
-                  text_font: font_cn_small
-                  text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - dropdown:
-                  id: dd_theme
-                  width: 130
-                  options: ["绿", "红", "蓝", "紫"]
-                  selected_index: !lambda return id(theme);
-                  text_font: font_cn_small
-                  bg_color: color_track
-                  on_value:
-                    then:
-                      - lambda: |-
-                          id(theme) = x;
-                          id(theme_number)->publish_state((float)x);
-                      - script.execute: apply_theme
-        # ── 中列：声道平衡 ──
+                  id: val_power_on
+                  width: 50
+                  text: !lambda |-
+                    static char buf[8];
+                    snprintf(buf, sizeof(buf), "%d", id(power_on_limit));
+                    return buf;
+                  text_font: montserrat_16
+                  text_align: RIGHT
+                  text_color: 0x8E9FB8
+
+        # ── Row 2: 声道平衡 ──
         - obj:
+            id: row_balance
+            height: 90
             layout:
               type: flex
-              flex_flow: column
-              pad_row: 2
-            pad_all: 2
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
             widgets:
+              - label:
+                  id: icon_balance
+                  text: "\U000F066A"  # mdi-tune-vertical
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
               - label:
                   text: "声道平衡"
-                  text_font: font_cn_small
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - slider:
-                  id: slider_balance
-                  width: 130
-                  height: 14
-                  min_value: -20
-                  max_value: 20
-                  value: !lambda return (float)id(balance);
+                  width: 80
+              - bar:
+                  id: bar_balance
+                  height: 12
+                  min_value: 0
+                  max_value: 40
+                  value: !lambda return (float)(id(balance) + 20);
                   bg_color: color_track
                   indicator:
-                    bg_color: color_green
-                  on_value:
-                    then:
-                      - lambda: 'id(balance) = (int)x;'
-                      - lambda: 'id(balance_number)->publish_state((float)id(balance));'
-                      - script.execute: send_volume_to_pga
+                    bg_color: color_accent
               - label:
-                  width: 130
-                  height: 16
+                  id: val_balance
+                  width: 50
                   text: !lambda |-
-                    static char buf[48];
-                    snprintf(buf, sizeof(buf), "固件:%s", "${firmware_version}");
-                    return buf;
-                  text_font: font_cn_small
+                    int b = id(balance);
+                    if (b == 0) return std::string("平衡");
+                    static char buf[8];
+                    snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", b < 0 ? -b : b);
+                    return std::string(buf);
+                  text_font: montserrat_16
+                  text_align: RIGHT
                   text_color: 0x8E9FB8
-                  text_align: CENTER
-              - label:
-                  id: lbl_ip_address
-                  width: 130
-                  height: 16
-                  text: !lambda |-
-                    if (id(device_ip)->state.empty()) return std::string("IP:---.---.---.---");
-                    return "IP:" + id(device_ip)->state;
-                  text_font: font_cn_small
-                  text_color: 0x8E9FB8
-                  text_align: CENTER
-        # ── 右列：输入选择 + 亮度 + 超时 ──
+
+        # ── Row 3: 输入选择 ──
         - obj:
+            id: row_input
+            height: 90
             layout:
               type: flex
-              flex_flow: column
-              pad_row: 1
-            pad_all: 2
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
             widgets:
               - label:
+                  id: icon_input
+                  text: "\U000F0BCD"  # mdi-swap-horizontal-bold
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
                   text: "输入选择"
-                  text_font: font_cn_small
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - dropdown:
-                  id: dd_input
-                  width: 130
-                  options: ["CD", "DAC", "PC", "AUX"]
-                  selected_index: !lambda return id(current_input);
-                  text_font: font_cn_small
-                  bg_color: color_track
-                  on_value:
-                    then:
-                      - lambda: |-
-                          uint8_t idx = x;
-                          if (idx > 3) return;
-                          uint32_t now = millis();
-                          if (now - id(last_switch_ms) < 1500) return;
-                          id(last_switch_ms) = now;
-                          if (id(current_input) != (int)idx) {
-                            id(current_input) = (int)idx;
-                            id(last_manual_input_ms) = millis();   // 记录手动选择
-                            const char* names[] = {"CD", "DAC", "PC", "AUX"};
-                            id(input_select)->publish_state(names[idx]);
-                            id(switch_input)->execute();
-                          }
+                  width: 80
+              - label:
+                  id: val_input
+                  text: !lambda |-
+                    const char* names[] = {"CD", "DAC", "PC", "AUX"};
+                    return names[id(current_input)];
+                  text_font: montserrat_16
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 4: 输入自动切换 ──
+        - obj:
+            id: row_auto_switch
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_auto_switch
+                  text: "\U000F057D"  # mdi-swap-horizontal
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "输入自动切换"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 110
+              - label:
+                  id: val_auto_switch
+                  text: !lambda |-
+                    return id(auto_input) ? std::string("自动") : std::string("手动");
+                  text_font: font_cn
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 5: 屏幕亮度 ──
+        - obj:
+            id: row_brightness
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_brightness
+                  text: "\U000F00DF"  # mdi-brightness-6
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
               - label:
                   text: "屏幕亮度"
-                  text_font: font_cn_small
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - slider:
-                  id: slider_brightness
-                  width: 130
-                  height: 14
+                  width: 80
+              - bar:
+                  id: bar_brightness
+                  height: 12
                   min_value: 0
                   max_value: 100
                   value: !lambda return (float)id(display_brightness);
                   bg_color: color_track
                   indicator:
-                    bg_color: color_white
-                  on_value:
-                    then:
-                      - lambda: |-
-                          id(display_brightness) = (int)x;
-                          {
-                            auto call = id(display_backlight)->turn_on();
-                            call.set_brightness(x / 100.0f);
-                            call.perform();
-                          }
-                          id(display_brightness_number)->publish_state((float)id(display_brightness));
+                    bg_color: 0xFFFFFF
+              - label:
+                  id: val_brightness
+                  width: 50
+                  text: !lambda |-
+                    static char buf[8];
+                    snprintf(buf, sizeof(buf), "%d%%", id(display_brightness));
+                    return buf;
+                  text_font: montserrat_16
+                  text_align: RIGHT
+                  text_color: 0x8E9FB8
+
+        # ── Row 6: 息屏超时 ──
+        - obj:
+            id: row_timeout
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_timeout
+                  text: "\U000F051B"  # mdi-timer-outline
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
               - label:
                   text: "息屏超时"
-                  text_font: font_cn_small
+                  text_font: font_cn
                   text_color: color_gray
-                  align: CENTER
-                  width: 130
-              - slider:
-                  id: slider_display_timeout
-                  width: 130
-                  height: 14
+                  width: 80
+              - bar:
+                  id: bar_display_timeout
+                  height: 12
                   min_value: 1
                   max_value: 60
                   value: !lambda return (float)id(display_timeout_min);
                   bg_color: color_track
                   indicator:
-                    bg_color: color_green
-                  on_value:
-                    then:
-                      - lambda: |-
-                          id(display_timeout_min) = (int)x;
-                          id(last_display_interaction) = millis();
-                          id(display_timeout_number)->publish_state((float)id(display_timeout_min));
+                    bg_color: color_accent
+              - label:
+                  id: val_timeout
+                  width: 50
+                  text: !lambda |-
+                    static char buf[8];
+                    snprintf(buf, sizeof(buf), "%d分钟", id(display_timeout_min));
+                    return buf;
+                  text_font: montserrat_16
+                  text_align: RIGHT
+                  text_color: 0x8E9FB8
+
+        # ── Row 7: 主题色彩 ──
+        - obj:
+            id: row_theme
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_theme
+                  text: "\U000F03D8"  # mdi-palette
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "主题色彩"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - obj:
+                  id: theme_dot
+                  width: 14
+                  height: 14
+                  bg_color: !lambda |-
+                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                    return colors[id(theme)];
+                  radius: 10
+                  border_width: 0
+              - label:
+                  id: val_theme
+                  text: !lambda |-
+                    const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+                    return names[id(theme)];
+                  text_font: font_cn
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 8: 蓝牙遥控 (导航项) ──
+        - obj:
+            id: row_ble_remote
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_ble_remote
+                  text: "\U000F00AF"  # mdi-bluetooth
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "蓝牙遥控"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  id: lbl_ble_status_nav
+                  text: !lambda |-
+                    return id(ble_remote_connected) ? std::string("已连接") : std::string("未连接");
+                  text_font: font_cn
+                  text_color: 0x8E9FB8
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 9: 固件版本 (read-only) ──
+        - obj:
+            id: row_firmware
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            widgets:
+              - label:
+                  text: "\U000F02FD"  # mdi-information-outline
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "固件版本"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  width: 120
+                  text: !lambda |-
+                    static char buf[48];
+                    snprintf(buf, sizeof(buf), "%s", "${firmware_version}");
+                    return buf;
+                  text_font: montserrat_16
+                  text_color: 0x8E9FB8
+                  text_align: RIGHT
+
+        # ── Row 10: IP地址 (read-only) ──
+        - obj:
+            id: row_ip
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            widgets:
+              - label:
+                  text: "\U000F0A60"  # mdi-ip-network
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "IP地址"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  id: lbl_ip_address
+                  width: 160
+                  text: !lambda |-
+                    if (id(device_ip)->state.empty()) return std::string("---.---.---.---");
+                    return id(device_ip)->state;
+                  text_font: montserrat_16
+                  text_color: 0x8E9FB8
+                  text_align: RIGHT
 
 # ═══════════════════════════════════════════════════════════════
 # 全局变量
@@ -2075,7 +2760,7 @@ globals:
     initial_value: 'false'
   - id: volume_val
     type: int
-    restore_value: true
+    restore_value: false
     initial_value: '160'
   - id: balance
     type: int
@@ -2136,6 +2821,36 @@ globals:
     restore_value: false
     initial_value: '-1'
 
+  # ── BLE HID Remote ──
+  - id: ble_remote_scanning
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: ble_remote_connected
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: ble_remote_device_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: ble_remote_focus_idx
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: ble_remote_peer_bda
+    type: std::string
+    restore_value: true
+    initial_value: '""'
+  - id: ble_remote_battery
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: ble_remote_scan_status
+    type: std::string
+    restore_value: false
+    initial_value: '"未连接"'
+
 # ═══════════════════════════════════════════════════════════════
 # 脚本
 # ═══════════════════════════════════════════════════════════════
@@ -2154,6 +2869,50 @@ script:
       - delay: 2s
       - lambda: 'App.safe_reboot();'
 
+  # ── 恢复出厂设置: 重置所有存储值 + 清除 WiFi + 重启 ──
+  # 触发方式: 待机或工作状态下长按编码器按键 10 秒
+  # 流程: 重置变量 → 屏幕显示提示 → 清除 WiFi → 重启进入 AP 配网模式
+  - id: factory_reset
+    mode: restart
+    then:
+      - lambda: |-
+          // 重置所有 restore_value 全局变量到安全默认值
+          id(volume_val)          = 160;
+          id(current_input)       = 0;
+          id(balance)             = 0;
+          id(max_volume)          = 160;
+          id(power_on_limit)      = 110;
+          id(display_timeout_min) = 5;
+          id(display_brightness)  = 80;
+          id(auto_input)          = true;
+          id(theme)               = 0;
+          id(input_vol_0)         = 160;
+          id(input_vol_1)         = 160;
+          id(input_vol_2)         = 160;
+          id(input_vol_3)         = 160;
+          id(soft_mute)           = false;
+
+          // 同步到 HA
+          id(max_volume_number)->publish_state(160.0f);
+          id(power_on_limit_number)->publish_state(110.0f);
+          id(balance_number)->publish_state(0.0f);
+          id(display_brightness_number)->publish_state(80.0f);
+          id(display_timeout_number)->publish_state(5.0f);
+          id(theme_number)->publish_state(0.0f);
+          id(auto_input_switch)->publish_state(true);
+
+      - lvgl.page.show:
+          id: main_page
+          animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+          time: 200ms
+      - lambda: |-
+          lv_label_set_text(id(lbl_factory_msg), "已重置，请连接热点");
+          lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
+      - delay: 3s
+      - lambda: |-
+          wifi::global_wifi_component->clear_sta();
+          App.safe_reboot();
+
   # ── 待机：关屏 + 静音 + 暂停 LVGL，WiFi 保持连接（HA 可远程唤醒） ──
   - id: enter_standby
     mode: restart
@@ -2166,9 +2925,10 @@ script:
           id(mute_switch)->turn_off();
           id(display_backlight)->turn_off();
           pga2311::set_volume(0, 0);
-          id(current_db)   = -96.0f;
-          id(system_ready) = false;
-          id(standby)      = true;
+          id(current_db)      = -96.0f;
+          id(display_is_off)  = true;   // 同步显示状态
+          id(system_ready)    = false;
+          id(standby)         = true;
           id(standby_switch)->publish_state(false);  // HA 同步
       - lvgl.pause:
       - delay: 100ms
@@ -2184,6 +2944,7 @@ script:
             - lambda: 'ESP_LOGD("standby", "Already awake, exit_standby skipped");'
           else:
             - script.stop: display_idle_timer
+            - script.stop: enter_standby
             - lambda: |-
                 id(standby)    = false;
                 id(last_manual_input_ms) = 0;   // 退出待机 → 重新启用自动选择
@@ -2195,7 +2956,8 @@ script:
                 id(standby_switch)->publish_state(true);  // HA 同步
             - light.turn_on:
                 id: display_backlight
-                transition_length: 800ms  # 渐亮 800ms
+                transition_length: 800ms
+                brightness: !lambda 'return id(display_brightness) / 100.0f;'
             - lvgl.resume:
             - delay: 2s
             - script.execute: switch_input
@@ -2212,19 +2974,12 @@ script:
     then:
       - lambda: |-
           if (id(display_is_off) && !id(standby)) {
-            id(display_backlight)->turn_on();
+            auto call = id(display_backlight)->turn_on();
+            call.set_brightness(id(display_brightness) / 100.0f);
+            call.perform();
             id(display_is_off) = false;
           }
           id(last_display_interaction) = millis();
-      - lvgl.resume:
-      - if:
-          condition:
-            lambda: 'return id(system_ready) && !id(standby);'
-          then:
-            - lvgl.page.show:
-                id: main_page
-                animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                time: 200ms
 
   - id: display_idle_timer
     mode: restart
@@ -2240,14 +2995,10 @@ script:
                 uint32_t elapsed = now - id(last_display_interaction);
                 uint32_t timeout_ms = id(display_timeout_min) * 60000u;
                 if (!id(display_is_off) && elapsed >= timeout_ms) {
-                  id(display_backlight)->turn_off();
+                  auto call = id(display_backlight)->turn_on();
+                  call.set_brightness(0.10f);
                   id(display_is_off) = true;
                 }
-            - if:
-                condition:
-                  lambda: 'return id(display_is_off);'
-                then:
-                  - lvgl.pause:
 
   # ══════════════════════════════════════════════════════════════
   # show_volume_big: 音量大字体浮层 (2秒后自动返回主页)
@@ -2257,11 +3008,12 @@ script:
     then:
       - lambda: |-
           if (id(display_is_off) && !id(standby)) {
-            id(display_backlight)->turn_on();
+            auto call = id(display_backlight)->turn_on();
+            call.set_brightness(id(display_brightness) / 100.0f);
             id(display_is_off) = false;
           }
           id(last_display_interaction) = millis();
-      - lvgl.resume:
+
       - lvgl.page.show:
           id: volume_big_page
           animation: LV_SCREEN_LOAD_ANIM_FADE_IN
@@ -2275,12 +3027,8 @@ script:
           snprintf(buf, sizeof(buf), "%.1fdB", db);
           lv_label_set_text(id(lbl_vol_big), buf);
 
-      # 2 秒后自动返回主页（mode: restart 确保每次旋转都重置计时）
-      - delay: 2s
-      - lvgl.page.show:
-          id: main_page
-          animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-          time: 150ms
+      # 2秒后自动返回主页由 LVGL on_idle (timeout:2s) 处理，无需在此重复 delay
+      # mode: restart 确保每次旋转都重置 LVGL 空闲计时器
 
   # ══════════════════════════════════════════════════════════════
   # ★ V17 巅峰内核：双区间速度渐变 + 软锁释放
@@ -2414,13 +3162,7 @@ script:
     mode: single
     then:
       - lambda: |-
-          lv_color_t accent;
-          switch (id(theme)) {
-            case 1: accent = lv_color_hex(0xEF4444); break;  // 红
-            case 2: accent = lv_color_hex(0x3B82F6); break;  // 蓝
-            case 3: accent = lv_color_hex(0x8B5CF6); break;  // 紫
-            default: accent = lv_color_hex(0x10B981); break; // 绿
-          }
+          lv_color_t accent = get_theme_accent(id(theme));
           // LEDs
           lv_led_set_color(id(led_src_0), accent);
           lv_led_set_color(id(led_src_1), accent);
@@ -2436,12 +3178,44 @@ script:
           lv_obj_set_style_text_color(id(lbl_vol_big), accent, LV_PART_MAIN);
           // 温度计图标
           lv_obj_set_style_text_color(id(lbl_thermo_icon), accent, LV_PART_MAIN);
-          // 设置页滑条指示器
-          lv_obj_set_style_bg_color(id(slider_max_vol), accent, LV_PART_INDICATOR);
-          lv_obj_set_style_bg_color(id(slider_power_on_limit), accent, LV_PART_INDICATOR);
-          lv_obj_set_style_bg_color(id(slider_balance), accent, LV_PART_INDICATOR);
-          lv_obj_set_style_bg_color(id(slider_brightness), accent, LV_PART_INDICATOR);
-          lv_obj_set_style_bg_color(id(slider_display_timeout), accent, LV_PART_INDICATOR);
+          // 温度数值
+          lv_obj_set_style_text_color(id(lbl_temp_value), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_temp_unit), accent, LV_PART_MAIN);
+          // 频谱页温度
+          lv_obj_set_style_text_color(id(lbl_spec_temp), accent, LV_PART_MAIN);
+          // 手机 APP BLE 图标 (仅连接时跟随主题)
+          if (id(ble_connected))
+            lv_obj_set_style_text_color(id(lbl_ble), accent, LV_PART_MAIN);
+          // 蓝牙遥控器指示图标 (仅连接时跟随主题)
+          if (id(ble_remote_connected))
+            lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), accent, LV_PART_MAIN);
+          // WiFi 图标 (仅连接时跟随主题)
+          if (wifi::global_wifi_component->is_connected())
+            lv_obj_set_style_text_color(id(lbl_wifi), accent, LV_PART_MAIN);
+          // 设置页进度条指示器
+          lv_obj_set_style_bg_color(id(bar_max_vol), accent, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(bar_power_on_limit), accent, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(bar_balance), accent, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(bar_brightness), accent, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(bar_display_timeout), accent, LV_PART_INDICATOR);
+          // VU 电平表指示器 (之前漏掉，导致主题切换时 VU 表不变色)
+          lv_obj_set_style_bg_color(id(vu_meter_l), accent, LV_PART_INDICATOR);
+          lv_obj_set_style_bg_color(id(vu_meter_r), accent, LV_PART_INDICATOR);
+          // 主题色点
+          {
+            lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+            lv_obj_set_style_bg_color(id(theme_dot), colors[id(theme)], LV_PART_MAIN);
+          }
+          // 设置页图标 (rows 0-7 跟随主题, 9-10 固定灰)
+          lv_obj_set_style_text_color(id(icon_max_vol), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_power_on), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_balance), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_input), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_auto_switch), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_brightness), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_timeout), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_theme), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_ble_remote), accent, LV_PART_MAIN);
           // 平衡指示点
           lv_obj_set_style_bg_color(id(balance_dot), accent, LV_PART_MAIN);
           // 频谱页输入源图标
@@ -2452,7 +3226,7 @@ script:
           {
             lv_color_t spec_colors[7];
             switch (id(theme)) {
-              case 1: // 红
+              case 1: // 赤红
                 spec_colors[0] = lv_color_hex(0x4E0606);
                 spec_colors[1] = lv_color_hex(0x5F0E0E);
                 spec_colors[2] = lv_color_hex(0x781A1A);
@@ -2461,7 +3235,7 @@ script:
                 spec_colors[5] = lv_color_hex(0xD36060);
                 spec_colors[6] = lv_color_hex(0xE79494);
                 break;
-              case 2: // 蓝
+              case 2: // 天蓝
                 spec_colors[0] = lv_color_hex(0x0E1E4E);
                 spec_colors[1] = lv_color_hex(0x16285F);
                 spec_colors[2] = lv_color_hex(0x1E3478);
@@ -2470,7 +3244,7 @@ script:
                 spec_colors[5] = lv_color_hex(0x607AD3);
                 spec_colors[6] = lv_color_hex(0x94AEE7);
                 break;
-              case 3: // 紫
+              case 3: // 紫色
                 spec_colors[0] = lv_color_hex(0x2E0E4E);
                 spec_colors[1] = lv_color_hex(0x3E1A5F);
                 spec_colors[2] = lv_color_hex(0x4E2878);
@@ -2479,7 +3253,43 @@ script:
                 spec_colors[5] = lv_color_hex(0x9A78D3);
                 spec_colors[6] = lv_color_hex(0xC0A8E7);
                 break;
-              default: // 绿
+              case 4: // 麦景图蓝
+                spec_colors[0] = lv_color_hex(0x002D5C);
+                spec_colors[1] = lv_color_hex(0x003D7A);
+                spec_colors[2] = lv_color_hex(0x004D99);
+                spec_colors[3] = lv_color_hex(0x005EB8);
+                spec_colors[4] = lv_color_hex(0x0071E3);
+                spec_colors[5] = lv_color_hex(0x3B94F7);
+                spec_colors[6] = lv_color_hex(0x7BB8FF);
+                break;
+              case 5: // 金嗓子金
+                spec_colors[0] = lv_color_hex(0x4A3720);
+                spec_colors[1] = lv_color_hex(0x6B4F2E);
+                spec_colors[2] = lv_color_hex(0x8C683C);
+                spec_colors[3] = lv_color_hex(0xAD804A);
+                spec_colors[4] = lv_color_hex(0xCD9B4A);
+                spec_colors[5] = lv_color_hex(0xDDB56A);
+                spec_colors[6] = lv_color_hex(0xEED49A);
+                break;
+              case 6: // 柏林青
+                spec_colors[0] = lv_color_hex(0x003D47);
+                spec_colors[1] = lv_color_hex(0x005666);
+                spec_colors[2] = lv_color_hex(0x007085);
+                spec_colors[3] = lv_color_hex(0x0089A4);
+                spec_colors[4] = lv_color_hex(0x06B6D4);
+                spec_colors[5] = lv_color_hex(0x38D0EA);
+                spec_colors[6] = lv_color_hex(0x7AE4F5);
+                break;
+              case 7: // 南瓜橙
+                spec_colors[0] = lv_color_hex(0x5C2800);
+                spec_colors[1] = lv_color_hex(0x7A3600);
+                spec_colors[2] = lv_color_hex(0x994400);
+                spec_colors[3] = lv_color_hex(0xB85200);
+                spec_colors[4] = lv_color_hex(0xF97316);
+                spec_colors[5] = lv_color_hex(0xFA9540);
+                spec_colors[6] = lv_color_hex(0xFBB570);
+                break;
+              default: // 翠绿
                 spec_colors[0] = lv_color_hex(0x064E3B);
                 spec_colors[1] = lv_color_hex(0x065F46);
                 spec_colors[2] = lv_color_hex(0x047857);
@@ -2578,7 +3388,12 @@ script:
             - script.execute: send_volume_to_pga
 
   # ══════════════════════════════════════════════════════════════
-  # ★ 自动输入切换：音频检测 → 优先级切换 (CD>DAC>PC>AUX)
+  # ★ 自动输入切换：信号丢失等 8s → 优先级切换 (CD>DAC>PC>AUX)
+  #   - 当前输入信号丢失后，等待 8 秒看是否恢复（曲目间隙不误切）
+  #   - 8 秒内信号恢复 → 保持当前输入，不切换
+  #   - 8 秒后仍未恢复 → 按优先级切换到有信号的输入
+  #   - 所有输入均无信号 → 保持当前不动
+  #   - mode: restart 确保 8s 等待期内传感器再次变化时重置计时
   # ══════════════════════════════════════════════════════════════
   - id: auto_switch_input
     mode: restart
@@ -2587,8 +3402,26 @@ script:
       - lambda: |-
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
-          // ── 手动选择保护：用户手动选过某输入后，只在该输入失去信号时才自动切换 ──
-          if (id(last_manual_input_ms) != 0) {
+          // 检查当前输入是否还有信号
+          bool cur_has_signal = false;
+          switch (id(current_input)) {
+            case 0: cur_has_signal = id(audio_cd)->state; break;
+            case 1: cur_has_signal = id(audio_dac)->state; break;
+            case 2: cur_has_signal = id(audio_pc)->state; break;
+            case 3: cur_has_signal = id(audio_aux)->state; break;
+          }
+          // 当前输入还有信号 → 无需处理（可能是其他输入触发导致脚本启动）
+          if (cur_has_signal) return;
+
+          ESP_LOGI("auto_input", "信号丢失，等待 8s 看是否恢复...");
+
+      - delay: 8s   # 信号丢失等待期（mode:restart → 信号恢复时传感器触发，脚本重新开始）
+
+      - lambda: |-
+          if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
+
+          // ── 8s 后再次检查当前输入是否恢复 ──
+          {
             bool cur_has_signal = false;
             switch (id(current_input)) {
               case 0: cur_has_signal = id(audio_cd)->state; break;
@@ -2596,8 +3429,15 @@ script:
               case 2: cur_has_signal = id(audio_pc)->state; break;
               case 3: cur_has_signal = id(audio_aux)->state; break;
             }
-            if (cur_has_signal) return;            // 当前输入还有信号 → 尊重用户选择，不切走
-            id(last_manual_input_ms) = 0;           // 当前输入已无信号 → 清除手动标记，允许自动切换
+            if (cur_has_signal) {
+              ESP_LOGI("auto_input", "信号已在 8s 内恢复，保持当前输入");
+              return;
+            }
+          }
+
+          // ── 手动选择保护：用户手动选过某输入后，只在该输入失去信号时才自动切换 ──
+          if (id(last_manual_input_ms) != 0) {
+            id(last_manual_input_ms) = 0;
             ESP_LOGI("auto_input", "手动选择信号丢失，恢复自动切换");
           }
 
@@ -2608,8 +3448,11 @@ script:
           else if (id(audio_pc)->state)  target = 2;
           else if (id(audio_aux)->state) target = 3;
 
-          // 所有通道无信号 -> 保持当前输入 (设计取舍: 宁留无声白噪声也不切断用户正在收听的微弱信号)
-          if (target < 0) return;
+          // 所有通道无信号 → 保持当前输入（宁留无声也不盲目切换）
+          if (target < 0) {
+            ESP_LOGI("auto_input", "无其他可用信号，保持当前输入");
+            return;
+          }
 
           // 已经在目标通道 — 无需切换
           if (id(current_input) == target) return;
@@ -2645,6 +3488,8 @@ sensor:
             static int last_enc = 0;
             int cur = (int)x;
             int diff = cur - last_enc;
+            if (diff < -10) diff = -10;  // 防编码器计数器翻转导致的音量突变
+            if (diff > 10) diff = 10;
             last_enc = cur;
             if (diff == 0) return;
             lv_obj_t* active = lv_scr_act();
@@ -2653,49 +3498,49 @@ sensor:
             id(last_control_ms) = now;
 
             // ═══════════════════════════════════════════════
-            // 设置页导航（浏览 / 调节模式）
+            // 设置页导航（单列列表：选中→进入→调节→确认）
             // ═══════════════════════════════════════════════
             if (active == id(settings_page)->obj) {
-              const int N = 7;
-              lv_obj_t* items[N] = {
-                id(slider_max_vol),          // 0 最大音量
-                id(slider_power_on_limit),   // 1 开机音量
-                (lv_obj_t*)id(dd_theme),                // 2 主题色彩
-                id(slider_balance),          // 3 声道平衡
-                (lv_obj_t*)id(dd_input),                // 4 输入选择
-                id(slider_brightness),       // 5 屏幕亮度
-                id(slider_display_timeout)   // 6 息屏超时
-              };
+              lv_obj_t** rows = settings_ui::rows();
+              lv_obj_t** bars = settings_ui::bars();
               int idx = id(settings_focus_idx);
               int act = id(settings_active_idx);
 
               // ── 当前主题高亮色 ──
-              lv_color_t hl_color;
-              switch (id(theme)) {
-                case 1: hl_color = lv_color_hex(0xEF4444); break;
-                case 2: hl_color = lv_color_hex(0x3B82F6); break;
-                case 3: hl_color = lv_color_hex(0x8B5CF6); break;
-                default: hl_color = lv_color_hex(0x10B981); break;
-              }
+              lv_color_t hl_color = get_theme_accent(id(theme));
 
-              // ── 清除全部高亮边框 ──
-              auto clear_highlights = [&]() {
-                for (int i = 0; i < N; i++)
-                  lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
-              };
-              // ── 高亮指定项 ──
-              auto set_highlight = [&](int i, int width) {
-                if (i < 0 || i >= N) return;
-                lv_obj_set_style_border_width(items[i], width, LV_PART_MAIN);
-                lv_obj_set_style_border_color(items[i], hl_color, LV_PART_MAIN);
+              // ── 更新焦点指示（左边界 + 背景） ──
+              auto set_focus = [&](int i) {
+                for (int j = 0; j < settings_ui::N; j++) {
+                  if (j < 8) {
+                    if (j == i) {
+                      lv_obj_set_style_border_width(rows[j], 3, LV_PART_MAIN);
+                      lv_obj_set_style_border_color(rows[j], hl_color, LV_PART_MAIN);
+                      lv_obj_set_style_border_side(rows[j], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    } else {
+                      lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x162032), LV_PART_MAIN);
+                    }
+                  } else {
+                    // Read-only rows: no border, slightly darker bg
+                    lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(rows[j],
+                      (j == i) ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
+                  }
+                }
               };
 
               if (act < 0) {
-                // ── 浏览模式：移动光标 ──
-                clear_highlights();
-                idx = (idx + diff + N) % N;
-                id(settings_focus_idx) = idx;
-                set_highlight(idx, 2);
+                // ── 浏览模式：移动焦点（无限循环） ──
+                int new_idx = idx + diff;
+                if (new_idx < 0) new_idx = settings_ui::N - 1;
+                if (new_idx >= settings_ui::N) new_idx = 0;
+                if (new_idx != idx) {
+                  id(settings_focus_idx) = new_idx;
+                  set_focus(new_idx);
+                  lv_obj_scroll_to_view(rows[new_idx], LV_ANIM_ON);
+                }
               } else {
                 // ── 调节模式：修改数值 ──
                 int step = diff;
@@ -2704,62 +3549,72 @@ sensor:
                     int v = id(max_volume) + step;
                     if (v < 10) v = 10; if (v > 255) v = 255;
                     id(max_volume) = v;
-                    lv_bar_set_value(id(slider_max_vol), v, LV_ANIM_OFF);
+                    lv_bar_set_value(id(bar_max_vol), v, LV_ANIM_OFF);
+                    lv_label_set_text(id(val_max_vol), (std::to_string(v)).c_str());
                     id(max_volume_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 1: { // 开机音量
+                  case 1: { // 开机上限
                     int v = id(power_on_limit) + step;
                     if (v < 10) v = 10; if (v > 255) v = 255;
                     id(power_on_limit) = v;
-                    lv_bar_set_value(id(slider_power_on_limit), v, LV_ANIM_OFF);
+                    lv_bar_set_value(id(bar_power_on_limit), v, LV_ANIM_OFF);
+                    lv_label_set_text(id(val_power_on), (std::to_string(v)).c_str());
                     id(power_on_limit_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 2: { // 主题色彩
-                    int v = id(theme) + step;
-                    if (v < 0) v = 3; if (v > 3) v = 0;
-                    id(theme) = v;
-                    lv_dropdown_set_selected((lv_obj_t*)id(dd_theme), v);
-                    id(theme_number)->publish_state((float)v);
-                    id(apply_theme)->execute();
-                    break;
-                  }
-                  case 3: { // 声道平衡
+                  case 2: { // 声道平衡
                     int v = id(balance) + step;
                     if (v < -20) v = -20; if (v > 20) v = 20;
                     id(balance) = v;
-                    lv_bar_set_value(id(slider_balance), v, LV_ANIM_OFF);
+                    lv_bar_set_value(id(bar_balance), v + 20, LV_ANIM_OFF);
+                    {
+                      char buf[8];
+                      if (v == 0) lv_label_set_text(id(val_balance), "平衡");
+                      else { snprintf(buf, sizeof(buf), "%s%d", v < 0 ? "L" : "R", v < 0 ? -v : v);
+                        lv_label_set_text(id(val_balance), buf); }
+                    }
                     id(balance_number)->publish_state((float)v);
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 4: { // 输入选择（含1.5s防抖）
-                    int v = id(current_input) + step;
-                    if (v < 0) v = 3; if (v > 3) v = 0;
+                  case 3: { // 输入选择（循环, 模运算防快旋跳过中间值）
+                    int v = ((id(current_input) + step) % 4 + 4) % 4;
                     if (v != id(current_input)) {
                       id(current_input) = v;
-                      id(last_manual_input_ms) = millis();   // 记录手动选择，阻止自动切换
-                      lv_dropdown_set_selected((lv_obj_t*)id(dd_input), v);
+                      id(last_manual_input_ms) = millis();
+                      const char* names[] = {"CD", "DAC", "PC", "AUX"};
+                      lv_label_set_text(id(val_input), names[v]);
                       uint32_t _n = millis();
                       if (_n - id(last_switch_ms) >= 1500) {
                         id(last_switch_ms) = _n;
-                        const char* names[] = {"CD", "DAC", "PC", "AUX"};
                         id(input_select)->publish_state(names[v]);
                         id(switch_input)->execute();
                       }
                     }
                     break;
                   }
+                  case 4: { // 输入自动切换（toggle）
+                    bool v = !id(auto_input);
+                    id(auto_input) = v;
+                    lv_label_set_text(id(val_auto_switch), v ? "自动" : "手动");
+                    id(auto_input_switch)->publish_state(v);
+                    break;
+                  }
                   case 5: { // 屏幕亮度
                     int v = id(display_brightness) + step;
                     if (v < 0) v = 0; if (v > 100) v = 100;
                     id(display_brightness) = v;
-                    lv_bar_set_value(id(slider_brightness), v, LV_ANIM_OFF);
+                    lv_bar_set_value(id(bar_brightness), v, LV_ANIM_OFF);
+                    {
+                      char buf[8];
+                      snprintf(buf, sizeof(buf), "%d%%", v);
+                      lv_label_set_text(id(val_brightness), buf);
+                    }
                     {
                       auto call = id(display_backlight)->turn_on();
                       call.set_brightness(v / 100.0f);
@@ -2772,21 +3627,95 @@ sensor:
                     int v = id(display_timeout_min) + step;
                     if (v < 1) v = 1; if (v > 60) v = 60;
                     id(display_timeout_min) = v;
-                    lv_bar_set_value(id(slider_display_timeout), v, LV_ANIM_OFF);
+                    lv_bar_set_value(id(bar_display_timeout), v, LV_ANIM_OFF);
+                    {
+                      char buf[8];
+                      snprintf(buf, sizeof(buf), "%d分钟", v);
+                      lv_label_set_text(id(val_timeout), buf);
+                    }
                     id(last_display_interaction) = now;
                     id(display_timeout_number)->publish_state((float)v);
                     break;
                   }
+                  case 7: { // 主题色彩（循环）
+                    int v = id(theme) + step;
+                    if (v < 0) v = 7; if (v > 7) v = 0;
+                    id(theme) = v;
+                    {
+                      const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+                      lv_label_set_text(id(val_theme), names[v]);
+                      lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                      lv_obj_set_style_bg_color(id(theme_dot), colors[v], LV_PART_MAIN);
+                    }
+                    id(theme_number)->publish_state((float)v);
+                    id(apply_theme)->execute();
+                    break;
+                  }
                 }
               }
-              id(last_v_change_ms) = now;
               return;
             }
 
-            // ═══ 音量调节（仅主/浮层/频谱页）═══
+            // ═══ 蓝牙遥控页导航（无限循环，跳过隐藏行：0=扫描, 1-3=设备槽, 4=返回）═══
+            if (active == id(ble_remote_page)->obj) {
+              int count = id(ble_remote_device_count);
+              int cur = id(ble_remote_focus_idx);
+              // 构建有效焦点索引数组：扫描(0) + 设备槽(1~count) + 返回(4)
+              int valid[5];
+              int valid_count = 1;
+              valid[0] = 0;  // 扫描始终有效
+              for (int i = 0; i < count && i < 3; i++) {
+                valid[valid_count++] = i + 1;
+              }
+              valid[valid_count++] = 4;  // 返回始终可达
+              // 找到当前位置
+              int pos = 0;
+              for (int i = 0; i < valid_count; i++) {
+                if (valid[i] == cur) { pos = i; break; }
+              }
+              // 循环移动
+              pos += diff;
+              if (pos < 0) pos = valid_count - 1;
+              if (pos >= valid_count) pos = 0;
+              int new_idx = valid[pos];
+              if (new_idx != cur) {
+                id(ble_remote_focus_idx) = new_idx;
+                // 更新焦点高亮
+                // 行 list: ble_row_scan(0), ble_row_dev0/1/2(1-3), ble_row_back(4)
+                // 主题色
+                lv_color_t hl_color = get_theme_accent(id(theme));
+                auto ble_set_focus = [&](lv_obj_t* row, bool focused) {
+                  if (focused) {
+                    lv_obj_set_style_border_width(row, 3, LV_PART_MAIN);
+                    lv_obj_set_style_border_color(row, hl_color, LV_PART_MAIN);
+                    lv_obj_set_style_border_side(row, LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(row, lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                  } else {
+                    lv_obj_set_style_border_width(row, 0, LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(row, lv_color_hex(0x162032), LV_PART_MAIN);
+                  }
+                };
+                ble_set_focus(id(ble_row_scan), new_idx == 0);
+                ble_set_focus(id(ble_row_dev0), new_idx == 1);
+                ble_set_focus(id(ble_row_dev1), new_idx == 2);
+                ble_set_focus(id(ble_row_dev2), new_idx == 3);
+                ble_set_focus(id(ble_row_back), new_idx == 4);
+                // 自动滚动到焦点
+                lv_obj_t* focus_rows[] = {id(ble_row_scan), id(ble_row_dev0), id(ble_row_dev1), id(ble_row_dev2), id(ble_row_back)};
+                lv_obj_scroll_to_view(focus_rows[new_idx], LV_ANIM_ON);
+              }
+              return;
+            }
+
+            // ═══ 音量调节（仅主/浮层/频谱页，频谱页旋转同步返回主页）═══
             if (active != id(main_page)->obj && active != id(volume_big_page)->obj && active != id(spectrum_page)->obj) return;
-            // 屏幕熄灭时只唤醒不调音量
-            if (id(display_is_off)) return;
+            // 屏幕休眠时恢复亮度
+            if (id(display_is_off)) {
+              auto call = id(display_backlight)->turn_on();
+              call.set_brightness(id(display_brightness) / 100.0f);
+              id(display_is_off) = false;
+            }
+            if (id(switching_input)) return;
             int new_vol = id(volume_val) + diff;
             if (new_vol < 0) new_vol = 0;
             if (new_vol > id(max_volume)) new_vol = id(max_volume);
@@ -2797,10 +3726,21 @@ sensor:
             id(volume_number)->publish_state(pct);
         - if:
             condition:
-              lambda: 'return lv_scr_act() != id(settings_page)->obj;'
+              lambda: 'return lv_scr_act() == id(spectrum_page)->obj;'
             then:
+              # 频谱页旋转 → 调音量 + 返回主页
               - script.execute: send_volume_to_pga
-              - script.execute: show_volume_big
+              - lvgl.page.show:
+                  id: main_page
+                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                  time: 150ms
+            else:
+              - if:
+                  condition:
+                    lambda: 'return lv_scr_act() != id(settings_page)->obj;'
+                  then:
+                    - script.execute: send_volume_to_pga
+                    - script.execute: show_volume_big
         - script.execute: reset_idle_timer
   - platform: template
     name: "机箱温度"
@@ -2840,11 +3780,62 @@ sensor:
     unit_of_measurement: "%"
     internal: false
 
+  - platform: template
+    name: "MEM 内部空闲堆内存"
+    id: free_heap_sensor
+    icon: mdi:memory
+    unit_of_measurement: "B"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      return (float)esp_get_free_heap_size();
+
+  - platform: template
+    name: "MEM 内部最小空闲堆内存"
+    id: min_free_heap_sensor
+    icon: mdi:memory
+    unit_of_measurement: "B"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      return (float)esp_get_minimum_free_heap_size();
+
+  - platform: template
+    name: "空闲 PSRAM"
+    id: free_psram_sensor
+    icon: mdi:chip
+    unit_of_measurement: "B"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      return (float)heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
+  - platform: template
+    name: "最小空闲 PSRAM"
+    id: min_free_psram_sensor
+    icon: mdi:chip
+    unit_of_measurement: "B"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      return (float)heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
+
 text_sensor:
   - platform: wifi_info
     ip_address:
       name: "设备IP"
       id: device_ip
+
+  - platform: template
+    name: "BLE HID 按键事件"
+    id: ble_hid_event_text
+    update_interval: never
+    on_value:
+      then:
+        - homeassistant.event:
+            event: esphome.hid_events
+            data:
+              usage: !lambda 'return x;'
 
 number:
   - platform: template
@@ -2860,6 +3851,7 @@ number:
       - lambda: |-
           if (!id(system_ready) || id(switching_input)) return;
           int v = (int)(x * id(max_volume) / 100.0f);
+          if (v < 0) v = 0;
           if (v > id(max_volume)) v = id(max_volume);
           id(volume_val) = v;
           id(last_v_change_ms) = millis();
@@ -2878,9 +3870,28 @@ number:
       - lambda: |-
           if (!id(system_ready)) return;
           id(balance) = (int)x;
+          // 音量稳态时，直接同步 L/R 声道到 PGA
+          if (fabs(id(target_db) - id(current_db)) <= 0.09f) {
+            float db = id(current_db);
+            int base_reg;
+            if (db <= -95.5f) {
+              base_reg = 0;
+            } else {
+              base_reg = (int)roundf(255.0f + db * 2.0f);
+              if (base_reg < 0) base_reg = 0;
+              if (base_reg > 255) base_reg = 255;
+            }
+
+            int bal = id(balance);
+            int l_reg = base_reg - (bal > 0 ? bal : 0);
+            int r_reg = base_reg + (bal < 0 ? bal : 0);
+            if (l_reg < 0) l_reg = 0;
+            if (r_reg < 0) r_reg = 0;
+
+            pga2311::set_volume(r_reg, l_reg);
+          }
       - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
-
   - platform: template
     name: "最大音量上限 Max"
     id: max_volume_number
@@ -2935,6 +3946,7 @@ number:
             call.set_brightness(x / 100.0f);
             call.perform();
           }
+          id(display_is_off) = false;
           id(display_brightness_number)->publish_state((float)id(display_brightness));
       - script.execute: reset_idle_timer
 
@@ -2955,7 +3967,7 @@ number:
     id: theme_number
     icon: mdi:palette
     min_value: 0
-    max_value: 3
+    max_value: 7
     step: 1
     mode: slider
     initial_value: 0
@@ -2963,7 +3975,6 @@ number:
       - lambda: |-
           if (!id(system_ready)) return;
           id(theme) = (int)x;
-          lv_dropdown_set_selected((lv_obj_t*)id(dd_theme), (int)x);
       - script.execute: apply_theme
 
 select:
@@ -2998,14 +4009,11 @@ select:
           uint32_t now = millis();
           if (now - id(last_switch_ms) < 1500) return;
           id(last_switch_ms) = now;
-
-          if      (x == "CD")  id(current_input) = 0;
-          else if (x == "DAC") id(current_input) = 1;
-          else if (x == "PC")  id(current_input) = 2;
-          else if (x == "AUX") id(current_input) = 3;
           id(last_manual_input_ms) = millis();   // 记录手动选择
-      - script.execute: switch_input
-      - script.execute: reset_idle_timer
+          if      (x == "CD")  { id(current_input) = 0; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+          else if (x == "DAC") { id(current_input) = 1; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+          else if (x == "PC")  { id(current_input) = 2; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+          else if (x == "AUX") { id(current_input) = 3; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
 
 # ═══════════════════════════════════════════════════════════════
 # 定时读取 — MSGEQ7 频谱 + NTC 温度 + LVGL 更新
@@ -3045,7 +4053,7 @@ interval:
             // get_frame() 一次加锁拷贝 combined[7] + peak[7] + temperature
             // 替代原来的 7×get_combined() + 7×get_peak() = 14 次加锁
             msgeq7::SpectrumFrame frame;
-            if (!msgeq7::get_frame(&frame)) return;
+            msgeq7::get_frame(&frame);
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
             lv_obj_t* bars_L[] = {
@@ -3078,7 +4086,6 @@ interval:
               int l_pk = frame.peak_l[i];
               int l_y = (l_pk < 1) ? (bar_top + bar_h - peak_h)
                                    : (bar_top + bar_h - l_pk * bar_h / 255 - peak_h);
-              if (l_y < bar_top) l_y = bar_top;
               if (peaks_L[i]) lv_obj_set_y(peaks_L[i], l_y);
 
               // 右声道
@@ -3089,7 +4096,6 @@ interval:
               int r_pk = frame.peak_r[i];
               int r_y = (r_pk < 1) ? (bar_top + bar_h - peak_h)
                                    : (bar_top + bar_h - r_pk * bar_h / 255 - peak_h);
-              if (r_y < bar_top) r_y = bar_top;
               if (peaks_R[i]) lv_obj_set_y(peaks_R[i], r_y);
             }
 
@@ -3125,8 +4131,143 @@ interval:
               s_signal_avg = (l_avg > r_avg) ? l_avg : r_avg;
             }
           }  // end if (!id(soft_mute))
-          else {
-            s_signal_avg = 0;  // 静音时信号强度归零 → LED 微光
+          // 静音时保持上次信号值, 防止频谱页因信号归零而提前退出
+
+          // ═══ 恢复出厂设置: 编码器按键 10 秒检测 ═══
+          //   待机或工作状态下, 长按编码器按键 10 秒触发。
+          //   LVGL 恢复后 (exit_standby 在 800ms 长按后唤醒) 显示倒计时。
+          {
+            static uint32_t hold_start = 0;
+            static bool triggered = false;
+            uint32_t now = millis();
+            bool pressed = id(encoder_button).state;
+
+            if (triggered) {
+              // 已触发, 等待 factory_reset 脚本执行
+            } else if (pressed) {
+              if (hold_start == 0) {
+                hold_start = now;  // 首次检测到按下
+              }
+              uint32_t elapsed = now - hold_start;
+              if (elapsed >= 10000) {
+                triggered = true;
+                id(factory_reset)->execute();
+              } else if (elapsed >= 5000) {
+                // 5 秒后给视觉反馈: 非待机时更新 LVGL, 待机时仅靠 LED 加速闪烁
+                if (!id(standby)) {
+                  lv_label_set_text(id(lbl_factory_msg), "继续按住恢复出厂设置...");
+                  lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
+                }
+              }
+            } else {
+              // 按键松开 → 重置跟踪, 隐藏消息
+              if (hold_start != 0) {
+                hold_start = 0;
+                triggered = false;
+                lv_label_set_text(id(lbl_factory_msg), "");
+                lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
+              }
+            }
+          }
+
+          // ═══ 开机闪屏: Logo 渐显 → 主页面过渡 ═══
+          //   开机后 splash_page 为初始页面, 文字渐显 500ms。
+          //   满足最短展示 3 秒且 WiFi 已连接 (或 10 秒超时) 后,
+          //   以 FADE_IN 动画切换到主页面。
+          {
+            static bool splash_done = false;
+            static int fade_frame = 0;
+
+            if (!splash_done && lv_scr_act() == id(splash_page)->obj) {
+              // Logo 渐显: 11 帧 (0=微光→10=全亮, 550ms @ 50ms interval)
+              if (fade_frame <= 10) {
+                lv_opa_t opa = (fade_frame == 0) ? 15 : (fade_frame == 10) ? 255 : (fade_frame * 24 + 15);
+                lv_obj_set_style_opa(id(lbl_splash_title), opa, LV_PART_MAIN);
+                lv_obj_set_style_opa(id(lbl_splash_sub), opa, LV_PART_MAIN);
+                fade_frame++;
+              }
+
+              // 过渡条件: 最短 3 秒 + (WiFi 已连接 或 10 秒超时)
+              uint32_t now = millis();
+              if (now >= 3000) {
+                bool wifi_ok = wifi::global_wifi_component->is_connected();
+                if (wifi_ok || now >= 10000) {
+                  splash_done = true;
+                  lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+                }
+              }
+            } else if (!splash_done) {
+              // splash_page 未激活 (例如调试模式), 标记为完成
+              splash_done = true;
+            }
+          }
+
+          // ═══ 频谱页自动切换 (基于 MSGEQ7 真实频谱信号) ═══
+          //   取代旧 on_idle 的 30s/35s 超时 (使用 MCP23017 audio_cd/dac/pc/aux 的旧逻辑)
+          {
+            static bool was_signal = false;
+            static uint32_t signal_lost_ms = 0;
+            static uint32_t signal_stable_ms = 0;
+
+            bool has_signal = s_signal_avg > 8;  // 阈值略高于 NOISE_GATE (8)
+
+            uint32_t now = millis();
+            if (has_signal) {
+              signal_lost_ms = 0;
+              if (!was_signal) signal_stable_ms = now;
+            } else {
+              signal_stable_ms = 0;
+              if (was_signal) signal_lost_ms = now;
+            }
+            was_signal = has_signal;
+
+            // 待机或系统未就绪时不自动跳转（但不 return，继续执行后续更新）
+            if (!id(standby) && id(system_ready)) {
+              lv_obj_t* active = lv_scr_act();
+
+              // 1. 主页面 → 频谱页：信号存在且稳定 ≥15 秒
+              if (active == id(main_page)->obj && has_signal
+                  && signal_stable_ms > 0 && (now - signal_stable_ms >= 15000)) {
+                lv_scr_load_anim(id(spectrum_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+              }
+              // 2. 频谱页 → 主页面：信号消失 ≥10 秒
+              else if (active == id(spectrum_page)->obj && !has_signal
+                  && signal_lost_ms > 0 && (now - signal_lost_ms >= 10000)) {
+                lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+              }
+            }
+          }
+
+          // ═══ 页面空闲自动返回主页（设置页/BLE页 10s, 诊断页 30s）═══
+          if (id(system_ready) && !id(standby)) {
+            lv_obj_t* active = lv_scr_act();
+            uint32_t now = millis();
+            uint32_t idle_ms = now - id(last_display_interaction);
+            bool is_settings = (active == id(settings_page)->obj);
+            bool is_ble      = (active == id(ble_remote_page)->obj);
+            bool is_debug    = (active == id(debug_page)->obj);
+            if (is_settings || is_ble) {
+              if (idle_ms >= 10000) {
+                // 清理设置页调节状态，防止再次进入时 bar 高度残留
+                if (is_settings) {
+                  int active = id(settings_active_idx);
+                  if (active >= 0) {
+                    lv_obj_t** rows = settings_ui::rows();
+                    lv_obj_t** bars = settings_ui::bars();
+                    if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
+                    id(settings_active_idx) = -1;
+                  }
+                }
+                lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                id(last_display_interaction) = now;  // 防重复触发
+              }
+            } else if (is_debug) {
+              if (idle_ms >= 30000) {
+                lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                id(last_display_interaction) = now;
+              }
+            }
           }
 
           // ═══ 音量 dB 标签更新 (含变化检测) ═══
@@ -3154,13 +4295,7 @@ interval:
           }
 
           // ═══ 主题强调色 ═══
-          lv_color_t _accent;
-          switch (id(theme)) {
-            case 1: _accent = lv_color_hex(0xEF4444); break;  // 红
-            case 2: _accent = lv_color_hex(0x3B82F6); break;  // 蓝
-            case 3: _accent = lv_color_hex(0x8B5CF6); break;  // 紫
-            default: _accent = lv_color_hex(0x10B981); break; // 绿
-          }
+          lv_color_t _accent = get_theme_accent(id(theme));
 
           // ═══ 平衡条更新 ═══
           {
@@ -3260,7 +4395,9 @@ interval:
                 lv_obj_set_style_text_color(id(lbl_temp_value), lv_color_hex(0xFF0000), LV_PART_MAIN);
                 lv_label_set_text(id(lbl_temp_value), "保护!");
               } else {
-                lv_obj_set_style_text_color(id(lbl_temp_value), lv_color_hex(0x8E9FB8), LV_PART_MAIN);
+                // 恢复为主题 accent 色 (而非硬编码灰色)
+                lv_color_t accents[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                lv_obj_set_style_text_color(id(lbl_temp_value), accents[id(theme)], LV_PART_MAIN);
               }
             }
           }
@@ -3275,17 +4412,6 @@ interval:
             }
           }
 
-          // ═══ 电源图标颜色 (含变化检测, 文本静态 via \U000F0425) ═══
-          {
-            static bool last_standby = false;
-            bool stb = id(standby);
-            if (stb != last_standby) {
-              last_standby = stb;
-              lv_obj_set_style_text_color(id(lbl_power),
-                stb ? lv_color_hex(0x666666) : _accent, LV_PART_MAIN);
-            }
-          }
-
           // ═══ WiFi 图标颜色 (含变化检测) ═══
           {
             static bool last_wifi = false;
@@ -3293,7 +4419,7 @@ interval:
             if (wifi_ok != last_wifi) {
               last_wifi = wifi_ok;
               lv_obj_set_style_text_color(id(lbl_wifi),
-                wifi_ok ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x333333), LV_PART_MAIN);
+                wifi_ok ? _accent : lv_color_hex(0x333333), LV_PART_MAIN);
             }
           }
 
@@ -3304,7 +4430,261 @@ interval:
             if (ble_ok != last_ble) {
               last_ble = ble_ok;
               lv_obj_set_style_text_color(id(lbl_ble),
-                ble_ok ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x333333), LV_PART_MAIN);
+                ble_ok ? _accent : lv_color_hex(0x333333), LV_PART_MAIN);
+            }
+          }
+
+          // ═══ BLE HID 遥控: 状态轮询 + 事件处理 + UI 更新 ═══
+          {
+            ble_hid_host::poll();
+
+            // ── 开机自动重连已配对设备（一次性） ──
+            {
+              static bool auto_reconnect_tried = false;
+              if (!auto_reconnect_tried && id(system_ready)) {
+                auto_reconnect_tried = true;
+                std::string bda = id(ble_remote_peer_bda);
+                if (!bda.empty() && bda != "\"\"" && bda.length() >= 17) {
+                  ble_hid_host::set_peer_bda_from_string(bda);
+                  ble_hid_host::reconnect_enable();
+                  id(ble_remote_scan_status) = "正在重连...";
+                }
+                // 初始化 BLE 遥控指示器: 有配对记录才显示(暗色等待), 否则隐藏
+                bool has_peer = !bda.empty() && bda != "\"\"" && bda.length() >= 17;
+                if (has_peer) {
+                  lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x555555), LV_PART_MAIN);
+                } else {
+                  lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                }
+              }
+            }
+
+            // ── 扫描结果 → 更新 ble_remote_page 设备列表 ──
+            if (id(ble_remote_scanning)) {
+              int count = ble_hid_host::get_discovered_device_count();
+              if (count != id(ble_remote_device_count)) {
+                id(ble_remote_device_count) = count;
+                // 更新设备槽显示
+                for (int i = 0; i < 3; i++) {
+                  lv_obj_t* row_dev = (i == 0) ? id(ble_row_dev0) : (i == 1) ? id(ble_row_dev1) : id(ble_row_dev2);
+                  lv_obj_t* lbl_dev = (i == 0) ? id(lbl_ble_dev0) : (i == 1) ? id(lbl_ble_dev1) : id(lbl_ble_dev2);
+                  lv_obj_t* lbl_rssi = (i == 0) ? id(lbl_ble_rssi0) : (i == 1) ? id(lbl_ble_rssi1) : id(lbl_ble_rssi2);
+                  if (i < count) {
+                    ble_hid_host::DeviceInfo dev;
+                    if (ble_hid_host::get_discovered_device(i, dev)) {
+                      lv_label_set_text(lbl_dev, dev.name);
+                      char rssi_buf[16];
+                      snprintf(rssi_buf, sizeof(rssi_buf), "%ddBm", dev.rssi);
+                      lv_label_set_text(lbl_rssi, rssi_buf);
+                      lv_obj_remove_flag(row_dev, LV_OBJ_FLAG_HIDDEN);
+                    } else {
+                      lv_obj_add_flag(row_dev, LV_OBJ_FLAG_HIDDEN);
+                    }
+                  } else {
+                    lv_obj_add_flag(row_dev, LV_OBJ_FLAG_HIDDEN);
+                  }
+                }
+              }
+              // 扫描结束后自动更新状态
+              if (!ble_hid_host::is_scanning() && id(ble_remote_scanning)) {
+                id(ble_remote_scanning) = false;
+                if (ble_hid_host::is_connected()) {
+                  id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
+                } else if (id(ble_remote_device_count) > 0) {
+                  id(ble_remote_scan_status) = "发现" + std::to_string(id(ble_remote_device_count)) + "个设备";
+                } else {
+                  id(ble_remote_scan_status) = "未发现设备";
+                }
+              }
+            }
+
+            // ── 连接状态变化 → 更新 status 文字 + BDA 持久化 ──
+            {
+              static bool last_connected = false;
+              bool connected = ble_hid_host::is_connected();
+              if (connected != last_connected) {
+                last_connected = connected;
+                id(ble_remote_connected) = connected;
+                if (connected) {
+                  id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
+                  // 电池电量
+                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b); id(ble_remote_scan_status) += buf; } }
+                  // 持久化 BDA
+                  std::string bda = ble_hid_host::get_peer_bda_string();
+                  if (!bda.empty()) id(ble_remote_peer_bda) = bda;
+                } else {
+                  id(ble_remote_scan_status) = "未连接";
+                }
+                // 更新设置页导航状态文字 ("蓝牙遥控" 行)
+                lv_label_set_text(id(lbl_ble_status_nav), connected ? "已连接" : "未连接");
+                // 更新 main_page BLE 遥控指示器颜色与显隐
+                bool has_peer = !id(ble_remote_peer_bda).empty() && id(ble_remote_peer_bda) != "\"\"";
+                if (connected || has_peer) {
+                  lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_set_style_text_color(id(lbl_ble_remote_indicator),
+                    connected ? _accent : lv_color_hex(0x555555), LV_PART_MAIN);
+                } else {
+                  lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                }
+                // 更新 ble_remote_page 返回按钮文字（断开留在本页，不返回设置）
+                lv_label_set_text(id(lbl_ble_back), connected ? "断开" : "返回设置");
+              }
+              // 周期性更新 ble_remote_page 状态标签
+              if (lv_scr_act() == id(ble_remote_page)->obj) {
+                // 检查电池更新
+                if (connected) {
+                  int b = ble_hid_host::get_battery_level();
+                  if (b >= 0) {
+                    id(ble_remote_battery) = b;
+                    static int last_batt = -2;
+                    if (b != last_batt) {
+                      last_batt = b;
+                      id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
+                      char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b);
+                      id(ble_remote_scan_status) += buf;
+                    }
+                  }
+                }
+                lv_label_set_text(id(lbl_ble_status), id(ble_remote_scan_status).c_str());
+              }
+
+              // 诊断页自动刷新 (heap/psram/uptime)
+              if (lv_scr_act() == id(debug_page)->obj) {
+                static uint32_t last_update = 0;
+                uint32_t now = millis();
+                if (now - last_update > 2000) {  // 每 2 秒刷新一次
+                  last_update = now;
+                  char buf[64];
+
+                  // Free internal heap
+                  uint32_t free_internal = esp_get_free_heap_size();
+                  uint32_t total_internal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+                  snprintf(buf, sizeof(buf), "内部堆: %u / %u KB",
+                    (unsigned)(free_internal / 1024), (unsigned)(total_internal / 1024));
+                  lv_label_set_text(id(lbl_dbg_heap), buf);
+
+                  // Min free heap (all-time low watermark)
+                  uint32_t min_free = esp_get_minimum_free_heap_size();
+                  snprintf(buf, sizeof(buf), "最小空闲: %u KB  (全时段低水位)",
+                    (unsigned)(min_free / 1024));
+                  lv_label_set_text(id(lbl_dbg_minheap), buf);
+
+                  // Free PSRAM
+                  uint32_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+                  uint32_t total_psram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+                  snprintf(buf, sizeof(buf), "PSRAM: %u / %u KB",
+                    (unsigned)(free_psram / 1024), (unsigned)(total_psram / 1024));
+                  lv_label_set_text(id(lbl_dbg_psram), buf);
+
+                  // Min free PSRAM
+                  uint32_t min_psram = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
+                  snprintf(buf, sizeof(buf), "PSRAM最小空闲: %u KB",
+                    (unsigned)(min_psram / 1024));
+                  lv_label_set_text(id(lbl_dbg_minpsram), buf);
+
+                  // Uptime
+                  uint32_t ms = now;
+                  unsigned long days = ms / 86400000UL;
+                  unsigned long hours = (ms % 86400000UL) / 3600000UL;
+                  unsigned long mins = (ms % 3600000UL) / 60000UL;
+                  unsigned long secs = (ms % 60000UL) / 1000UL;
+                  snprintf(buf, sizeof(buf), "运行: %lud %luh %lum %lus", days, hours, mins, secs);
+                  lv_label_set_text(id(lbl_dbg_uptime), buf);
+                }
+              }
+            }
+
+            // ── HID 按键事件处理 ──
+            while (ble_hid_host::has_event()) {
+              auto evt = ble_hid_host::pop_event();
+              // 记录原始事件用于调试
+              if (ble_hid_host::has_raw_event()) {
+                std::string raw_str = ble_hid_host::get_last_raw_event_string();
+                ESP_LOGD("ble_hid", "原始HID事件: %s", raw_str.c_str());
+                lv_label_set_text(id(lbl_ble_hid_event), raw_str.c_str());
+                ble_hid_host::clear_raw_event();
+              }
+              const char* ha_event_name = "";
+              switch (evt.type) {
+                case ble_hid_host::HID_EVT_VOLUME_UP:
+                  if (id(standby) || !id(system_ready) || id(switching_input)) break;
+                  if (id(volume_val) < id(max_volume)) { id(volume_val) = id(volume_val) + 1; }
+                  id(last_v_change_ms) = millis();
+                  id(send_volume_to_pga)->execute();
+                  ha_event_name = "VOLUME_UP";
+                  break;
+                case ble_hid_host::HID_EVT_VOLUME_DOWN:
+                  if (id(standby) || !id(system_ready) || id(switching_input)) break;
+                  if (id(volume_val) > 0) { id(volume_val) = id(volume_val) - 1; }
+                  id(last_v_change_ms) = millis();
+                  id(send_volume_to_pga)->execute();
+                  ha_event_name = "VOLUME_DOWN";
+                  break;
+                case ble_hid_host::HID_EVT_MUTE:
+                  if (id(standby) || !id(system_ready)) break;
+                  id(soft_mute_switch)->toggle();
+                  ha_event_name = "MUTE";
+                  break;
+                case ble_hid_host::HID_EVT_PLAY_PAUSE:
+                  if (id(standby) || !id(system_ready)) break;
+                  id(media_select)->publish_state("播放");
+                  id(media_reset)->execute();
+                  ha_event_name = "PLAY_PAUSE";
+                  break;
+                case ble_hid_host::HID_EVT_NEXT_TRACK:
+                  if (id(standby) || !id(system_ready)) break;
+                  id(media_select)->publish_state("下一首");
+                  id(media_reset)->execute();
+                  ha_event_name = "NEXT_TRACK";
+                  break;
+                case ble_hid_host::HID_EVT_PREV_TRACK:
+                  if (id(standby) || !id(system_ready)) break;
+                  id(media_select)->publish_state("上一首");
+                  id(media_reset)->execute();
+                  ha_event_name = "PREV_TRACK";
+                  break;
+                case ble_hid_host::HID_EVT_POWER:
+                  if (id(standby)) { id(standby_switch)->turn_on(); }
+                  else { id(standby_switch)->turn_off(); }
+                  ha_event_name = "POWER";
+                  break;
+                case ble_hid_host::HID_EVT_CYCLE_INPUT: {
+                  if (id(standby) || !id(system_ready)) break;
+                  if (millis() - id(last_switch_ms) < 1500) break;
+                  id(last_switch_ms) = millis();
+                  id(current_input) = (id(current_input) + 1) % 4;
+                  const char* in_names[] = {"CD", "DAC", "PC", "AUX"};
+                  id(input_select)->publish_state(in_names[id(current_input)]);
+                  id(switch_input)->execute();
+                  ha_event_name = "CYCLE_INPUT";
+                  break;
+                }
+                case ble_hid_host::HID_EVT_CONNECTED:
+                  id(ble_remote_connected) = true;
+                  ha_event_name = "CONNECTED";
+                  break;
+                case ble_hid_host::HID_EVT_DISCONNECTED:
+                  id(ble_remote_battery) = -1;
+                  id(ble_remote_connected) = false;
+                  ha_event_name = "DISCONNECTED";
+                  break;
+              }
+              // 推送 HA 事件
+              if (ha_event_name[0] && evt.type < 0x10) {  // 只推送用户按键事件（非内部事件）
+                id(ble_hid_event_text).publish_state(ha_event_name);
+              }
+            }
+          }
+
+          // ═══ 自动切换图标颜色 (含变化检测) ═══
+          {
+            static bool last_auto_switch = false;
+            bool auto_now = id(auto_input);
+            if (auto_now != last_auto_switch) {
+              last_auto_switch = auto_now;
+              lv_obj_set_style_text_color(id(lbl_auto_switch),
+                auto_now ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
             }
           }
 
@@ -3355,9 +4735,9 @@ interval:
             static std::string last_ip;
             std::string new_ip;
             if (id(device_ip)->state.empty()) {
-              new_ip = "IP:---.---.---.---";
+              new_ip = "---.---.---.---";
             } else {
-              new_ip = "IP:" + id(device_ip)->state;
+              new_ip = id(device_ip)->state;
             }
             if (new_ip != last_ip) {
               last_ip = new_ip;
@@ -3365,16 +4745,92 @@ interval:
             }
           }
 
-          // ═══ LED 指示灯: 系统就绪 + WiFi 已连接 → 亮, 否则灭 (含变化检测)
+          // ═══ LED 指示灯: 多状态 PWM 控制 (IO16, LEDC 1kHz) ═══
+          //   状态优先级 (高→低):
+          //     温度保护快闪 → 待机呼吸 → 未连WiFi闪烁 →
+          //     静音半亮 → 开机常亮
+          //   复杂度: 低 (单变量, 无锁)
           {
-            static bool last_led = false;
-            bool led_on = id(system_ready) && wifi::global_wifi_component->is_connected() && !id(standby);
-            if (led_on != last_led) {
-              last_led = led_on;
-              if (led_on) id(led_indicator)->turn_on();
-              else        id(led_indicator)->turn_off();
+            static uint32_t standby_entry_ms = 0;
+            static uint32_t fw_hold_start = 0;     // 工厂重置按键计时
+            float lvl = 0.0f;
+            bool fw_active = false;
+            uint32_t fw_hold_dur = 0;
+            uint32_t n = millis();
+
+            // 待机进出跟踪
+            if (!id(standby)) {
+              standby_entry_ms = 0;
+            } else if (standby_entry_ms == 0) {
+              standby_entry_ms = n;   // 记录进入待机时间戳
+            }
+
+            // 工厂重置按键跟踪 (5s 后 LED 开始加速闪烁反馈)
+            {
+              bool pressed = id(encoder_button).state;
+              if (pressed) {
+                if (fw_hold_start == 0) fw_hold_start = n;
+                fw_hold_dur = n - fw_hold_start;
+                if (fw_hold_dur >= 5000 && fw_hold_dur < 10000) fw_active = true;
+              } else {
+                fw_hold_start = 0;
+              }
+            }
+
+            // 优先级 1: 温度保护 (≥72°C) → 快闪 200ms 周期
+            if (id(temp_protect)) {
+              lvl = (n % 200 < 100) ? 0.80f : 0.0f;
+            }
+            // 优先级 1b: 工厂重置按住 5~10s → 加速闪烁 (500ms→100ms)
+            else if (fw_active) {
+              float progress = (float)(fw_hold_dur - 5000) / 5000.0f;
+              uint32_t period = 500 - (uint32_t)(progress * 400.0f);
+              if (period < 50) period = 50;
+              lvl = ((n - fw_hold_start) % period < period / 2) ? 0.80f : 0.0f;
+            }
+            // 优先级 2: 待机
+            else if (id(standby)) {
+              uint32_t dur = n - standby_entry_ms;
+              if (dur >= 3600000) {
+                // 待机 >1小时: 每5分钟平滑脉冲 2 秒, 最大 30%
+                uint32_t mod = n % 300000;
+                if (mod < 2000) {
+                  float t = (float)mod / 2000.0f;
+                  lvl = 0.30f * (sinf(t * M_PI - M_PI_2) + 1.0f) * 0.5f;
+                }
+                // else lvl 保持 0.0
+              } else {
+                // 待机 <1小时: 柔呼吸 3s 周期, 5%~55%
+                float t = fmod((float)n, 3000.0f) / 3000.0f;
+                lvl = 0.05f + 0.50f * (sinf(t * 2.0f * M_PI - M_PI_2) + 1.0f) * 0.5f;
+              }
+            }
+            // 优先级 3: 开机闪屏期间 → 1 秒内渐亮到 70%
+            else if (lv_scr_act() == id(splash_page)->obj) {
+              float t = (float)n / 1000.0f;
+              lvl = (t > 1.0f) ? 0.70f : t * 0.70f;
+            }
+            // 优先级 4: 未连 WiFi → 闪烁 1s 周期
+            else if (!wifi::global_wifi_component->is_connected()) {
+              lvl = (n % 1000 < 500) ? 0.70f : 0.0f;
+            }
+            // 优先级 5: 静音中 → 常亮 35%
+            else if (id(soft_mute)) {
+              lvl = 0.35f;
+            }
+            // 优先级 6: 正常 → 常亮 70%
+            else {
+              lvl = 0.70f;
+            }
+
+            // 变化检测写入 (避免每 50ms 刷输出)
+            static float last_lvl = -1.0f;
+            if (fabs(lvl - last_lvl) > 0.005f) {
+              last_lvl = lvl;
+              id(led_indicator)->set_level(lvl);
             }
           }
+          
 
 binary_sensor:
   - platform: gpio
@@ -3391,15 +4847,43 @@ binary_sensor:
     internal: true
 
     on_multi_click:
-      # 双击 → 静音切换
+      # 三击 → 固件版本隐藏入口 (先于双击匹配, 防止三击被拦截)
+      - timing:
+          - ON for at most 400ms
+          - OFF for at most 400ms
+          - ON for at most 400ms
+          - OFF for at most 400ms
+          - ON for at most 400ms
+          - OFF for at least 300ms
+        then:
+          # 三击：固件版本行隐藏入口 → 跳转诊断页 (仅在设置页焦点Row 9生效)
+          - if:
+              condition:
+                lambda: >-
+                  return lv_scr_act() == id(settings_page)->obj &&
+                         id(settings_focus_idx) == 9;
+              then:
+                - lambda: |-
+                    id(last_display_interaction) = millis();
+                    lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+
+      # 双击 → 静音切换 (仅主页/频谱页/大字音量页有效)
       - timing:
           - ON for at most 400ms
           - OFF for at most 400ms
           - ON for at most 400ms
           - OFF for at least 300ms
         then:
-          - switch.toggle: soft_mute_switch
-          - script.execute: reset_idle_timer
+          - if:
+              condition:
+                lambda: >-
+                  lv_obj_t* _a = lv_scr_act();
+                  return _a == id(main_page)->obj ||
+                         _a == id(spectrum_page)->obj ||
+                         _a == id(volume_big_page)->obj;
+              then:
+                - switch.toggle: soft_mute_switch
+                - script.execute: reset_idle_timer
 
       # 单击 → 唤醒屏幕 | 频谱页返回主页 | 设置页切换浏览/调节模式
       - timing:
@@ -3416,115 +4900,177 @@ binary_sensor:
                     condition:
                       lvgl.page.is_showing: settings_page
                     then:
-                      # 设置页：单击切换浏览/调节模式
+                      # 设置页：单击切换浏览/调节模式（只读项无反应）
                       - lambda: |-
-                          const int N = 7;
-                          lv_obj_t* items[N] = {
-                            id(slider_max_vol), id(slider_power_on_limit), (lv_obj_t*)id(dd_theme),
-                            id(slider_balance), (lv_obj_t*)id(dd_input),
-                            id(slider_brightness), id(slider_display_timeout)
-                          };
-                          lv_color_t hl_color;
-                          switch (id(theme)) {
-                            case 1: hl_color = lv_color_hex(0xEF4444); break;
-                            case 2: hl_color = lv_color_hex(0x3B82F6); break;
-                            case 3: hl_color = lv_color_hex(0x8B5CF6); break;
-                            default: hl_color = lv_color_hex(0x10B981); break;
-                          }
-                          auto clear_all = [&]() {
-                            for (int i = 0; i < N; i++)
-                              lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
-                          };
-                          auto highlight = [&](int i, int w) {
-                            if (i < 0 || i >= N) return;
-                            lv_obj_set_style_border_width(items[i], w, LV_PART_MAIN);
-                            lv_obj_set_style_border_color(items[i], hl_color, LV_PART_MAIN);
-                          };
+                          lv_obj_t** rows = settings_ui::rows();
+                          lv_obj_t** bars = settings_ui::bars();
+                          // bar_base_heights defined in settings_ui.h
                           int idx = id(settings_focus_idx);
                           if (id(settings_active_idx) < 0) {
-                            // 进入调节模式
+                            // 进入调节模式（Row 8 蓝牙遥控为导航项，跳转页面）
+                            if (idx == 8) {
+                              id(ble_remote_focus_idx) = 0;
+                              id(ble_remote_device_count) = 0;
+                              id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "已连接: " + ble_hid_host::get_connected_name() : "未连接";
+                              id(ble_remote_connected) = ble_hid_host::is_connected();
+                              id(last_display_interaction) = millis();
+                              lv_scr_load_anim(id(ble_remote_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                              return;
+                            }
+                            if (idx == 9) return;  // 固件版本只读，三击由 on_multi_click 处理
+                            if (idx > 8) return;  // 只读项(10)不进调节
                             id(settings_active_idx) = idx;
-                            clear_all();
-                            highlight(idx, 5);
+                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x25374F), LV_PART_MAIN);
+                            lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
+                            if (bars[idx]) lv_obj_set_height(bars[idx], 24);
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）
                             id(settings_active_idx) = -1;
-                            clear_all();
-                            highlight(idx, 2);
+                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                            lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
+                            if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::bar_base_heights[idx]);
                           }
                       - script.execute: reset_idle_timer
                     else:
                       - if:
                           condition:
-                            lvgl.page.is_showing: spectrum_page
+                            lvgl.page.is_showing: ble_remote_page
                           then:
-                            - lvgl.page.show:
-                                id: main_page
-                                animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                                time: 200ms
+                            # 蓝牙遥控页：单击激活焦点项
+                            - lambda: |-
+                                int f = id(ble_remote_focus_idx);
+                                if (f == 0) {
+                                  // 扫描/停止扫描
+                                  if (id(ble_remote_scanning)) {
+                                    ble_hid_host::stop_scan();
+                                    id(ble_remote_scanning) = false;
+                                    id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "已连接: " + ble_hid_host::get_connected_name() : "未连接";
+                                  } else {
+                                    ble_hid_host::start_scan();
+                                    id(ble_remote_scanning) = true;
+                                    id(ble_remote_device_count) = 0;
+                                    id(ble_remote_scan_status) = "扫描中...";
+                                  }
+                                } else if (f >= 1 && f <= 3) {
+                                  // 连接设备 (f-1 = 设备索引)
+                                  int dev_idx = f - 1;
+                                  int count = id(ble_remote_device_count);
+                                  if (dev_idx < count) {
+                                    id(ble_remote_scan_status) = "正在连接...";
+                                    ble_hid_host::connect(dev_idx);
+                                  }
+                                } else if (f == 4) {
+                                  // 已连接→断开（留在蓝牙页），未连接→返回设置
+                                  if (ble_hid_host::is_connected()) {
+                                    ble_hid_host::disconnect();
+                                    id(ble_remote_battery) = -1;
+                                    id(ble_remote_connected) = false;
+                                    id(ble_remote_scan_status) = "未连接";
+                                  } else {
+                                    lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                                  }
+                                }
+                            - script.execute: reset_idle_timer
                           else:
                             - if:
                                 condition:
-                                  lvgl.page.is_showing: main_page
+                                  lvgl.page.is_showing: debug_page
                                 then:
-                                  # 主页单击 → 进入设置页
-                                  - lambda: |-
-                                      id(settings_focus_idx) = 0;
-                                      id(settings_active_idx) = -1;
-                                      lv_color_t hl_color;
-                                      switch (id(theme)) {
-                                        case 1: hl_color = lv_color_hex(0xEF4444); break;
-                                        case 2: hl_color = lv_color_hex(0x3B82F6); break;
-                                        case 3: hl_color = lv_color_hex(0x8B5CF6); break;
-                                        default: hl_color = lv_color_hex(0x10B981); break;
-                                      }
-                                      const int N = 7;
-                                      lv_obj_t* items[N] = {
-                                        id(slider_max_vol), id(slider_power_on_limit), (lv_obj_t*)id(dd_theme),
-                                        id(slider_balance), (lv_obj_t*)id(dd_input),
-                                        id(slider_brightness), id(slider_display_timeout)
-                                      };
-                                      for (int i = 0; i < N; i++)
-                                        lv_obj_set_style_border_width(items[i], 0, LV_PART_MAIN);
-                                      lv_obj_set_style_border_width(id(slider_max_vol), 2, LV_PART_MAIN);
-                                      lv_obj_set_style_border_color(id(slider_max_vol), hl_color, LV_PART_MAIN);
+                                  # 诊断页：单击返回设置
                                   - lvgl.page.show:
                                       id: settings_page
                                       animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                                       time: 200ms
-                                else:
-                                  # 其他页面短按由 encoder enter_button 自动处理
                                   - script.execute: reset_idle_timer
+                                else:
+                                  - if:
+                                      condition:
+                                        lvgl.page.is_showing: spectrum_page
+                                      then:
+                                        - lvgl.page.show:
+                                            id: main_page
+                                            animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                                            time: 200ms
+                                      else:
+                                          - if:
+                                              condition:
+                                                lvgl.page.is_showing: main_page
+                                              then:
+                                                # 主页单击 → 进入设置页
+                                                - lambda: |-
+                                                    id(settings_focus_idx) = 0;
+                                                    id(settings_active_idx) = -1;
+                                                    settings_ui::init(
+                                                      (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
+                                                      (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
+                                                      (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
+                                                      (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
+                                                      (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_firmware),
+                                                      (lv_obj_t*)id(row_ip),
+                                                      (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
+                                                      (lv_obj_t*)id(bar_balance),
+                                                      (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
+                                                    );
+                                                    lv_obj_t** rows = settings_ui::rows();
+                                                    for (int i = 0; i < settings_ui::N; i++) {
+                                                      lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
+                                                      lv_obj_set_style_bg_color(rows[i],
+                                                        i < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                                                    }
+                                                    lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
+                                                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                                                    lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
+                                                    lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                                                    lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                                                    lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
+                                                - lvgl.page.show:
+                                                    id: settings_page
+                                                    animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                                                    time: 200ms
+                                              else:
+                                                # 其他页面短按由 encoder enter_button 自动处理
+                                                - script.execute: reset_idle_timer
 
-      # 长按 → 待机（关屏+静音+暂停LVGL，WiFi保持）/ 唤醒。
+      # 长按 → 设置页/蓝牙遥控页返回主页面，其他页面待机/唤醒。
       # 直接操作 standby 全局变量而非 switch 状态，避免 switch 内部状态不一致。
       - timing:
-          - ON for at least 800ms
+          - ON for at least 1500ms
         then:
           - if:
               condition:
-                lambda: 'return id(standby);'
+                lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj;'
               then:
-                - script.execute: exit_standby
+                # 设置页/蓝牙遥控页/诊断页长按 → 返回主页面（不触发待机）
+                - lvgl.page.show:
+                    id: main_page
+                    animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                    time: 200ms
               else:
                 - if:
                     condition:
-                      lambda: 'return id(system_ready) && (millis() > 10000);'
+                      lambda: 'return id(standby);'
                     then:
-                      - script.execute: enter_standby
+                      - script.execute: exit_standby
                     else:
-                      - script.execute: start_wifi_ap
+                      - if:
+                          condition:
+                            lambda: 'return id(system_ready);'
+                          then:
+                            - script.execute: enter_standby
+                          else:
+                            - script.execute: start_wifi_ap
 
-  # ── 音频检测 (MCP23017 GPB3~GPB0, 高电平=有信号) ──
+  # ── 音频检测 (MCP23017 GPB0~GPB3, 高电平=有信号) ──
   - platform: gpio
     name: "音频检测-CD"
     id: audio_cd
     pin:
       mcp23xxx: mcp23017_hub
-      number: 11
+      number: 8
       mode:
         input: true
         pullup: true
+      inverted: true          # 检测到信号时引脚被拉低
     filters:
       - delayed_on: 100ms
       - delayed_off: 500ms
@@ -3540,10 +5086,11 @@ binary_sensor:
     id: audio_dac
     pin:
       mcp23xxx: mcp23017_hub
-      number: 10
+      number: 9
       mode:
         input: true
         pullup: true
+      inverted: true
     filters:
       - delayed_on: 100ms
       - delayed_off: 500ms
@@ -3559,10 +5106,11 @@ binary_sensor:
     id: audio_pc
     pin:
       mcp23xxx: mcp23017_hub
-      number: 9
+      number: 10
       mode:
         input: true
         pullup: true
+      inverted: true
     filters:
       - delayed_on: 100ms
       - delayed_off: 500ms
@@ -3578,10 +5126,11 @@ binary_sensor:
     id: audio_aux
     pin:
       mcp23xxx: mcp23017_hub
-      number: 8
+      number: 11
       mode:
         input: true
         pullup: true
+      inverted: true
     filters:
       - delayed_on: 100ms
       - delayed_off: 500ms

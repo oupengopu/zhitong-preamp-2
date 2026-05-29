@@ -1,7 +1,192 @@
 ╔══════════════════════════════════════════════════════════════════╗
 ║        智能前级2.0 — 固件迭代记录 (ESP32-S3 + ESPHome)          ║
-║        最后更新: 2026-05-13                                      ║
+║        最后更新: 2026-05-28 (迭代9)                                      ║
 ╚══════════════════════════════════════════════════════════════════╝
+
+══════════════════════════════════════════════════════════════════════
+【迭代9】第三轮审计修复 — 编译错误 + YAML 结构 + 字体覆盖 + 三击bug
+══════════════════════════════════════════════════════════════════════
+目标: 修复第三轮全面审查中发现的 9 项缺陷（3项编译阻断/功能崩溃、3项高危、2项中等、1项轻微）
+
+修改文件:
+  智能前级蓝牙2.0.yaml  — 9处修改
+  CHANGELOG.txt         — 本文件
+
+  ▸ 🔴 严重修复 (3项)
+    - C1: lbl_ble lambda 尾部多余 } 删除 (编译阻断, 第1269行)
+    - C2: ble_remote_page HID调试标签与返回按钮YAML结构修复
+         (分离空 obj + label id 覆盖为两个独立 widget)
+    - C3: 三击进入诊断页功能修复 — 将debug跳转移入 on_multi_click 三击处理器
+         (原实现依赖单次单击handler中的fw_click计数器, 但ESPHome on_multi_click
+         匹配三击后跳过单击, 导致计数器永不递增, 功能完全失效)
+
+  ▸ 🟠 高危修复 (3项)
+    - H1: font_cn_small 增加"电池"二字 (BLE 状态文字"电池:50%"渲染为空白框)
+    - H2: 删除三处冗余 guard_ok = false; 赋值 (第422/4073行)
+    - H3: standby_switch 添加命名注释 (HA switch ON=运行中, OFF=待机模式)
+
+  ▸ 🟡 中等修复 (1项)
+    - M1: reset_idle_timer 熄屏亮度恢复补充 .perform() (确保立即生效)
+
+  ▸ 🟢 轻微修复 (1项)
+    - L1: MCP23017 scan: true → false (节省 ~100ms 启动时间)
+
+  ▸ 审计发现 (记录在案, 未修改)
+    - M4: balance 无总增益补偿 (前级惯例, 左减右不加, 保持现状)
+    - M2: HA 内存传感器 60s 推送延迟 (与 UI 20Hz 刷新分离, 设计合理)
+    - M3: 顶栏 ~150px 空白 (仪表盘风格, 布局预期)
+
+══════════════════════════════════════════════════════════════════════
+【迭代8】52项严审修复 — 安全加固 + 竞态修复 + UI完整性
+
+══════════════════════════════════════════════════════════════════════
+【迭代8】52项严审修复 — 安全加固 + 竞态修复 + UI完整性
+══════════════════════════════════════════════════════════════════════
+目标: 三轮全量审计（YAML BLE/编码器/脚本 + YAML LVGL/显示/设置 + C++ 头文件驱动），
+      修复 22 项安全/功能/逻辑缺陷。
+
+修改文件:
+  智能前级蓝牙2.0.yaml  — 20处修改 (BLE守卫/CRC/编码器/VU主题/splash/字体等)
+  PGA/pga2311.h         — 空指针防护 (set_volume隐式setup失败后return)
+  PGA/msgeq7.h          — _ntc_smooth临界区保护 + NTC温度有效范围收紧
+  PGA/lvgl_compat.h     — LV_CONF_SKIP无条件定义 (修复include顺序依赖)
+  PGA/ble_hid_host.h    — TOCTOU修复 + dropped_events原子保护 + 局部变量初始化
+  CHANGELOG.txt         — 本文件
+
+  ▸ 🔴 严重修复 (5项)
+    - C1: factory_reset 中 power_on_limit 160→110 (防止恢复出厂后开机音量过高)
+    - C3: pga2311::set_volume() 隐式setup()失败后空指针检查 (防止SPI崩溃)
+    - C4: ble_hid_host::connect() discovered_count 锁外读取→移入临界区 (TOCTOU)
+    - C5: font_cn 字形从35字符扩展到70+ (修复splash/BLE/设置/主题名全部空白)
+    - ✗ C2: send_volume_to_pga while循环保留 (CLAUDE.md禁止修改, 已验证安全)
+
+  ▸ 🟠 高危修复 (4项)
+    - H2: LVGL long_press_time 800ms→5000ms (避免与binary_sensor 1500ms长按冲突)
+    - H3: 三击进入诊断页/BLE页导航前补充 reset_idle_timer (防页面立即弹回)
+    - H4: BLE HID CYCLE_INPUT 增加 1500ms 防抖 (与其它输入切换路径一致)
+    - H5: LV_CONF_SKIP 移除 #ifndef LV_CONF_H 条件 (修复include顺序依赖bug)
+    - ✗ H1: Web Server认证未添加 (局域网设备, 认证破坏HA集成便利性)
+
+  ▸ 🟡 中等修复 (13项)
+    - M1: 编码器 diff 范围限制 [-10,10] (防int32_t翻转导致音量突变)
+    - M2: HA volume_number set_action 增加 v<0 下界检查
+    - M3: 软静音时 s_signal_avg 保持上次值 (防频谱页因静音提前退出)
+    - M4: 设置页输入选择用模运算 (防快旋跳过中间值)
+    - M5: BLE balance 命令 int8_t→int 显式转型 (消除实现定义行为)
+    - M6: guard_ok 去 static (2处, 消除脆弱的状态传递)
+    - M7: HID CYCLE_INPUT 同步发布 HA input_select (之前有~200ms延迟)
+    - M8: apply_theme 增加 VU 电平表指示器着色 (之前始终绿色)
+    - M9: splash 渐显最终帧 opa=255 (之前最大仅231/255≈90%)
+    - M11: 温度保护解除后恢复为theme accent色 (之前固定为灰色)
+    - M13: msgeq7 _ntc_smooth 读写移入临界区 (与get_temperature()竞争)
+    - M14: ble_hid_host dropped_events 递增用portENTER_CRITICAL保护
+    - M15: ble_hid_host 未初始化局部变量初始化 (2处 CLOSE_EVT/SEARCH_CMPL_EVT)
+    - ✗ M10: LVGL on_idle 30s死代码保留 (安全网, 无害)
+    - ✗ M12: read() 隐式setup线程安全保留 (启动顺序已保证单线程)
+
+  ▸ 🟢 轻微修复 (1项)
+    - L13: 熄屏亮度 3%→10% (保持高级音响质感, 隐约可见显示内容)
+
+  ▸ 审计发现 (本轮未修, 记录在案)
+    - L2-L27: 27项低优先级代码质量/风格发现 (详见审计报告)
+    - C2: send_volume_to_pga全幅渐变~825ms (受CLAUDE.md保护, 已验证异步安全)
+
+  ── 第二轮补充修复 (第二轮审计后补 11 项) ──
+
+  🔴 严重修复 (5项)
+    - C1: montserrat_36 字体添加 (splash_page 品牌标题编译阻断)
+    - C2: font_cn 追加 继续按住恢复出重置请连接热点 (恢复出厂显示空白)
+    - C3: font_cn_small 追加 内堆部小空闲运行间重 (诊断页/BLE状态空白)
+    - C4: 三击 pattern 先于双击匹配 + 双击静音加入 volume_big_page
+    - C5: exit_standby 增加 brightness 恢复 (唤醒后残留 10% 暗屏)
+
+  🟠 高危修复 (4项)
+    - H1: ble_remote_page 增加 HID 原始事件调试标签 (对接已有 raw event API)
+    - H2: lvgl_compat.h 添加 get_theme_accent() 辅助函数 (消除 7 处重复 switch)
+    - H3: 移除编码器旋转/单击 handler 中冗余 settings_ui::init() 调用 (仅保留进入设置页)
+    - H4: 双击静音条件加入 volume_big_page (调节音量时可静音)
+
+  🟡 中等修复 (2项)
+    - M1: volume_big_page bg_opa 0%→90% (防止主页内容透出)
+    - M4: 诊断页运行时间追加秒数显示 (原仅天/时/分)
+
+  🟢 轻微修复 (1项)
+    - L13: 熄屏亮度 3%→10% (保持高级音响质感) [与上轮重复, 记录备查]
+
+══════════════════════════════════════════════════════════════════════
+【迭代7】诊断信息页 + BLE 遥控页完善 + 三击隐藏入口
+══════════════════════════════════════════════════════════════════════
+目标: 新增诊断页(内存/CPU监控)，完善BLE遥控页交互，修复多页空闲自动返回
+
+修改文件:
+  智能前级蓝牙2.0.yaml  — 新增 debug_page/ble_remote_page 逻辑、HA内存传感器
+  PGA/ble_hid_host.h    — BLE HID Host 驱动 (ESP32-S3 双角色)
+  PGA/settings_ui.h     — 更新 N=11 适配设置页行数
+  preview/index.html    — 五屏模拟器 (main/spectrum/settings/ble_remote/debug)
+  CHANGELOG.txt         — 本文件
+
+  ▸ 新增第4页 ble_remote_page (蓝牙遥控配对页)
+    - 独立页面: 标题/状态/扫描按钮/设备槽×3/HID事件调试/断开或返回
+    - 编码器焦点导航: 0=扫描, 1~3=设备, 4=返回 (动态隐显)
+    - 扫描模拟: 1秒间隔发现设备, 3秒超时停止
+    - 连接模拟: 随机电池电量 65~94%, HID 事件显示
+    - 状态栏: 耳机电量风格指示条 (蓝牙图标 + 14×7px 电池条)
+
+  ▸ 新增第5页 debug_page (诊断信息页)
+    - 内存监控: 内部堆 (320KB) / PSRAM (8MB) 实时占用显示
+    - 低水位标记: 全时段最小空闲内存
+    - CPU 占用率: 动态模拟 (2~35%, 3%概率尖峰至99%)
+    - 运行时间: 天/时/分/秒
+
+  ▸ 三击固件版本进入诊断页
+    - 设置页 Row 9 (固件版本): 快速单击三次编码器 → debug_page
+    - 预览 HTML: click-counting 移至 mouseup/touchend 原始事件处理器
+    - 取消待处理 singleClick 定时器防止跳回
+    - YAML: 新增 skip_idle_reset 全局变量
+    - reset_idle_timer 检查 skip_idle_reset 防 main_page 覆盖
+
+  ▸ 设置页重新排序
+    - 蓝牙遥控从第10位提前到第8位 (Row 8)
+    - 固件版本 Row 9, IP地址 Row 10
+    - settings_ui.h N=11, 更新 init() 签名
+
+  ▸ 编码器交互修正
+    - 双击静音限制仅主页/频谱页有效
+    - 设置页/BLE页 10秒无操作自动返回主页
+    - 诊断页 30秒无操作自动返回主页
+    - BLE页断开按钮留在本页 (不返回设置)
+    - 设置页只读行(9,10)不进调节模式
+
+  ▸ BLE HID Host 驱动优化
+    - ESP32-S3 双角色 (BLE Server + Client 同时运行)
+    - FreeRTOS 队列桥接 BLE 回调 → ESPHome 主循环
+    - 电池电量读取 (Battery Service 0x180F)
+    - HID 原始事件调试查看器
+    - HA 事件推送 (homeassistant.event: esphome.hid_events)
+    - 断开自动重试 3 次, 间隔逐次增大
+    - 待机时 BLE 连接保持, 遥控器可唤醒
+    - 所有 ESP-IDF v5.x 编译适配已修复
+
+══════════════════════════════════════════════════════════════════════
+【Release v2.0.0】2026-05-26
+══════════════════════════════════════════════════════════════════════
+面向最终用户的第一个正式版本。
+
+  新增:
+  ▸ 恢复出厂设置: 编码器长按 10s 触发，重置所有存储值 + 清除 WiFi + 重启
+  ▸ 设置页: 输入自动切换开关（独立 UI）
+  ▸ MCP23017 中断支持: open_drain_interrupt + INTB 中断检测
+  ▸ settings_ui.h 集中管理设置页数组
+  ▸ 8 种世界名机主题色（翠绿/赤红/天蓝/紫/麦景图蓝/金嗓子金/柏林青/南瓜橙）
+
+  修正:
+  ▸ P0-P2 全部 10 个 Bug 修复（峰值线重叠、LED 指示、消抖、ESPHome 2026 API 适配等）
+  ▸ CLAUDE.md 文档全面修正（引脚映射、继电器顺序、blocking 描述纠正等）
+  ▸ 频谱页自动切换: 从 MCP23017 引脚检测改为 MSGEQ7 真实频谱信号
+
+  重要提醒:
+  ▸ lvgl_compat.h 使用 extern "C" 绕过 opaque 限制，升级 ESPHome 大版本时需注意
+  ▸ sdkconfig 强绑定 Octal PSRAM，Quad PSRAM 开发板会 Bootloop
 
 文件清单:
   智能前级2.0.yaml  — 主配置 (ESPHome + LVGL UI)
@@ -373,10 +558,16 @@
      如果编译失败, 可能需要改为 id(spec_0)->lv_obj 或其他成员名
      (取决于 ESPHome 版本)
 
-  2. PSRAM 指令/只读缓存
-     CONFIG_SPIRAM_FETCH_INSTRUCTIONS / CONFIG_SPIRAM_RODATA
-     要求固件大小不超过 PSRAM 可用空间, 否则启动失败
-     如遇启动问题, 尝试关闭这两个选项
+  2. PSRAM 配置 — 强绑定八线 (Octal) PSRAM
+     a) Octal 模式绑定 (CONFIG_SPIRAM_MODE_OCT)
+        此固件的 sdkconfig 强制开启八线 PSRAM 模式。
+        如果烧录到 Quad PSRAM（四线）的廉价 ESP32-S3 开发板上，
+        PSRAM 初始化失败，将导致无限 Bootloop（启动死机）。
+        移植到其他 S3 开发板前，务必确认 PSRAM 类型并调整此选项。
+
+     b) 指令/只读数据取自 PSRAM (CONFIG_SPIRAM_FETCH_INSTRUCTIONS / CONFIG_SPIRAM_RODATA)
+        要求固件大小不超过 PSRAM 可用空间，否则启动失败。
+        如遇启动问题，先关闭这两个选项排查。
 
   3. MSGEQ7 零漂校准前提
      假设启动时无音频输入, 如果开机时有信号, 偏置值会偏高
@@ -395,6 +586,14 @@
      显示 SPI2_HOST (DMA, 80MHz) 与 PGA2311 SPI3_HOST (4MHz)
      两者独立, 无总线共享冲突
 
+  7. lvgl_compat.h extern "C" 版本依赖
+     lvgl_compat.h 使用 extern "C" 绕过 managed_component 的 opaque 限制，
+     直接声明 LVGL C API 函数。这种做法深度依赖当前 LVGL 版本（v9.x）的函数签名。
+     升级 ESPHome 大版本（如 2026.x → 2027.x）时，如果底层 LVGL 调整了函数签名
+     （如添加 const 限定符或新增缺省参数），将在链接阶段报错（Linker Error）。
+     修复方法：删除 extern "C" 块，改用标准 #include <lvgl.h> 方式。
+     这是编译期安全失败，不会导致运行时异常。
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 【升级检查清单 — 每次修改前必读】
@@ -412,3 +611,4 @@
   □ auto_input 状态栏图标着色正确? (蓝=自动, 灰蓝=手动)
   □ SVG 图标文件在 icons/ 目录? (6个文件, ESPHome编译时读取)
   □ 图标 recolor 机制正常? (lv_obj_set_style_img_recolor + opa=COVER)
+  □ lvgl_compat.h extern "C" 与当前 LVGL 版本兼容? (升级后如遇链接错误, 删除 extern "C" 块改用标准头文件)
