@@ -25,7 +25,7 @@ constexpr int ACTION_CAMERA     = 13;
 constexpr int ACTION_CAMERA_SWITCH = 14;
 constexpr int ACTION_OK         = 15;
 
-constexpr int ACTION_COUNT = 15;
+constexpr int ACTION_COUNT = 16;  // 0=禁用 + 1-15=有效动作
 
 /// 获取动作名称 (用于 UI 显示)
 inline const char* get_action_name(int action) {

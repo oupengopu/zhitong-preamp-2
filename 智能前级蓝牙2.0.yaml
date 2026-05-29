@@ -41,8 +41,8 @@ esphome:
       then:
         - lambda: |-
             if (id(current_input) < 0 || id(current_input) > 3) id(current_input) = 0;
-            if (id(max_volume) < 10 || id(max_volume) > 255) id(max_volume) = 160;
-            if (id(power_on_limit) < 10 || id(power_on_limit) > 255) id(power_on_limit) = 110;
+            if (id(max_volume) < 10 || id(max_volume) > 255) id(max_volume) = 255;
+            if (id(power_on_limit) < 10 || id(power_on_limit) > 255) id(power_on_limit) = 192;
             if (id(balance) < -20 || id(balance) > 20) id(balance) = 0;
             if (id(display_timeout_min) < 1 || id(display_timeout_min) > 60) id(display_timeout_min) = 5;
             if (id(display_brightness) < 0 || id(display_brightness) > 100) id(display_brightness) = 80;
@@ -953,7 +953,7 @@ lvgl:
   encoders:
     - sensor: volume_encoder
       enter_button: encoder_button
-      long_press_time: 5000ms  # 避免与 binary_sensor 1500ms 长按冲突, LVGL 长按交由脚本处理
+      long_press_time: 30000ms  # LVGL 长按禁用: 由 binary_sensor on_multi_click 1500ms/10000ms 处理
   buffer_size: 100%
   color_depth: 16
   theme:
@@ -1330,10 +1330,8 @@ lvgl:
             width: 268
             height: 28
             text: !lambda |-
-              float vol_pct = (float)id(volume_val) / (float)id(max_volume);
-              if (vol_pct > 1.0f) vol_pct = 1.0f;
-              float reg_f = vol_pct * 255.0f;
-              float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 255.0f) * 0.5f;
+              float reg_f = (float)id(volume_val);
+              float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
               char buf[16];
               snprintf(buf, sizeof(buf), "%.1fdB", db);
               return std::string(buf);
@@ -3124,11 +3122,11 @@ globals:
   - id: max_volume
     type: int
     restore_value: true
-    initial_value: '160'
+    initial_value: '255'
   - id: power_on_limit
     type: int
     restore_value: true
-    initial_value: '110'
+    initial_value: '192'
   - id: ble_connected
     type: bool
     restore_value: false
@@ -3285,8 +3283,8 @@ script:
           id(volume_val)          = 160;
           id(current_input)       = 0;
           id(balance)             = 0;
-          id(max_volume)          = 160;
-          id(power_on_limit)      = 110;
+          id(max_volume)          = 255;
+          id(power_on_limit)      = 192;
           id(display_timeout_min) = 5;
           id(display_brightness)  = 80;
           id(auto_input)          = true;
@@ -3304,8 +3302,8 @@ script:
           id(key_map_12) = 12; id(key_map_13) = 13; id(key_map_14) = 14;
 
           // 同步到 HA
-          id(max_volume_number)->publish_state(160.0f);
-          id(power_on_limit_number)->publish_state(110.0f);
+          id(max_volume_number)->publish_state(255.0f);
+          id(power_on_limit_number)->publish_state(192.0f);
           id(balance_number)->publish_state(0.0f);
           id(display_brightness_number)->publish_state(80.0f);
           id(display_timeout_number)->publish_state(5.0f);
@@ -3430,10 +3428,8 @@ script:
           animation: LV_SCREEN_LOAD_ANIM_FADE_IN
           time: 150ms
       - lambda: |-
-          float vol_pct = (float)id(volume_val) / (float)id(max_volume);
-          if (vol_pct > 1.0f) vol_pct = 1.0f;
-          float reg_f = vol_pct * 255.0f;
-          float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 255.0f) * 0.5f;
+          float reg_f = (float)id(volume_val);
+          float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
           char buf[16];
           snprintf(buf, sizeof(buf), "%.1fdB", db);
           lv_label_set_text(id(lbl_vol_big), buf);
@@ -3456,16 +3452,15 @@ script:
           }
 
           if (!id(switching_input)) {
-            float pct = 0.0f;
-            if (!id(soft_mute)) {
-              pct = (float)id(volume_val) / (float)id(max_volume);
-              if (pct > 1.0f) pct = 1.0f;
-            }
-            float reg_f = pct * 255.0f;
-            if (reg_f < 1.0f) {
+            if (id(soft_mute)) {
               id(target_db) = -96.0f;
             } else {
-              id(target_db) = (reg_f - 255.0f) * 0.5f;
+              float reg_f = (float)id(volume_val);
+              if (reg_f < 1.0f) {
+                id(target_db) = -96.0f;
+              } else {
+                id(target_db) = (reg_f - 192.0f) * 0.5f;
+              }
             }
           }
 
@@ -3495,7 +3490,7 @@ script:
                 if (db <= -95.5f) {
                   base_reg = 0;
                 } else {
-                  base_reg = (int)roundf(255.0f + db * 2.0f);
+                  base_reg = (int)roundf(192.0f + db * 2.0f);
                   if (base_reg < 0)   base_reg = 0;
                   if (base_reg > 255) base_reg = 255;
                 }
@@ -3519,7 +3514,7 @@ script:
           if (db <= -95.5f) {
             base_reg = 0;
           } else {
-            base_reg = (int)roundf(255.0f + db * 2.0f);
+            base_reg = (int)roundf(192.0f + db * 2.0f);
             if (base_reg < 0)   base_reg = 0;
             if (base_reg > 255) base_reg = 255;
           }
@@ -4348,7 +4343,7 @@ number:
             if (db <= -95.5f) {
               base_reg = 0;
             } else {
-              base_reg = (int)roundf(255.0f + db * 2.0f);
+              base_reg = (int)roundf(192.0f + db * 2.0f);
               if (base_reg < 0) base_reg = 0;
               if (base_reg > 255) base_reg = 255;
             }
@@ -4745,10 +4740,8 @@ interval:
           // ═══ 音量 dB 标签更新 (含变化检测) ═══
           {
             static float last_db = -999.0f;
-            float vol_pct = (float)id(volume_val) / (float)id(max_volume);
-            if (vol_pct > 1.0f) vol_pct = 1.0f;
-            float reg_f = vol_pct * 255.0f;
-            float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 255.0f) * 0.5f;
+            float reg_f = (float)id(volume_val);
+            float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
             if (fabsf(db - last_db) > 0.01f) {
               last_db = db;
               char buf[16];
@@ -5240,10 +5233,8 @@ interval:
           // ═══ 音量浮层标签更新 (含变化检测) ═══
           {
             static float last_big_db = -999.0f;
-            float vol_pct = (float)id(volume_val) / (float)id(max_volume);
-            if (vol_pct > 1.0f) vol_pct = 1.0f;
-            float reg_f = vol_pct * 255.0f;
-            float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 255.0f) * 0.5f;
+            float reg_f = (float)id(volume_val);
+            float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
             if (fabsf(db - last_big_db) > 0.01f) {
               last_big_db = db;
               char buf[16];
@@ -5490,6 +5481,7 @@ binary_sensor:
                                   // 已连接→断开（留在蓝牙页），未连接→返回设置
                                   if (ble_hid_host::is_connected()) {
                                     ble_hid_host::disconnect();
+                                    id(ble_remote_peer_bda) = "\"\"";
                                     id(ble_remote_battery) = -1;
                                     id(ble_remote_connected) = false;
                                     id(ble_remote_scan_status) = "未连接";

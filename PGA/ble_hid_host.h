@@ -1419,6 +1419,8 @@ static bool get_peer_bda_string(char* out, size_t out_len) {
     if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
         bool ok = (S().paired || S().state == BLE_CONNECTED) &&
                   memcmp(S().peer_bda, ZERO_BDA, 6) != 0;
+        if (!ok) { xSemaphoreGive(S().mux); return false; }
+        snprintf(out, out_len, "%02X:%02X:%02X:%02X:%02X:%02X|%u",
                  S().peer_bda[0], S().peer_bda[1], S().peer_bda[2],
                  S().peer_bda[3], S().peer_bda[4], S().peer_bda[5],
                  (unsigned)S().peer_addr_type);
