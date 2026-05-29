@@ -578,6 +578,16 @@ cd preview && py -3.11 -m http.server 8084
 
 **规避方法**：要么所有字体都有 `glyphs:`，要么全都没有。本项目采用：仅 MDI 字体有 `glyphs:`（需要子集化），Roboto/NotoSans/Montserrat 无 `glyphs:`（全字体编译，体积略大）。
 
+### v2.1.0+ 音量迁移 (NVS)
+
+v2.1.0 起 `volume_val` 直接映射 PGA2311 寄存器值 (0-255)，取代旧的百分比编码。旧固件升级时，启动脚本自动迁移：
+
+```
+新 reg = 旧 vol / 旧 max * 255
+```
+
+迁移通过 `v210_migrated` (NVS 持久化 bool) 保证只运行一次。迁移后 `max_volume` 设为 255，`power_on_limit` 设为 192。各输入源独立音量同步缩放。
+
 ### 2. switch-case 变量跨越 case (ESP-IDF 5.5 + GCC)
 
 在 `switch` 语句的 `case` 内声明变量（如 `int x = 0`）时，如果后续 `case` 没有用 `{}` 包围，GCC 会报 `crosses initialization of` 错误。

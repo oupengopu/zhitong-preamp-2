@@ -40,6 +40,20 @@ esphome:
     - priority: -100
       then:
         - lambda: |-
+            // v2.1.0+ 迁移: 旧固件 volume_val 是 max_volume 百分比, 新固件直接映射 PGA 寄存器
+            // 换算公式: reg = old_val / old_max * 255
+            if (!id(v210_migrated) && id(max_volume) > 0) {
+              float scale = 255.0f / (float)id(max_volume);
+              id(input_vol_0) = std::min((int)((float)id(input_vol_0) * scale), 255);
+              id(input_vol_1) = std::min((int)((float)id(input_vol_1) * scale), 255);
+              id(input_vol_2) = std::min((int)((float)id(input_vol_2) * scale), 255);
+              id(input_vol_3) = std::min((int)((float)id(input_vol_3) * scale), 255);
+              if (id(max_volume) < 255) id(max_volume) = 255;
+              if (id(power_on_limit) < 192) id(power_on_limit) = 192;
+              id(v210_migrated) = true;
+              ESP_LOGI("boot", "v2.1.0+ migrate: volume values rescaled (factor=%.3f)", scale);
+            }
+
             if (id(current_input) < 0 || id(current_input) > 3) id(current_input) = 0;
             if (id(max_volume) < 10 || id(max_volume) > 255) id(max_volume) = 255;
             if (id(power_on_limit) < 10 || id(power_on_limit) > 255) id(power_on_limit) = 192;
@@ -3003,6 +3017,10 @@ lvgl:
 # 全局变量
 # ═══════════════════════════════════════════════════════════════
 globals:
+  - id: v210_migrated
+    type: bool
+    restore_value: true
+    initial_value: 'false'
   - id: ota_active
     type: bool
     restore_value: false
@@ -3281,6 +3299,7 @@ script:
       - lambda: |-
           // 重置所有 restore_value 全局变量到安全默认值
           id(volume_val)          = 160;
+          id(v210_migrated)       = true;  // 重置后标记已迁移, 不再二次缩放
           id(current_input)       = 0;
           id(balance)             = 0;
           id(max_volume)          = 255;
@@ -4316,7 +4335,7 @@ number:
     set_action:
       - lambda: |-
           if (!id(system_ready) || id(switching_input)) return;
-          int v = (int)(x * id(max_volume) / 100.0f);
+          int v = (int)roundf(x * id(max_volume) / 100.0f);
           if (v < 0) v = 0;
           if (v > id(max_volume)) v = id(max_volume);
           id(volume_val) = v;
