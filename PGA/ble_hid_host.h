@@ -62,6 +62,13 @@ enum HidEventType : uint8_t {
     HID_EVT_PREV_TRACK     = 0x06,
     HID_EVT_POWER          = 0x07,
     HID_EVT_CYCLE_INPUT    = 0x08,
+    HID_EVT_SWIPE_UP       = 0x09,
+    HID_EVT_SWIPE_DOWN     = 0x0A,
+    HID_EVT_SWIPE_LEFT     = 0x0B,
+    HID_EVT_SWIPE_RIGHT    = 0x0C,
+    HID_EVT_CAMERA         = 0x0D,
+    HID_EVT_CAMERA_SWITCH  = 0x0E,
+    HID_EVT_OK             = 0x0F,
     HID_EVT_CONNECTED      = 0x10,  // 内部事件
     HID_EVT_DISCONNECTED   = 0x11,  // 内部事件
     HID_EVT_SCAN_DONE      = 0x12,  // 内部事件
@@ -223,48 +230,72 @@ static void _parse_adv_data(const uint8_t* data, uint8_t len,
 }
 
 // ═══════════════════════════════════════════════════
-// HID 报告解析
+// HID 报告解析 — 基于市售 BLE 遥控器实测码
+// ═══════════════════════════════════════════════════
+// 注释标记: [标准]=USB HID 规范定义, [兼容]=廉价遥控器实测有效, [自定义]=特定遥控器
+//
+// 参考资料: USB HID Usage Tables v1.22
+//   Consumer Page (0x0C): 0xE9=VolInc 0xEA=VolDec 0xE2=Mute
+//                         0xCD=Play/Pause 0xB5=Next 0xB6=Prev 0x30=Power
+//   Keyboard Page (0x07): 0x28=Enter 0x29=Esc 0x2C=Space
+//                         0x4F→0x52=←↑↓→  0x66=Power 0x68=F13
+//   廉价遥控器兼容码: 将 Consumer 码塞入 Keyboard 报告 (0xE9/0xEA/0xCD/0xB5/0xB6/0x30)
 // ═══════════════════════════════════════════════════
 static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
     if (len == 0) return HID_EVT_NONE;
 
-    // Keyboard boot report: 8 bytes
-    //   byte 0: modifier
-    //   byte 1: reserved
-    //   bytes 2-7: key codes
+    // ═══ Keyboard boot report: 8 bytes ═══
+    //   byte 0: modifier, byte 1: reserved, bytes 2-7: key codes (USB HID Keyboard page 0x07)
     if (len >= 8) {
-        // Check for all-zero (key release)
         bool all_zero = true;
         for (int i = 2; i < 8; i++) {
             if (data[i] != 0) { all_zero = false; break; }
         }
         if (all_zero) return HID_EVT_NONE;
 
-        // Check key codes in bytes 2-7
         for (int i = 2; i < 8; i++) {
             uint8_t key = data[i];
             if (key == 0) continue;
-
-            // Standard HID keyboard media keys (USB HID Usage Tables)
             switch (key) {
+                // ── 音量±  [兼容] 廉价遥控器把 Consumer 码塞进键盘报告 ──
                 case 0xE9: case 0x80: return HID_EVT_VOLUME_UP;
                 case 0xEA: case 0x81: return HID_EVT_VOLUME_DOWN;
+                // ── 静音  [兼容] ──
                 case 0xE2: case 0x7F: return HID_EVT_MUTE;
+                // ── 播放/暂停  [兼容] ──
                 case 0xCD: return HID_EVT_PLAY_PAUSE;
+                // ── 上下曲  [兼容] ──
                 case 0xB5: return HID_EVT_NEXT_TRACK;
                 case 0xB6: return HID_EVT_PREV_TRACK;
+                // ── 电源  [兼容]+[标准] 0x66=Keyboard Power ──
                 case 0x30: case 0x66: return HID_EVT_POWER;
-                case 0x68: return HID_EVT_CYCLE_INPUT;  // F13 映射输入切换
-                default: continue;  // 跳过不认识的键，继续检查后续键码
+                // ── 切换输入  [标准] F13 ──
+                case 0x68: return HID_EVT_CYCLE_INPUT;
+                // ── 确定  [标准] Enter ──
+                case 0x28: return HID_EVT_OK;
+                // ── 方向键→滑动  [标准] 抖音戒指遥控器实测有效 ──
+                case 0x52: return HID_EVT_SWIPE_UP;
+                case 0x51: return HID_EVT_SWIPE_DOWN;
+                case 0x50: return HID_EVT_SWIPE_LEFT;
+                case 0x4F: return HID_EVT_SWIPE_RIGHT;
+                // ── Page Up/Down→滑动  [标准] PPT翻页器实测有效 ──
+                case 0x4B: return HID_EVT_SWIPE_UP;
+                case 0x4E: return HID_EVT_SWIPE_DOWN;
+                // ── 拍照  [标准] Space=自拍遥控器快门 ──
+                case 0x2C: return HID_EVT_CAMERA;
+                // ── 切换镜头  [自定义] 预留, 市售遥控器无独立按键 ──
+                case 0x8C: return HID_EVT_CAMERA_SWITCH;
+                default: continue;
             }
         }
-        return HID_EVT_NONE;  // 所有键码都不匹配
+        return HID_EVT_NONE;
     }
 
-    // Consumer page report: 2 bytes
+    // ═══ Consumer page report: 2 bytes (Usage Page 0x0C) ═══
     if (len == 2) {
         uint16_t usage = data[0] | (data[1] << 8);
         switch (usage) {
+            // ── 媒体键  [标准] ──
             case 0xE9: return HID_EVT_VOLUME_UP;
             case 0xEA: return HID_EVT_VOLUME_DOWN;
             case 0xE2: return HID_EVT_MUTE;
@@ -272,15 +303,17 @@ static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
             case 0xB5: return HID_EVT_NEXT_TRACK;
             case 0xB6: return HID_EVT_PREV_TRACK;
             case 0x30: return HID_EVT_POWER;
+            // ── 切换输入  [自定义] 特定遥控器专有码 ──
             case 0x233: return HID_EVT_CYCLE_INPUT;
         }
         return HID_EVT_NONE;
     }
 
-    // 3 bytes consumer report (e.g., report ID + usage)
+    // ═══ Consumer page report: 3 bytes (Report ID + Usage) ═══
     if (len == 3) {
         uint16_t usage = data[1] | (data[2] << 8);
         switch (usage) {
+            // ── 媒体键  [标准] ──
             case 0xE9: return HID_EVT_VOLUME_UP;
             case 0xEA: return HID_EVT_VOLUME_DOWN;
             case 0xE2: return HID_EVT_MUTE;
@@ -288,6 +321,7 @@ static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
             case 0xB5: return HID_EVT_NEXT_TRACK;
             case 0xB6: return HID_EVT_PREV_TRACK;
             case 0x30: return HID_EVT_POWER;
+            // ── 切换输入  [自定义] ──
             case 0x233: return HID_EVT_CYCLE_INPUT;
         }
         return HID_EVT_NONE;

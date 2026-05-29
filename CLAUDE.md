@@ -4,7 +4,7 @@
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.0.0  
+**固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
 **框架:** ESPHome 2026.5.0 + LVGL v9.x managed component
 
@@ -108,7 +108,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 │   ├── msgeq7.h           # MSGEQ7 频谱 + NTC 温度驱动 (C++ namespace)
 │   ├── ble_hid_host.h     # BLE HID Host 蓝牙遥控器驱动 (C++ namespace)
 │   ├── lvgl_compat.h      # LVGL C API 声明补齐 (opaque lv_obj_t 兼容)
-│   └── settings_ui.h      # 设置页 UI 控件指针数组管理
+│   ├── settings_ui.h      # 设置页 UI 控件指针数组管理
+│   └── remote_keys.h      # BLE 遥控器按键映射动作名查询
 ├── secrets.yaml           # WiFi/API/OTA 密钥
 ├── CLAUDE.md              # 本文件
 ├── CHANGELOG.txt          # 变更历史
@@ -148,10 +149,10 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
    - extern "C" 声明所需 LVGL C API (label/bar/led 函数)
    - 非复合 widget 直接是 lv_obj_t* 全局变量, 无需 `->obj_`
 
-4. **ESPHome YAML** — 主配置 (~5220 行)
-   - 5 个 LVGL 主页面: splash_page, main_page, spectrum_page, volume_big(浮层), settings_page
-   - 2 个子页面: ble_remote_page(蓝牙遥控), debug_page(诊断信息，三击隐藏入口)
-   - 3 个页面切换: 主页面/频谱/设置 + 大字音量
+4. **ESPHome YAML** — 主配置 (~5700 行)
+   - 6 个 LVGL 主页面: splash_page, main_page, spectrum_page, volume_big(浮层), settings_page
+   - 3 个子页面: ble_remote_page(蓝牙遥控), remote_keys_page(遥控器按键映射), debug_page(诊断信息)
+   - 4 个页面切换: 主页面/频谱/设置/大字音量
    - 音频检测 (MCP23017 GPB0~GPB3, active-low + inverted, 100ms 确认 / 500ms 断连)
    - 输入自动切换 (CD > DAC > PC > AUX 优先级, 支持手动覆盖)
    - 编码器: 旋转→音量, 单击→页面循环, 长按→待机
@@ -176,8 +177,12 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `system_ready` | bool | 系统就绪标志 |
 | `switching_input` | bool | 正在切换输入 |
 | `audio_cd/dac/pc/aux` | binary_sensor | 各输入音频检测状态 |
-| `settings_focus_idx` | int | 设置页焦点索引 (0~10) |
+| `settings_focus_idx` | int | 设置页焦点索引 (0~11) |
 | `settings_active_idx` | int | 设置页调节模式索引 (-1=浏览模式) |
+| `keymap_focus_idx` | int | 遥控器按键页焦点索引 (0-7=按键, 8=返回) |
+| `keymap_active_idx` | int | 遥控器按键页调节模式索引 (-1=浏览, ≥0=调节中) |
+| `key_map_1~key_map_8` | int | 8 个标准按键的动作映射 (NVS 持久化, 默认恒等) |
+| `key_map_9~key_map_14` | int | 6 个扩展键(SWIPE/CAMERA)的动作映射 (NVS, 默认恒等) |
 | `ble_remote_scanning` | bool | BLE 遥控扫描中 |
 | `ble_remote_connected` | bool | BLE 遥控已连接 |
 | `ble_remote_device_count` | int | 发现的 BLE 设备数 |
@@ -252,7 +257,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | spectrum_page | 左右声道 7 段频谱条 + 峰值保持线 + VU 电平条 + 频率标签 + 输入/温度 |
 | volume_big | 大字音量 (编码器旋转时临时显示) |
 | ble_remote_page | 蓝牙遥控管理: 扫描/设备列表/连接/断开/电池电量/HID调试 |
-| settings_page | 单列可滚动列表，11 项：最大音量/开机上限/声道平衡/输入选择/输入自动切换/屏幕亮度/息屏超时/主题色彩/蓝牙遥控(导航)/固件版本(只读)/IP地址(只读) |
+| remote_keys_page | 遥控器按键映射: 8 个标准源按键 + 返回，浏览/调节双模式，单击循环切换映射目标(0-15) |
+| settings_page | 单列可滚动列表，12 项：最大音量/开机上限/.../蓝牙遥控/遥控器按键(导航)/固件版本(只读)/IP地址(只读) |
 | debug_page | 诊断信息: CPU占用率、内部堆(320KB)/PSRAM(8MB)实时监控、低水位标记、运行时间 |
 
 ---
@@ -267,6 +273,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 设置页（浏览模式） | 移动焦点切换设置项（无限循环） |
 | 设置页（调节模式） | 调整当前设置项的值（bar/数值实时更新） |
 | BLE 遥控页 | 移动焦点：扫描按钮/设备槽(动态)/返回按钮（无限循环，跳过隐藏行） |
+| 遥控器按键页（浏览） | 移动焦点（9 行循环：0-7 按键, 8 返回） |
+| 遥控器按键页（调节） | 旋转循环切换当前按键的映射目标 (16 动作: 禁用→音量+→...→确定→禁用) |
 
 ### 编码器按键（单击）
 | 当前状态 | 效果 |
@@ -274,10 +282,13 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 屏幕休眠 | 恢复亮度 |
 | 主页 | → 进入设置页 |
 | 频谱页 | → 返回主页 |
-| 设置页（浏览模式） | → 进入调节模式（bar 高度 6→12px，背景更亮 0x25374F）；只读项(固件版本/IP地址)无反应；蓝牙遥控行→跳转 BLE 遥控页 |
-| 设置页（浏览模式, 固件版本行） | 快速单击 3 次 → 跳转 debug_page 诊断信息页（500ms 窗口） |
+| 设置页（浏览模式） | → 进入调节模式（bar 高度 6→12px，背景更亮 0x25374F）；只读项(固件版本/IP地址)无反应；蓝牙遥控行→跳转 BLE 遥控页；遥控器按键行→跳转 remote_keys_page |
+| 设置页（浏览模式, 固件版本行） | 快速单击 3 次 → 跳转 debug_page（500ms 窗口） |
 | 设置页（调节模式） | → 退回浏览模式（bar 恢复 base 高度，确认修改） |
 | BLE 遥控页 | → 激活焦点项：扫描/停止扫描，连接设备，断开（留在蓝牙页），返回设置 |
+| 遥控器按键页（浏览） | → 进入调节模式（当前行背景变亮 0x25374F） |
+| 遥控器按键页（调节） | → 退出调节模式（确认修改，背景恢复） |
+| 遥控器按键页（返回行） | → 返回设置页 |
 
 ### 编码器按键（双击）
 | 任何页面 | 切换静音 |
@@ -288,6 +299,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 |------|------|
 | 设置页 | 返回主页面 |
 | 蓝牙遥控页 | 返回主页面 |
+| 遥控器按键页 | 返回主页面 |
 | 诊断页 | 返回主页面 |
 | 主页面/频谱页（工作状态）| 进入待机 |
 | 待机状态 | 唤醒（800ms 渐变亮度）|
@@ -299,7 +311,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 任何状态按住 10 秒 | 执行恢复出厂：重置所有设置到默认值 → 显示"已重置，请连接热点" → 清除 WiFi 记忆 → 重启进入 AP 配网模式 |
 | 中途松手 | 取消操作，隐藏提示 |
 
-> 恢复出厂会重置以下设置到默认值：音量(160)、输入源(CD)、平衡(0)、最大音量(160)、开机上限(160)、息屏超时(5分钟)、亮度(80%)、主题(翠绿)、自动输入切换(开)、各输入独立音量(160)。
+> 恢复出厂会重置以下设置到默认值：音量(160)、输入源(CD)、平衡(0)、最大音量(160)、开机上限(110)、息屏超时(5分钟)、亮度(80%)、主题(翠绿)、自动输入切换(开)、各输入独立音量(160)、按键映射(恒等: 1-8→1-8, 9-14→9-14)。
 
 ### LED 指示灯状态 (IO16, PWM)
 | 状态 | LED 行为 | 亮度 | 说明 |
@@ -349,12 +361,12 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 若 WiFi 10 秒内未连接，自动超时切到主页面（不卡死）
 - splash_page 仅开机显示一次，过渡后不再使用
 
-### 设置页交互（单列列表，图标化，11 项）
+### 设置页交互（单列列表，图标化，12 项）
 - **布局**：单列可滚动列表，每行 ~90px，含 24px MDI 图标 + 18px 标签 + 进度条(bar) + 16px 数值
-- **图标**：每行左侧 24px 彩色 MDI 图标，rows 0-8 跟随主题色，rows 9-10 固定灰色 `0x6B7280`
+- **图标**：每行左侧 24px 彩色 MDI 图标，rows 0-9 跟随主题色，rows 10-11 固定灰色 `0x6B7280`
 - **焦点指示**：左边界 3px 主题色竖条 + 背景色 `0x1E2D42`
 - **只读行(固件版本/IP地址)**：无焦点条，背景 `0x111827`，图标灰色
-- **导航行(蓝牙遥控)**：背景 `0x111827`，但支持焦点高亮 + 点击跳转 ble_remote_page
+- **导航行(蓝牙遥控/遥控器按键)**：背景 `0x111827`，支持焦点高亮 + 点击跳转对应子页面
 - **行高 ~90px → 约 3 行可见，超出需滚动**
 
 **浏览模式**（`settings_active_idx = -1`）：
@@ -366,9 +378,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 选中行 bar 高度 12px (row 0 为 16px) → 24px，背景 `0x25374F`
 - 旋转编码器 → 调值，bar/数值实时更新，立即生效
 - 单击 → 退回浏览模式（bar 恢复 base 高度：row 0=16px, rows 1-5=12px）
-- 只读项(9,10) 单击无反应
+- 只读项(10,11) 单击无反应
 
-**设置项一览**（11 项）：
+**设置项一览**（12 项）：
 | # | 名称 | 图标 | 控件 | 范围 | 说明 |
 |---|------|------|------|------|------|
 | 0 | 最大音量 | mdi-volume-high | bar | 10~255 | 音量上限，保护扬声器 |
@@ -380,13 +392,22 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 6 | 息屏超时 | mdi-timer-outline | bar | 1~60 分钟 | 调低亮度而非关屏 |
 | 7 | 主题色彩 | mdi-palette | label+色点 | 8 种主题色 | 循环切换，实时生效 |
 | 8 | 蓝牙遥控 | mdi-bluetooth | label | 已连接/未连接 | 导航到蓝牙遥控页 |
-| 9 | 固件版本 | mdi-information-outline | label (只读) | — | 显示当前固件版本，三击进入诊断页 |
-| 10 | IP地址 | mdi-ip-network | label (只读) | — | 显示设备 IP |
+| 9 | 遥控器按键 | mdi-keyboard-settings | label | 已映射 | 导航到遥控器按键映射页 |
+| 10 | 固件版本 | mdi-information-outline | label (只读) | — | 显示当前固件版本，三击进入诊断页 |
+| 11 | IP地址 | mdi-ip-network | label (只读) | — | 显示设备 IP |
 
-### 11. 蓝牙遥控 (BLE HID Host)
+### 蓝牙遥控 (BLE HID Host)
 - 图标 mdi-bluetooth，标签 "蓝牙遥控"，右侧状态 "已连接"/"未连接"
 - **状态栏指示**：主页面右上角双蓝牙图标——大号 `mdi_icons_27` 为手机 APP BLE Server 连接指示，小号 `mdi_icons_12` + 微型电池条（14×7px bar）为 BLE 遥控器连接及电量（耳机电量风格：>50% 主题色、>20% 黄色、<20% 红色）
 - 点击 → 跳转 `ble_remote_page`（设置页 Row 8）
+
+### 遥控器按键映射 (Remote Keys Page)
+- 图标 mdi-keyboard-settings，标签 "遥控器按键"，右侧 "已映射"
+- 点击 → 跳转 `remote_keys_page`（设置页 Row 9）
+- **8 个源按键**：音量+/音量-/静音/播放暂停/下一曲/上一曲/电源/切换输入 + 返回设置
+- **交互**：旋转选行 → 单击进入调节 → 旋转循环 16 个映射目标 → 单击确认
+- **映射目标**：禁用/音量+/音量-/静音/播放暂停/下一曲/上一曲/电源/切换输入/上划/下划/左划/右划/拍照/切换镜头/确定
+- 映射值 NVS 持久化，工厂重置恢复恒等
 
 ### BLE 遥控页
 | 行 | 内容 | 说明 |
@@ -423,37 +444,43 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 
 ### BLE HID 遥控器键位映射
 
-#### Consumer 报文 (2字节 / 3字节, `uint16_t usage`)
-| Usage ID | HID 规格 | 功能 | 事件 |
-|----------|----------|------|------|
-| 0xE9 | Volume Up | 音量+ | `HID_EVT_VOLUME_UP` |
-| 0xEA | Volume Down | 音量− | `HID_EVT_VOLUME_DOWN` |
-| 0xE2 | Mute | 静音 | `HID_EVT_MUTE` |
-| 0xCD | Play/Pause | 播放暂停 | `HID_EVT_PLAY_PAUSE` |
-| 0xB5 | Scan Next Track | 下一曲 | `HID_EVT_NEXT_TRACK` |
-| 0xB6 | Scan Previous Track | 上一曲 | `HID_EVT_PREV_TRACK` |
-| 0x30 | Power | 电源 | `HID_EVT_POWER` |
-| 0x233 | — (自定义) | 切换输入 | `HID_EVT_CYCLE_INPUT` |
+代码中所有码带标注: `[标准]`=USB HID 规范定义, `[兼容]`=廉价遥控器实测有效, `[自定义]`=特定遥控器。
+标注位于 `PGA/ble_hid_host.h` L232-329 的 `_parse_report()` 注释中。
 
-#### Keyboard Boot 报文 (8字节, `bytes 2-7 uint8_t key`)
-| Key Code | HID 规格 | 功能 | 事件 |
-|----------|----------|------|------|
-| 0xE9 | — | 音量+ | `HID_EVT_VOLUME_UP` |
-| 0x80 | — | 音量+ (备用) | `HID_EVT_VOLUME_UP` |
-| 0xEA | — | 音量− | `HID_EVT_VOLUME_DOWN` |
-| 0x81 | — | 音量− (备用) | `HID_EVT_VOLUME_DOWN` |
-| 0xE2 | — | 静音 | `HID_EVT_MUTE` |
-| 0x7F | — | 静音 (备用) | `HID_EVT_MUTE` |
-| 0xCD | — | 播放暂停 | `HID_EVT_PLAY_PAUSE` |
-| 0xB5 | — | 下一曲 | `HID_EVT_NEXT_TRACK` |
-| 0xB6 | — | 上一曲 | `HID_EVT_PREV_TRACK` |
-| 0x30 | — | 电源 | `HID_EVT_POWER` |
-| 0x66 | — | 电源 (备用) | `HID_EVT_POWER` |
-| 0x68 | F13 | 切换输入 | `HID_EVT_CYCLE_INPUT` |
+#### Consumer 报文 (2/3字节, `uint16_t usage`, Usage Page 0x0C)
+| Usage ID | 标注 | 功能 | 事件 |
+|----------|------|------|------|
+| 0xE9 | 标准 | 音量+ | `HID_EVT_VOLUME_UP` |
+| 0xEA | 标准 | 音量− | `HID_EVT_VOLUME_DOWN` |
+| 0xE2 | 标准 | 静音 | `HID_EVT_MUTE` |
+| 0xCD | 标准 | 播放/暂停 | `HID_EVT_PLAY_PAUSE` |
+| 0xB5 | 标准 | 下一曲 | `HID_EVT_NEXT_TRACK` |
+| 0xB6 | 标准 | 上一曲 | `HID_EVT_PREV_TRACK` |
+| 0x30 | 标准 | 电源 | `HID_EVT_POWER` |
+| 0x233 | 自定义 | 切换输入 | `HID_EVT_CYCLE_INPUT` |
 
-> ⚠️ `0x233` 修复说明：原代码 Keyboard 报文中使用 `0x233` 作为切换输入键，但 `0x233` = 563 超出 `uint8_t` (0-255) 范围，被编译器截断为 `0x33` (按键 '3')，导致按键盘数字 3 会意外触发输入切换。已改为 `0x68` (F13 键)。Consumer 报文中的 `0x233` 不受影响（`uint16_t` 可容纳）。
+#### Keyboard Boot 报文 (8字节, `bytes 2-7 uint8_t key`, Usage Page 0x07)
+| Key Code | 标注 | USB 实际含义 | 功能 | 事件 |
+|----------|------|-------------|------|------|
+| 0xE9,0x80 | 兼容 | Consumer 码借壳 | 音量+ | VOLUME_UP |
+| 0xEA,0x81 | 兼容 | Consumer 码借壳 | 音量− | VOLUME_DOWN |
+| 0xE2,0x7F | 兼容 | Consumer 码借壳 | 静音 | MUTE |
+| 0xCD | 兼容 | Consumer 码借壳 | 播放/暂停 | PLAY_PAUSE |
+| 0xB5 | 兼容 | Consumer 码借壳 | 下一曲 | NEXT |
+| 0xB6 | 兼容 | Consumer 码借壳 | 上一曲 | PREV |
+| 0x30,0x66 | 兼容+标准 | Kbd 3 / Kbd Power | 电源 | POWER |
+| 0x68 | 标准 | F13 | 切换输入 | CYCLE_INPUT |
+| 0x28 | 标准 | Enter | 确定 | OK |
+| 0x2C | 标准 | Space | 拍照(自拍快门) | CAMERA |
+| 0x52,0x4B | 标准 | ↑ / PageUp | 上划 | SWIPE_UP |
+| 0x51,0x4E | 标准 | ↓ / PageDown | 下划 | SWIPE_DOWN |
+| 0x50 | 标准 | ← | 左划 | SWIPE_LEFT |
+| 0x4F | 标准 | → | 右划 | SWIPE_RIGHT |
+| 0x8C | 自定义 | International1 | 切换镜头(预留) | CAMERA_SWITCH |
 
-100ms 防抖（当前已改为 30ms），全零释放帧忽略，长按时反复触发（连续调音量可用）。
+> ⚠️ Keyboard `0x30` = 数字键 '3'，标准键盘按 3 会误触电源事件。这是廉价遥控器兼容性代价，`ble_hid_host.h` L270 保留此映射。Consumer 报文的 `0x233` = 563 (>255) 仅 `uint16_t` 可容纳，Keyboard 报文用 `0x68`(F13) 替代。
+
+防抖 30ms，全零释放帧忽略，长按时反复触发。新增事件 SWIPE_UP(9)~OK(15) 默认仅日志记录 + HA 推送，可通过遥控器按键页映射为音量/静音等有效动作。
 
 ### 三路同步机制
 编码器旋钮、BLE 遥控器、HA 三路都汇聚到同一个 `volume_val` + `send_volume_to_pga`：

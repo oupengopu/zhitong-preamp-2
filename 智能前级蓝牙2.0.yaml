@@ -7,7 +7,7 @@ substitutions:
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.0.0"
+  firmware_version: "v2.1.0"
 
 esphome:
   name: ${device_name}
@@ -18,6 +18,7 @@ esphome:
     - PGA/lvgl_compat.h
     - PGA/settings_ui.h
     - PGA/ble_hid_host.h
+    - PGA/remote_keys.h
 
   on_boot:
     # priority 200 -> -100 严格串行: 硬件初始化先于软件恢复
@@ -584,7 +585,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
     size: 24
-    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑"]
+    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -2089,6 +2090,311 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 120
 
+    # ── 遥控器按键映射页 ──
+    # 8 个源按键 + 返回设置
+    # 交互: 旋转选行 → 单击进入调节 → 旋转循环映射 → 单击确认
+    - id: remote_keys_page
+      bg_color: 0x111827
+      layout:
+        type: flex
+        flex_flow: column
+        pad_row: 2
+      pad_all: 4
+      widgets:
+        # Row 0: 标题
+        - obj:
+            id: keymap_row_title
+            height: 36
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            widgets:
+              - label:
+                  text: "\U000F0F9D"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "遥控器按键"
+                  text_font: font_cn
+                  text_color: 0xF1F5F9
+                  width: 140
+
+        # 0: 音量+
+        - obj:
+            id: keymap_row_0
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F057E"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "音量+"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_0
+                  text: !lambda return remote_keys::get_action_name(id(key_map_1));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 1: 音量-
+        - obj:
+            id: keymap_row_1
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F057E"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "音量-"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_1
+                  text: !lambda return remote_keys::get_action_name(id(key_map_2));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 2: 静音
+        - obj:
+            id: keymap_row_2
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F00D6"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "静音"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_2
+                  text: !lambda return remote_keys::get_action_name(id(key_map_3));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 3: 播放/暂停
+        - obj:
+            id: keymap_row_3
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F040A"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "播放/暂停"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_3
+                  text: !lambda return remote_keys::get_action_name(id(key_map_4));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 4: 下一曲
+        - obj:
+            id: keymap_row_4
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F04D0"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "下一曲"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_4
+                  text: !lambda return remote_keys::get_action_name(id(key_map_5));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 5: 上一曲
+        - obj:
+            id: keymap_row_5
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F04CF"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "上一曲"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_5
+                  text: !lambda return remote_keys::get_action_name(id(key_map_6));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 6: 电源
+        - obj:
+            id: keymap_row_6
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F037C"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "电源"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_6
+                  text: !lambda return remote_keys::get_action_name(id(key_map_7));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 7: 切换输入
+        - obj:
+            id: keymap_row_7
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F0BCD"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 26
+              - label:
+                  text: "切换输入"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_7
+                  text: !lambda return remote_keys::get_action_name(id(key_map_8));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+
+        # Row 8: 返回
+        - obj:
+            id: keymap_row_back
+            height: 42
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F057D"
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "返回设置"
+                  text_font: font_cn
+                  text_color: 0x8E9FB8
+                  width: 120
+
     # ── 诊断信息页 (内存监控) ──
     - id: debug_page
       bg_color: 0x111827
@@ -2602,7 +2908,40 @@ lvgl:
                   text_align: RIGHT
                   width: 50
 
-        # ── Row 9: 固件版本 (read-only) ──
+        # ── Row 9: 遥控器按键 (导航项) ──
+        - obj:
+            id: row_keymap
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x111827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_keymap
+                  text: "\U000F0F9D"  # mdi-keyboard-settings
+                  text_font: mdi_settings_icons_24
+                  text_color: 0x6B7280
+                  width: 30
+              - label:
+                  text: "遥控器按键"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 90
+              - label:
+                  id: val_keymap_status
+                  text: !lambda |-
+                    return std::string("已映射");
+                  text_font: font_cn
+                  text_color: 0x8E9FB8
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 10: 固件版本 (read-only) ──
         - obj:
             id: row_firmware
             height: 90
@@ -2632,7 +2971,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
-        # ── Row 10: IP地址 (read-only) ──
+        # ── Row 11: IP地址 (read-only) ──
         - obj:
             id: row_ip
             height: 90
@@ -2850,6 +3189,72 @@ globals:
     type: std::string
     restore_value: false
     initial_value: '"未连接"'
+  - id: keymap_focus_idx
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: keymap_active_idx
+    type: int
+    restore_value: false
+    initial_value: '-1'
+
+  # ── BLE 遥控器按键映射 (可配置, 默认恒等映射) ──
+  - id: key_map_1
+    type: int
+    restore_value: true
+    initial_value: '1'
+  - id: key_map_2
+    type: int
+    restore_value: true
+    initial_value: '2'
+  - id: key_map_3
+    type: int
+    restore_value: true
+    initial_value: '3'
+  - id: key_map_4
+    type: int
+    restore_value: true
+    initial_value: '4'
+  - id: key_map_5
+    type: int
+    restore_value: true
+    initial_value: '5'
+  - id: key_map_6
+    type: int
+    restore_value: true
+    initial_value: '6'
+  - id: key_map_7
+    type: int
+    restore_value: true
+    initial_value: '7'
+  - id: key_map_8
+    type: int
+    restore_value: true
+    initial_value: '8'
+  - id: key_map_9
+    type: int
+    restore_value: true
+    initial_value: '9'
+  - id: key_map_10
+    type: int
+    restore_value: true
+    initial_value: '10'
+  - id: key_map_11
+    type: int
+    restore_value: true
+    initial_value: '11'
+  - id: key_map_12
+    type: int
+    restore_value: true
+    initial_value: '12'
+  - id: key_map_13
+    type: int
+    restore_value: true
+    initial_value: '13'
+  - id: key_map_14
+    type: int
+    restore_value: true
+    initial_value: '14'
 
 # ═══════════════════════════════════════════════════════════════
 # 脚本
@@ -2891,6 +3296,12 @@ script:
           id(input_vol_2)         = 160;
           id(input_vol_3)         = 160;
           id(soft_mute)           = false;
+          // 重置按键映射为恒等映射
+          id(key_map_1) = 1; id(key_map_2) = 2; id(key_map_3) = 3;
+          id(key_map_4) = 4; id(key_map_5) = 5; id(key_map_6) = 6;
+          id(key_map_7) = 7; id(key_map_8) = 8;
+          id(key_map_9) = 9; id(key_map_10) = 10; id(key_map_11) = 11;
+          id(key_map_12) = 12; id(key_map_13) = 13; id(key_map_14) = 14;
 
           // 同步到 HA
           id(max_volume_number)->publish_state(160.0f);
@@ -3216,6 +3627,7 @@ script:
           lv_obj_set_style_text_color(id(icon_timeout), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_theme), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_ble_remote), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_keymap), accent, LV_PART_MAIN);
           // 平衡指示点
           lv_obj_set_style_bg_color(id(balance_dot), accent, LV_PART_MAIN);
           // 频谱页输入源图标
@@ -3512,7 +3924,7 @@ sensor:
               // ── 更新焦点指示（左边界 + 背景） ──
               auto set_focus = [&](int i) {
                 for (int j = 0; j < settings_ui::N; j++) {
-                  if (j < 8) {
+                  if (j < 8 || j == 8 || j == 9) {
                     if (j == i) {
                       lv_obj_set_style_border_width(rows[j], 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(rows[j], hl_color, LV_PART_MAIN);
@@ -3520,10 +3932,11 @@ sensor:
                       lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x1E2D42), LV_PART_MAIN);
                     } else {
                       lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x162032), LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows[j],
+                        j < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
                     }
                   } else {
-                    // Read-only rows: no border, slightly darker bg
+                    // Read-only rows (10, 11): no border, slightly darker bg
                     lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                     lv_obj_set_style_bg_color(rows[j],
                       (j == i) ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
@@ -3703,6 +4116,64 @@ sensor:
                 // 自动滚动到焦点
                 lv_obj_t* focus_rows[] = {id(ble_row_scan), id(ble_row_dev0), id(ble_row_dev1), id(ble_row_dev2), id(ble_row_back)};
                 lv_obj_scroll_to_view(focus_rows[new_idx], LV_ANIM_ON);
+              }
+              return;
+            }
+
+            // ═══ 遥控器按键页导航（9行：0-7=按键, 8=返回。调节模式循环0-15全动作）═══
+            if (active == id(remote_keys_page)->obj) {
+              int act = id(keymap_active_idx);
+              if (act >= 0) {
+                // ── 调节模式：旋转循环映射 0=禁用, 1-15=对应动作 ──
+                int cur = 0;
+                switch (act) {
+                  case 0: cur = id(key_map_1); break; case 1: cur = id(key_map_2); break;
+                  case 2: cur = id(key_map_3); break; case 3: cur = id(key_map_4); break;
+                  case 4: cur = id(key_map_5); break; case 5: cur = id(key_map_6); break;
+                  case 6: cur = id(key_map_7); break; case 7: cur = id(key_map_8); break;
+                }
+                int next = cur + diff;
+                if (next < 0) next = 15;
+                if (next > 15) next = 0;
+                switch (act) {
+                  case 0: id(key_map_1) = next; lv_label_set_text(id(val_keymap_0), remote_keys::get_action_name(next)); break;
+                  case 1: id(key_map_2) = next; lv_label_set_text(id(val_keymap_1), remote_keys::get_action_name(next)); break;
+                  case 2: id(key_map_3) = next; lv_label_set_text(id(val_keymap_2), remote_keys::get_action_name(next)); break;
+                  case 3: id(key_map_4) = next; lv_label_set_text(id(val_keymap_3), remote_keys::get_action_name(next)); break;
+                  case 4: id(key_map_5) = next; lv_label_set_text(id(val_keymap_4), remote_keys::get_action_name(next)); break;
+                  case 5: id(key_map_6) = next; lv_label_set_text(id(val_keymap_5), remote_keys::get_action_name(next)); break;
+                  case 6: id(key_map_7) = next; lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(next)); break;
+                  case 7: id(key_map_8) = next; lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(next)); break;
+                }
+              } else {
+                // ── 浏览模式：移动焦点 ──
+                int cur = id(keymap_focus_idx);
+                int new_idx = cur + diff;
+                if (new_idx < 0) new_idx = 8;
+                if (new_idx > 8) new_idx = 0;
+                if (new_idx != cur) {
+                  id(keymap_focus_idx) = new_idx;
+                  lv_color_t hl_color = get_theme_accent(id(theme));
+                  lv_obj_t* rows_k[] = {
+                    id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                    id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                    id(keymap_row_6), id(keymap_row_7), id(keymap_row_back)
+                  };
+                  for (int i = 0; i <= 8; i++) {
+                    bool focused = (i == new_idx);
+                    if (focused) {
+                      lv_obj_set_style_border_width(rows_k[i], 3, LV_PART_MAIN);
+                      lv_obj_set_style_border_color(rows_k[i], hl_color, LV_PART_MAIN);
+                      lv_obj_set_style_border_side(rows_k[i], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows_k[i], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    } else {
+                      lv_obj_set_style_border_width(rows_k[i], 0, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows_k[i],
+                        i == 8 ? lv_color_hex(0x111827) : lv_color_hex(0x162032), LV_PART_MAIN);
+                    }
+                  }
+                  lv_obj_scroll_to_view(rows_k[new_idx], LV_ANIM_ON);
+                }
               }
               return;
             }
@@ -4245,8 +4716,9 @@ interval:
             uint32_t idle_ms = now - id(last_display_interaction);
             bool is_settings = (active == id(settings_page)->obj);
             bool is_ble      = (active == id(ble_remote_page)->obj);
+            bool is_keymap   = (active == id(remote_keys_page)->obj);
             bool is_debug    = (active == id(debug_page)->obj);
-            if (is_settings || is_ble) {
+            if (is_settings || is_ble || is_keymap) {
               if (idle_ms >= 10000) {
                 // 清理设置页调节状态，防止再次进入时 bar 高度残留
                 if (is_settings) {
@@ -4606,6 +5078,28 @@ interval:
                 ble_hid_host::clear_raw_event();
               }
               const char* ha_event_name = "";
+              // ── 应用用户按键映射 ──
+              {
+                int mapped = (int)evt.type;
+                switch (evt.type) {
+                  case 1: mapped = id(key_map_1); break;
+                  case 2: mapped = id(key_map_2); break;
+                  case 3: mapped = id(key_map_3); break;
+                  case 4: mapped = id(key_map_4); break;
+                  case 5: mapped = id(key_map_5); break;
+                  case 6: mapped = id(key_map_6); break;
+                  case 7: mapped = id(key_map_7); break;
+                  case 8: mapped = id(key_map_8); break;
+                  case 9: mapped = id(key_map_9); break;
+                  case 10: mapped = id(key_map_10); break;
+                  case 11: mapped = id(key_map_11); break;
+                  case 12: mapped = id(key_map_12); break;
+                  case 13: mapped = id(key_map_13); break;
+                  case 14: mapped = id(key_map_14); break;
+                }
+                if (mapped == 0) continue;  // 禁用此按键
+                evt.type = (ble_hid_host::HidEventType)mapped;
+              }
               switch (evt.type) {
                 case ble_hid_host::HID_EVT_VOLUME_UP:
                   if (id(standby) || !id(system_ready) || id(switching_input)) break;
@@ -4660,6 +5154,34 @@ interval:
                   ha_event_name = "CYCLE_INPUT";
                   break;
                 }
+                case ble_hid_host::HID_EVT_SWIPE_UP:
+                  ESP_LOGD("ble_hid", "SWIPE_UP (mapped action)");
+                  ha_event_name = "SWIPE_UP";
+                  break;
+                case ble_hid_host::HID_EVT_SWIPE_DOWN:
+                  ESP_LOGD("ble_hid", "SWIPE_DOWN (mapped action)");
+                  ha_event_name = "SWIPE_DOWN";
+                  break;
+                case ble_hid_host::HID_EVT_SWIPE_LEFT:
+                  ESP_LOGD("ble_hid", "SWIPE_LEFT (mapped action)");
+                  ha_event_name = "SWIPE_LEFT";
+                  break;
+                case ble_hid_host::HID_EVT_SWIPE_RIGHT:
+                  ESP_LOGD("ble_hid", "SWIPE_RIGHT (mapped action)");
+                  ha_event_name = "SWIPE_RIGHT";
+                  break;
+                case ble_hid_host::HID_EVT_CAMERA:
+                  ESP_LOGD("ble_hid", "CAMERA (mapped action)");
+                  ha_event_name = "CAMERA";
+                  break;
+                case ble_hid_host::HID_EVT_CAMERA_SWITCH:
+                  ESP_LOGD("ble_hid", "CAMERA_SWITCH (mapped action)");
+                  ha_event_name = "CAMERA_SWITCH";
+                  break;
+                case ble_hid_host::HID_EVT_OK:
+                  ESP_LOGD("ble_hid", "OK (mapped action)");
+                  ha_event_name = "OK";
+                  break;
                 case ble_hid_host::HID_EVT_CONNECTED:
                   id(ble_remote_connected) = true;
                   ha_event_name = "CONNECTED";
@@ -4856,12 +5378,12 @@ binary_sensor:
           - ON for at most 400ms
           - OFF for at least 300ms
         then:
-          # 三击：固件版本行隐藏入口 → 跳转诊断页 (仅在设置页焦点Row 9生效)
+          # 三击：固件版本行隐藏入口 → 跳转诊断页 (仅在设置页焦点Row 10生效)
           - if:
               condition:
                 lambda: >-
                   return lv_scr_act() == id(settings_page)->obj &&
-                         id(settings_focus_idx) == 9;
+                         id(settings_focus_idx) == 10;  // Row 10=固件版本
               then:
                 - lambda: |-
                     id(last_display_interaction) = millis();
@@ -4907,7 +5429,7 @@ binary_sensor:
                           // bar_base_heights defined in settings_ui.h
                           int idx = id(settings_focus_idx);
                           if (id(settings_active_idx) < 0) {
-                            // 进入调节模式（Row 8 蓝牙遥控为导航项，跳转页面）
+                            // 进入调节模式（Row 8/9: 蓝牙遥控/遥控器按键为导航项，跳转页面）
                             if (idx == 8) {
                               id(ble_remote_focus_idx) = 0;
                               id(ble_remote_device_count) = 0;
@@ -4917,8 +5439,13 @@ binary_sensor:
                               lv_scr_load_anim(id(ble_remote_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
                             }
-                            if (idx == 9) return;  // 固件版本只读，三击由 on_multi_click 处理
-                            if (idx > 8) return;  // 只读项(10)不进调节
+                            if (idx == 9) {
+                              id(keymap_focus_idx) = 0;
+                              id(last_display_interaction) = millis();
+                              lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                              return;
+                            }
+                            if (idx == 10 || idx == 11) return;  // 只读项(固件版本/IP地址)不进调节
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x25374F), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
@@ -4974,7 +5501,41 @@ binary_sensor:
                           else:
                             - if:
                                 condition:
-                                  lvgl.page.is_showing: debug_page
+                                  lvgl.page.is_showing: remote_keys_page
+                                then:
+                                  # 遥控器按键页：单击切换浏览/调节模式
+                                  - lambda: |-
+                                      int f = id(keymap_focus_idx);
+                                      int act = id(keymap_active_idx);
+                                      if (f >= 0 && f <= 7) {
+                                        if (act < 0) {
+                                          // 浏览→调节：记录当前行, 高亮背景
+                                          id(keymap_active_idx) = f;
+                                          lv_obj_t* rows_k[] = {
+                                            id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                                            id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                                            id(keymap_row_6), id(keymap_row_7)
+                                          };
+                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x25374F), LV_PART_MAIN);
+                                        } else {
+                                          // 调节→浏览：确认修改, 恢复背景
+                                          id(keymap_active_idx) = -1;
+                                          lv_obj_t* rows_k[] = {
+                                            id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                                            id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                                            id(keymap_row_6), id(keymap_row_7)
+                                          };
+                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                                        }
+                                      } else if (f == 8) {
+                                        id(keymap_active_idx) = -1;
+                                        lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                                      }
+                                  - script.execute: reset_idle_timer
+                              else:
+                                - if:
+                                    condition:
+                                      lvgl.page.is_showing: debug_page
                                 then:
                                   # 诊断页：单击返回设置
                                   - lvgl.page.show:
@@ -5005,8 +5566,8 @@ binary_sensor:
                                                       (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
                                                       (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
                                                       (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
-                                                      (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_firmware),
-                                                      (lv_obj_t*)id(row_ip),
+                                                      (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+                                                      (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
                                                       (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
                                                       (lv_obj_t*)id(bar_balance),
                                                       (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
@@ -5038,7 +5599,7 @@ binary_sensor:
         then:
           - if:
               condition:
-                lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj;'
+                lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj || lv_scr_act() == id(remote_keys_page)->obj;'
               then:
                 # 设置页/蓝牙遥控页/诊断页长按 → 返回主页面（不触发待机）
                 - lvgl.page.show:
