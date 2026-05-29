@@ -4385,7 +4385,7 @@ number:
     max_value: 255
     step: 1
     mode: slider
-    initial_value: 160
+    initial_value: 255
     set_action:
       - lambda: |-
           float old_max = id(max_volume) > 0 ? (float)id(max_volume) : 1.0f;
@@ -4409,7 +4409,7 @@ number:
     max_value: 255
     step: 1
     mode: slider
-    initial_value: 110
+    initial_value: 192
     set_action:
       - lambda: 'id(power_on_limit) = (int)x;'
       - script.execute: reset_idle_timer
