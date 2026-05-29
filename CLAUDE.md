@@ -1,3 +1,9 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
 # 智能前级2.0 — 项目概览
 
 ## 项目简介
@@ -6,7 +12,8 @@
 
 **固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component
+**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component  
+**仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
 
@@ -507,6 +514,11 @@ HA 滑条   → volume_number.set_action → volume_val 转换 → send_volume_t
 
 ## 编译和运行
 
+### 配置验证（先验证再编译）
+```bash
+esphome config 智能前级蓝牙2.0.yaml
+```
+
 ### 编译
 ```bash
 esphome compile 智能前级蓝牙2.0.yaml
@@ -567,6 +579,10 @@ cd preview && py -3.11 -m http.server 8084
 11. **standby_switch 命名约定**: HA 实体名"待机模式"，但 ON=设备运行中，OFF=待机模式。`turn_off_action` → 进入待机，`turn_on_action` → 退出待机。新增待机相关逻辑时严格遵守此约定。
 
 12. **font_cn_small 字体覆盖**: 作为 `default_font`，任何新增 UI 文字（尤其是 BLE 页状态文本）必须确保字符已加入 glyphs 列表（当前约 90 字）。缺字导致 LVGL 渲染空白框。此字体与 font_cn (18px) 独立维护，需分别添加。
+
+13. **YAML 嵌套 if/then/else 缩进陷阱**: ESPHome YAML 中 `- if:` 的 `condition:`/`then:`/`else:` 必须同缩进层级（比 `- if:` 多 4 空格）。`else:` 比 `condition:` 少 2 空格会导致解析器将 `else:` 和后续 `- if:` 误识别为同一 action 条目的两个 key，报错 "Cannot have two actions in one item. Key 'if' overrides 'else'!"。修复时注意 `else:` 本身 + 其下方整个子块的缩进联动。
+
+14. **`remote_keys::get_action_name()` 返回类型**: 必须返回 `std::string` 而非 `const char*`。ESPHome 的 `text: !lambda` 代码生成器会在返回值上自动调用 `.c_str()`，对 `const char*` 再调 `.c_str()` 无效（编译报错 "request for member 'c_str' in ... which is of non-class type 'const char*'"）。直接传给 `lv_label_set_text()` 时需要手动 `.c_str()`。
 
 ---
 

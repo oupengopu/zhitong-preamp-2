@@ -4150,14 +4150,14 @@ sensor:
                 if (next < 0) next = 15;
                 if (next > 15) next = 0;
                 switch (act) {
-                  case 0: id(key_map_1) = next; lv_label_set_text(id(val_keymap_0), remote_keys::get_action_name(next)); break;
-                  case 1: id(key_map_2) = next; lv_label_set_text(id(val_keymap_1), remote_keys::get_action_name(next)); break;
-                  case 2: id(key_map_3) = next; lv_label_set_text(id(val_keymap_2), remote_keys::get_action_name(next)); break;
-                  case 3: id(key_map_4) = next; lv_label_set_text(id(val_keymap_3), remote_keys::get_action_name(next)); break;
-                  case 4: id(key_map_5) = next; lv_label_set_text(id(val_keymap_4), remote_keys::get_action_name(next)); break;
-                  case 5: id(key_map_6) = next; lv_label_set_text(id(val_keymap_5), remote_keys::get_action_name(next)); break;
-                  case 6: id(key_map_7) = next; lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(next)); break;
-                  case 7: id(key_map_8) = next; lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(next)); break;
+                  case 0: id(key_map_1) = next; lv_label_set_text(id(val_keymap_0), remote_keys::get_action_name(next).c_str()); break;
+                  case 1: id(key_map_2) = next; lv_label_set_text(id(val_keymap_1), remote_keys::get_action_name(next).c_str()); break;
+                  case 2: id(key_map_3) = next; lv_label_set_text(id(val_keymap_2), remote_keys::get_action_name(next).c_str()); break;
+                  case 3: id(key_map_4) = next; lv_label_set_text(id(val_keymap_3), remote_keys::get_action_name(next).c_str()); break;
+                  case 4: id(key_map_5) = next; lv_label_set_text(id(val_keymap_4), remote_keys::get_action_name(next).c_str()); break;
+                  case 5: id(key_map_6) = next; lv_label_set_text(id(val_keymap_5), remote_keys::get_action_name(next).c_str()); break;
+                  case 6: id(key_map_7) = next; lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(next).c_str()); break;
+                  case 7: id(key_map_8) = next; lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(next).c_str()); break;
                 }
               } else {
                 // ── 浏览模式：移动焦点 ──

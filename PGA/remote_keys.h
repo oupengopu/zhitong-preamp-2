@@ -2,7 +2,7 @@
 // 允许用户将物理遥控器上的每个按键映射到任意功能
 // 映射表存储在 NVS 全局变量中，默认恒等映射
 #pragma once
-#include <cstring>
+#include <string>
 
 namespace remote_keys {
 
@@ -28,7 +28,7 @@ constexpr int ACTION_OK         = 15;
 constexpr int ACTION_COUNT = 16;  // 0=禁用 + 1-15=有效动作
 
 /// 获取动作名称 (用于 UI 显示)
-inline const char* get_action_name(int action) {
+inline std::string get_action_name(int action) {
     switch (action) {
         case 0:  return "禁用";
         case 1:  return "音量+";
