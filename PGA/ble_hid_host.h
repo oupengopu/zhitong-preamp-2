@@ -571,6 +571,8 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     }
                     S().reconnect_next_ms = millis() + delay_ms;
                     S().reconnect_retries = reconnect_retries_save + 1;
+                    // 防溢出: 如果重试次数异常高(如运行数月后累积)，限制在安全范围
+                    if (S().reconnect_retries > 1000) S().reconnect_retries = 4;
                     xSemaphoreGive(S().mux);
                 }
                 ESP_LOGI("ble_hid", "将在 %d 秒后重试连接 (第 %d 次)...",

@@ -24,11 +24,11 @@
 
 namespace pga2311 {
 
-static bool _initialized = false;
-static spi_device_handle_t _spi_dev = nullptr;
+inline bool _initialized = false;
+inline spi_device_handle_t _spi_dev = nullptr;
 
-static int _last_r = -1;
-static int _last_l = -1;
+inline int _last_r = -1;
+inline int _last_l = -1;
 
 static int _clamp(int v, int lo, int hi) {
   return v < lo ? lo : (v > hi ? hi : v);

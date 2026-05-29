@@ -42,6 +42,10 @@ esphome:
         - lambda: |-
             // v2.1.0+ 迁移: 旧固件 volume_val 是 max_volume 百分比, 新固件直接映射 PGA 寄存器
             // 换算公式: reg = old_val / old_max * 255
+            //
+            // ⚠️ 顺序依赖: input_vol_0~3 的 scale 换算必须先于下方 switch(current_input)
+            // 中从 input_vol_* 取值赋给 volume_val。current_input 越界会先 clamp 到 0，
+            // 然后取已迁移的 input_vol_0，逻辑正确但依赖顺序，切勿重排。
             if (!id(v210_migrated) && id(max_volume) > 0) {
               float scale = 255.0f / (float)id(max_volume);
               id(input_vol_0) = std::min((int)((float)id(input_vol_0) * scale), 255);

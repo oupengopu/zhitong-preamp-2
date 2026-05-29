@@ -584,6 +584,16 @@ cd preview && py -3.11 -m http.server 8084
 
 14. **`remote_keys::get_action_name()` 返回类型**: 必须返回 `std::string` 而非 `const char*`。ESPHome 的 `text: !lambda` 代码生成器会在返回值上自动调用 `.c_str()`，对 `const char*` 再调 `.c_str()` 无效（编译报错 "request for member 'c_str' in ... which is of non-class type 'const char*'"）。直接传给 `lv_label_set_text()` 时需要手动 `.c_str()`。
 
+15. **pga2311.h 与 msgeq7.h 变量风格统一**: 两者均使用 `inline` 变量（C++17 ODR 安全），禁止使用 `static`。`static` 会在多翻译单元场景下产生独立副本，导致 `_last_r/_last_l` 去重失效和 SPI 设备重复初始化。
+
+16. **MSGEQ7 零漂校准前提假设**: 校准在上电时执行，假设此时无音频输入。如果用户先开音响再开前级，校准值会被污染导致频谱幅度偏低。无运行时恢复机制（代码注释已承认）。未来可加 HA 服务或设置页按钮触发重新校准。
+
+17. **send_volume_to_pga 并发边缘场景**: BLE 遥控器和编码器同时触发时，`mode: restart` 丢弃首次调用，音量响应可能延迟约 300ms。当前可接受，属已知限制。
+
+18. **BLE reconnect_retries 溢出保护**: 已加 `if (> 1000) = 4` 防溢出帽。正常运行不超过 3，长期断线才累积。
+
+19. **lvgl_compat.h extern "C" 版本脆弱性**: ESPHome 大版本升级（如 2026→2027）时 LVGL API 签名变化会导致链接期而非编译期崩溃。建议大版本升级后逐一核对 `extern "C"` 块中的函数签名与 ESPHome 内置 LVGL 头文件一致。
+
 ---
 
 ## 已知编译器问题
