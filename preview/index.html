@@ -919,6 +919,10 @@
       <div class="debug-row">
         <span class="label" id="lblDbgUptime">运行时间: --</span>
       </div>
+      <div class="debug-row back-row" id="dbgRecalRow" style="cursor:pointer;">
+        <span class="mdi mdi-refresh icon" style="color:var(--accent);"></span>
+        <span class="label" id="lblDbgRecal" style="color:#8E9FB8;">MSGEQ7 重校准 (单击执行)</span>
+      </div>
       <div class="debug-row back-row" id="dbgBackRow">
         <span class="mdi mdi-swap-horizontal icon"></span>
         <span class="label">返回设置</span>
@@ -1081,6 +1085,8 @@
     keyMap: [1, 2, 3, 4, 5, 6, 7, 8],  // 8个按键, 值0-15为映射目标
     // 三击检测
     clickCount: 0, clickTimer: null,
+    // 诊断页焦点
+    debugFocus: 0,  // 0=重校准, 1=返回设置
     // 页面空闲自动返回
     pageIdleTimer: null
   };
@@ -1154,7 +1160,7 @@
     if (idx === 1) startSpec();
     if (idx === 2) { stopSpec(); stopDebugRefresh(); updateSettings(); state.settingsFocus = 0; state.settingsActive = -1; updateSettingsFocus(); startPageIdleTimer(10); }
     if (idx === 3) { stopSpec(); stopDebugRefresh(); updateBlePage(); startPageIdleTimer(10); }
-    if (idx === 4) { stopSpec(); updateDebugPage(); startDebugRefresh(); startPageIdleTimer(30); }
+    if (idx === 4) { stopSpec(); state.debugFocus = 0; updateDebugPage(); startDebugRefresh(); startPageIdleTimer(30); }
     if (idx === 5) { stopSpec(); stopDebugRefresh(); state.keymapFocus = 0; state.keymapActive = -1; updateKeymapPage(); startPageIdleTimer(10); }
     if (idx <= 1) clearPageIdleTimer();
 
@@ -1401,6 +1407,20 @@
       } else if (e.key === 'Escape') {
         showPage(2);
       }
+      return;
+    }
+    // ── 诊断页键盘处理 ──
+    if (state.currentPage === 4) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+          e.key === 'Enter' || e.key === 'Escape') e.preventDefault();
+      if (e.key === 'ArrowDown') {
+        if (state.debugFocus < 1) { state.debugFocus = 1; updateDebugFocus(); }
+      } else if (e.key === 'ArrowUp') {
+        if (state.debugFocus > 0) { state.debugFocus = 0; updateDebugFocus(); }
+      } else if (e.key === 'Enter') {
+        if (state.debugFocus === 0) { triggerRecalibration(); }
+        else { showPage(2); }
+      } else if (e.key === 'Escape') { showPage(2); }
       return;
     }
 
@@ -1994,6 +2014,39 @@
   }
 
   // ═══════════════════════════════════════════════════
+  // MSGEQ7 重校准模拟
+  // ═══════════════════════════════════════════════════
+  function triggerRecalibration() {
+    let recalEl = document.getElementById('lblDbgRecal');
+    if (recalEl) recalEl.textContent = '校准中...';
+    setTimeout(() => {
+      if (recalEl) recalEl.textContent = '校准完成';
+      setTimeout(() => {
+        showPage(2);
+        if (recalEl) recalEl.textContent = 'MSGEQ7 重校准 (单击执行)';
+      }, 500);
+    }, 600);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // 诊断页焦点视觉更新
+  // ═══════════════════════════════════════════════════
+  function updateDebugFocus() {
+    const f = state.debugFocus;
+    const hex = getAccent();
+    const recalEl = document.getElementById('dbgRecalRow');
+    const backEl = document.getElementById('dbgBackRow');
+    if (recalEl) {
+      recalEl.style.borderLeft = (f === 0) ? '3px solid ' + hex : '3px solid transparent';
+      recalEl.style.background = (f === 0) ? '#1E2D42' : '#162032';
+    }
+    if (backEl) {
+      backEl.style.borderLeft = (f === 1) ? '3px solid ' + hex : '3px solid transparent';
+      backEl.style.background = (f === 1) ? '#1E2D42' : '#111827';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════
   // 页面空闲自动返回定时器
   // ═══════════════════════════════════════════════════
   function startPageIdleTimer(seconds) {
@@ -2287,7 +2340,13 @@
           updateBleFocus();
         }
       } else if (page === 4) {
-        // 诊断页：旋转无操作
+        // 诊断页：旋转移动焦点 (0=重校准, 1=返回)
+        let next = state.debugFocus + diff;
+        if (next < 0) next = 0; if (next > 1) next = 1;
+        if (next !== state.debugFocus) {
+          state.debugFocus = next;
+          updateDebugFocus();
+        }
       } else if (page === 5) {
         if (state.keymapActive >= 0) {
           const act = state.keymapActive;
@@ -2376,9 +2435,14 @@
           }
         }
       } else if (page === 4) {
-        // 诊断页：单击返回设置页
-        this.flashAction('返回设置');
-        showPage(2);
+        // 诊断页：单击根据焦点执行操作
+        if (state.debugFocus === 0) {
+          this.flashAction('重校准');
+          triggerRecalibration();
+        } else {
+          this.flashAction('返回设置');
+          showPage(2);
+        }
       } else if (page === 5) {
         const f = state.keymapFocus;
         if (f === 8) {

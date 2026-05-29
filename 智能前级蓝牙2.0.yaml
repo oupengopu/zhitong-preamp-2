@@ -3249,6 +3249,11 @@ globals:
     restore_value: false
     initial_value: '-1'
 
+  - id: debug_focus_idx
+    type: int
+    restore_value: false
+    initial_value: '0'   # 0=重校准, 1=返回设置
+
   # ── BLE 遥控器按键映射 (可配置, 默认恒等映射) ──
   - id: key_map_1
     type: int
@@ -4223,6 +4228,28 @@ sensor:
                   }
                   lv_obj_scroll_to_view(rows_k[new_idx], LV_ANIM_ON);
                 }
+              }
+              return;
+            }
+
+            // ═══ 诊断页导航（2行：0=重校准, 1=返回设置）═══
+            if (active == id(debug_page)->obj) {
+              int cur = id(debug_focus_idx);
+              int new_idx = (cur + diff) > 1 ? 1 : ((cur + diff) < 0 ? 0 : (cur + diff));
+              if (new_idx != cur) {
+                id(debug_focus_idx) = new_idx;
+                lv_color_t hl_color = get_theme_accent(id(theme));
+                bool recal_focused = (new_idx == 0);
+                bool back_focused = (new_idx == 1);
+                lv_obj_set_style_border_width(id(dbg_row_recal), recal_focused ? 3 : 0, LV_PART_MAIN);
+                lv_obj_set_style_border_color(id(dbg_row_recal), hl_color, LV_PART_MAIN);
+                lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(dbg_row_recal), recal_focused ? lv_color_hex(0x1E2D42) : lv_color_hex(0x162032), LV_PART_MAIN);
+                lv_obj_set_style_border_width(id(dbg_row_back), back_focused ? 3 : 0, LV_PART_MAIN);
+                lv_obj_set_style_border_color(id(dbg_row_back), hl_color, LV_PART_MAIN);
+                lv_obj_set_style_border_side(id(dbg_row_back), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
+                lv_obj_scroll_to_view(new_idx == 0 ? id(dbg_row_recal) : id(dbg_row_back), LV_ANIM_ON);
               }
               return;
             }
@@ -5431,6 +5458,17 @@ binary_sensor:
                          id(settings_focus_idx) == 10;  // Row 10=固件版本
               then:
                 - lambda: |-
+                    id(debug_focus_idx) = 0;
+                    // 初始化焦点视觉: Row 0 (重校准) 高亮, Row 1 (返回) 恢复
+                    {
+                      lv_color_t hl = get_theme_accent(id(theme));
+                      lv_obj_set_style_border_width(id(dbg_row_recal), 3, LV_PART_MAIN);
+                      lv_obj_set_style_border_color(id(dbg_row_recal), hl, LV_PART_MAIN);
+                      lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(id(dbg_row_recal), lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                      lv_obj_set_style_border_width(id(dbg_row_back), 0, LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(id(dbg_row_back), lv_color_hex(0x111827), LV_PART_MAIN);
+                    }
                     id(last_display_interaction) = millis();
                     lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
 
@@ -5583,10 +5621,13 @@ binary_sensor:
                                       condition:
                                         lvgl.page.is_showing: debug_page
                                       then:
-                                        # 诊断页：单击触发 MSGEQ7 重校准 → 返回设置
+                                        # 诊断页：单击 → 根据焦点执行操作
                                         - lambda: |-
-                                            bool ok = msgeq7::recalibrate();
-                                            lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+                                            if (id(debug_focus_idx) == 0) {
+                                              // 重校准
+                                              bool ok = msgeq7::recalibrate();
+                                              lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+                                            }
                                         - script.execute: reset_idle_timer
                                         - lvgl.page.show:
                                             id: settings_page
