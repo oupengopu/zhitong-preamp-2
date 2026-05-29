@@ -444,6 +444,12 @@ api:
             else if (input_name == "DAC") { id(current_input) = 1; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
             else if (input_name == "PC")  { id(current_input) = 2; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
             else if (input_name == "AUX") { id(current_input) = 3; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+    - service: recalibrate_msgeq7
+      then:
+        - lambda: |-
+            if (!id(system_ready)) return;
+            bool ok = msgeq7::recalibrate();
+            ESP_LOGI("main", "MSGEQ7 recalibrate: %s", ok ? "OK" : "FAILED");
 
 ota:
   - platform: esphome
@@ -2526,7 +2532,32 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 250
 
-        # ── Row 6: 返回按钮 ──
+        # ── Row 6: MSGEQ7 重校准 ──
+        - obj:
+            id: dbg_row_recal
+            height: 42
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F0415"  # mdi-refresh
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  id: lbl_dbg_recal
+                  text: "MSGEQ7 重校准 (单击执行)"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 220
+
+        # ── Row 7: 返回按钮 ──
         - obj:
             id: dbg_row_back
             height: 42
@@ -5552,12 +5583,15 @@ binary_sensor:
                                       condition:
                                         lvgl.page.is_showing: debug_page
                                       then:
-                                        # 诊断页：单击返回设置
+                                        # 诊断页：单击触发 MSGEQ7 重校准 → 返回设置
+                                        - lambda: |-
+                                            bool ok = msgeq7::recalibrate();
+                                            lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+                                        - script.execute: reset_idle_timer
                                         - lvgl.page.show:
                                             id: settings_page
                                             animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                                             time: 200ms
-                                        - script.execute: reset_idle_timer
                                       else:
                                         - if:
                                             condition:

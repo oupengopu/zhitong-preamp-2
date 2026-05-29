@@ -277,6 +277,49 @@ static void setup() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  手动触发零漂重校准
+// ═══════════════════════════════════════════════════════════════
+// 调用前提: _initialized==true && _adc_ok==true（硬件已初始化）
+// 如果 setup() 后又被调用（如用户先开音响再开前机），此函数可修复
+// 被污染的 offset 值。音频中断期间调用效果最佳。
+// 返回值: 校准成功返回 true，硬件未就绪返回 false
+static bool recalibrate() {
+  if (!_initialized || !_adc_ok) {
+    ESP_LOGW("msgeq7", "recalibrate() 跳过: 硬件未就绪 (init=%d, adc=%d)", _initialized, _adc_ok);
+    return false;
+  }
+
+  int r_sum[MSGEQ7_NUM_BANDS] = {0};
+  int l_sum[MSGEQ7_NUM_BANDS] = {0};
+  for (int i = 0; i < 3; i++) {
+    gpio_set_level((gpio_num_t)MSGEQ7_RESET_PIN, 1);
+    esp_rom_delay_us(100);
+    gpio_set_level((gpio_num_t)MSGEQ7_RESET_PIN, 0);
+    esp_rom_delay_us(100);
+    for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
+      gpio_set_level((gpio_num_t)MSGEQ7_STROBE_PIN, 0);
+      esp_rom_delay_us(40);
+      int r_raw = _adc_read(MSGEQ7_R_ADC_CH);
+      int l_raw = _adc_read(MSGEQ7_L_ADC_CH);
+      if (r_raw >= 0) r_sum[j] += r_raw;
+      if (l_raw >= 0) l_sum[j] += l_raw;
+      gpio_set_level((gpio_num_t)MSGEQ7_STROBE_PIN, 1);
+      esp_rom_delay_us(40);
+    }
+  }
+  for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
+    int avg_r = r_sum[j] / 3;
+    int avg_l = l_sum[j] / 3;
+    _r_offset[j] = (avg_r < 50) ? avg_r : 0;
+    _l_offset[j] = (avg_l < 50) ? avg_l : 0;
+  }
+  ESP_LOGI("msgeq7", "重校准: R_offset[0~6]=%d/%d/%d/%d/%d/%d/%d",
+           0, 6, _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
+           _r_offset[4], _r_offset[5], _r_offset[6]);
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  读取 MSGEQ7 七段频谱
 // ═══════════════════════════════════════════════════════════════
 // 调用间隔建议 40~60ms (约 17~25Hz)
