@@ -14,3 +14,4 @@ __pycache__/
 # 参考资料 (ST 编译产物、PDF 等大文件)
 资料/
 /test_roboto.ttf
+/bug.txt

@@ -5543,65 +5543,65 @@ binary_sensor:
                                         lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                                       }
                                   - script.execute: reset_idle_timer
-                              else:
-                                - if:
-                                    condition:
-                                      lvgl.page.is_showing: debug_page
-                                then:
-                                  # 诊断页：单击返回设置
-                                  - lvgl.page.show:
-                                      id: settings_page
-                                      animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                                      time: 200ms
-                                  - script.execute: reset_idle_timer
                                 else:
                                   - if:
                                       condition:
-                                        lvgl.page.is_showing: spectrum_page
+                                        lvgl.page.is_showing: debug_page
                                       then:
+                                        # 诊断页：单击返回设置
                                         - lvgl.page.show:
-                                            id: main_page
+                                            id: settings_page
                                             animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                                             time: 200ms
+                                        - script.execute: reset_idle_timer
                                       else:
-                                          - if:
-                                              condition:
-                                                lvgl.page.is_showing: main_page
-                                              then:
-                                                # 主页单击 → 进入设置页
-                                                - lambda: |-
-                                                    id(settings_focus_idx) = 0;
-                                                    id(settings_active_idx) = -1;
-                                                    settings_ui::init(
-                                                      (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
-                                                      (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
-                                                      (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
-                                                      (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
-                                                      (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
-                                                      (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
-                                                      (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
-                                                      (lv_obj_t*)id(bar_balance),
-                                                      (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
-                                                    );
-                                                    lv_obj_t** rows = settings_ui::rows();
-                                                    for (int i = 0; i < settings_ui::N; i++) {
-                                                      lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
-                                                      lv_obj_set_style_bg_color(rows[i],
-                                                        i < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
-                                                    }
-                                                    lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
-                                                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-                                                    lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
-                                                    lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                                                    lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x1E2D42), LV_PART_MAIN);
-                                                    lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
-                                                - lvgl.page.show:
-                                                    id: settings_page
-                                                    animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                                                    time: 200ms
-                                              else:
-                                                # 其他页面短按由 encoder enter_button 自动处理
-                                                - script.execute: reset_idle_timer
+                                        - if:
+                                            condition:
+                                              lvgl.page.is_showing: spectrum_page
+                                            then:
+                                              - lvgl.page.show:
+                                                  id: main_page
+                                                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                                                  time: 200ms
+                                            else:
+                                              - if:
+                                                  condition:
+                                                    lvgl.page.is_showing: main_page
+                                                  then:
+                                                    # 主页单击 → 进入设置页
+                                                    - lambda: |-
+                                                        id(settings_focus_idx) = 0;
+                                                        id(settings_active_idx) = -1;
+                                                        settings_ui::init(
+                                                          (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
+                                                          (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
+                                                          (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
+                                                          (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
+                                                          (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+                                                          (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
+                                                          (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
+                                                          (lv_obj_t*)id(bar_balance),
+                                                          (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
+                                                        );
+                                                        lv_obj_t** rows = settings_ui::rows();
+                                                        for (int i = 0; i < settings_ui::N; i++) {
+                                                          lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
+                                                          lv_obj_set_style_bg_color(rows[i],
+                                                            i < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                                                        }
+                                                        lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
+                                                        lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                                                        lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
+                                                        lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                                                        lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                                                        lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
+                                                    - lvgl.page.show:
+                                                        id: settings_page
+                                                        animation: LV_SCREEN_LOAD_ANIM_FADE_IN
+                                                        time: 200ms
+                                                  else:
+                                                    # 其他页面短按由 encoder enter_button 自动处理
+                                                    - script.execute: reset_idle_timer
 
       # 长按 → 设置页/蓝牙遥控页返回主页面，其他页面待机/唤醒。
       # 直接操作 standby 全局变量而非 switch 状态，避免 switch 内部状态不一致。
