@@ -3465,6 +3465,7 @@ script:
                 if (!id(display_is_off) && elapsed >= timeout_ms) {
                   auto call = id(display_backlight)->turn_on();
                   call.set_brightness(0.10f);
+                  call.perform();
                   id(display_is_off) = true;
                 }
 
@@ -3478,6 +3479,7 @@ script:
           if (id(display_is_off) && !id(standby)) {
             auto call = id(display_backlight)->turn_on();
             call.set_brightness(id(display_brightness) / 100.0f);
+            call.perform();
             id(display_is_off) = false;
           }
           id(last_display_interaction) = millis();
@@ -4290,6 +4292,7 @@ sensor:
             if (id(display_is_off)) {
               auto call = id(display_backlight)->turn_on();
               call.set_brightness(id(display_brightness) / 100.0f);
+              call.perform();
               id(display_is_off) = false;
             }
             if (id(switching_input)) return;

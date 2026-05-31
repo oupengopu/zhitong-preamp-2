@@ -314,7 +314,7 @@ static bool recalibrate() {
     _l_offset[j] = (avg_l < 50) ? avg_l : 0;
   }
   ESP_LOGI("msgeq7", "重校准: R_offset[0~6]=%d/%d/%d/%d/%d/%d/%d",
-           0, 6, _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
+           _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
            _r_offset[4], _r_offset[5], _r_offset[6]);
   return true;
 }
