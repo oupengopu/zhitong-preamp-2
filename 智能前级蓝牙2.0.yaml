@@ -249,6 +249,7 @@ esp32_ble_server:
                     }
                     case 0x03: {
                       if (len < 1) break;
+                      if (id(switching_input)) break;
                       uint8_t input = x[3];
                       if (input > 3) break;
                       if (now - id(last_switch_ms) < 1500) break;
@@ -724,9 +725,19 @@ switch:
       - switch.turn_off: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
-      - globals.set: {id: soft_mute, value: 'false'}
-      - switch.turn_on: mute_switch
-      - script.execute: send_volume_to_pga
+      - if:
+          condition:
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active);'
+          then:
+            - lambda: |-
+                id(soft_mute) = true;
+                id(soft_mute_switch)->publish_state(true);
+                id(mute_switch)->turn_off();
+                pga2311::set_volume(0, 0);
+          else:
+            - globals.set: {id: soft_mute, value: 'false'}
+            - switch.turn_on: mute_switch
+            - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
 
   - platform: template
@@ -3080,6 +3091,10 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: switching_target_input
+    type: int
+    restore_value: false
+    initial_value: '0'
   - id: input_vol_0
     type: int
     restore_value: true
@@ -3505,7 +3520,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (id(ota_active) || id(temp_protect)) {
+          if (id(ota_active) || id(temp_protect) || id(standby)) {
             id(current_db) = -96.0f;
             id(target_db)  = -96.0f;
             pga2311::set_volume(0, 0);
@@ -3528,7 +3543,7 @@ script:
       - while:
           condition:
             lambda: |-
-              if (id(ota_active) || id(temp_protect)) return false;
+              if (id(ota_active) || id(temp_protect) || id(standby)) return false;
               return fabs(id(target_db) - id(current_db)) > 0.09f;
           then:
             - lambda: |-
@@ -3581,7 +3596,7 @@ script:
             - delay: 15ms
 
       - lambda: |-
-          if (id(ota_active) || id(temp_protect)) return;
+          if (id(ota_active) || id(temp_protect) || id(standby)) return;
 
           id(current_db) = id(target_db);
 
@@ -3813,7 +3828,9 @@ script:
     max_runs: 1
     then:
       - lambda: |-
+          if (id(current_input) < 0 || id(current_input) > 3) id(current_input) = 0;
           id(switching_input) = true;
+          id(switching_target_input) = id(current_input);
           switch (id(current_input)) {
             case 0: id(input_vol_0) = id(volume_val); id(last_saved_vol_0) = id(volume_val); break;
             case 1: id(input_vol_1) = id(volume_val); id(last_saved_vol_1) = id(volume_val); break;
@@ -3844,26 +3861,27 @@ script:
       - delay: 50ms
 
       - lambda: |-
-          switch (id(current_input)) {
+          int target = id(switching_target_input);
+          switch (target) {
             case 0: id(relay_in1)->turn_on(); break;
             case 1: id(relay_in2)->turn_on(); break;
             case 2: id(relay_in3)->turn_on(); break;
             case 3: id(relay_in4)->turn_on(); break;
           }
           const char* names[] = {"CD", "DAC", "PC", "AUX"};
-          id(input_select)->publish_state(names[id(current_input)]);
+          id(input_select)->publish_state(names[target]);
       - delay: 100ms
 
       - if:
           condition:
-            lambda: 'return !id(soft_mute) && !id(temp_protect);'
+            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active);'
           then:
             - switch.turn_on: mute_switch
       - delay: 20ms
 
       - lambda: |-
           int new_vol = 160;
-          switch (id(current_input)) {
+          switch (id(switching_target_input)) {
             case 0: new_vol = id(input_vol_0); break;
             case 1: new_vol = id(input_vol_1); break;
             case 2: new_vol = id(input_vol_2); break;
@@ -3881,7 +3899,7 @@ script:
 
       - if:
           condition:
-            lambda: 'return !id(soft_mute) && !id(temp_protect);'
+            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active);'
           then:
             - script.execute: send_volume_to_pga
 
@@ -4084,16 +4102,15 @@ sensor:
                   case 3: { // 输入选择（循环, 模运算防快旋跳过中间值）
                     int v = ((id(current_input) + step) % 4 + 4) % 4;
                     if (v != id(current_input)) {
+                      uint32_t _n = millis();
+                      if (id(switching_input) || _n - id(last_switch_ms) < 1500) break;
                       id(current_input) = v;
-                      id(last_manual_input_ms) = millis();
+                      id(last_manual_input_ms) = _n;
                       const char* names[] = {"CD", "DAC", "PC", "AUX"};
                       lv_label_set_text(id(val_input), names[v]);
-                      uint32_t _n = millis();
-                      if (_n - id(last_switch_ms) >= 1500) {
-                        id(last_switch_ms) = _n;
-                        id(input_select)->publish_state(names[v]);
-                        id(switch_input)->execute();
-                      }
+                      id(last_switch_ms) = _n;
+                      id(input_select)->publish_state(names[v]);
+                      id(switch_input)->execute();
                     }
                     break;
                   }
@@ -4448,7 +4465,7 @@ number:
     mode: slider
     set_action:
       - lambda: |-
-          if (!id(system_ready)) return;
+          if (!id(system_ready) || id(switching_input)) return;
           id(balance) = (int)x;
           // 音量稳态时，直接同步 L/R 声道到 PGA
           if (fabs(id(target_db) - id(current_db)) <= 0.09f) {
@@ -4600,7 +4617,7 @@ select:
     options: ["CD", "DAC", "PC", "AUX"]
     set_action:
       - lambda: |-
-          if (!id(system_ready)) return;
+          if (!id(system_ready) || id(switching_input)) return;
           uint32_t now = millis();
           if (now - id(last_switch_ms) < 1500) return;
           id(last_switch_ms) = now;
@@ -5266,7 +5283,7 @@ interval:
                   ha_event_name = "POWER";
                   break;
                 case ble_hid_host::HID_EVT_CYCLE_INPUT: {
-                  if (id(standby) || !id(system_ready)) break;
+                  if (id(standby) || !id(system_ready) || id(switching_input)) break;
                   if (millis() - id(last_switch_ms) < 1500) break;
                   id(last_switch_ms) = millis();
                   id(current_input) = (id(current_input) + 1) % 4;
