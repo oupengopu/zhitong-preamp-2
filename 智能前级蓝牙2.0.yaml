@@ -4295,6 +4295,7 @@ sensor:
                   }
                 }
               }
+              id(reset_idle_timer)->execute();
               return;
             }
 
@@ -4346,6 +4347,7 @@ sensor:
                 lv_obj_t* focus_rows[] = {id(ble_row_scan), id(ble_row_dev0), id(ble_row_dev1), id(ble_row_dev2), id(ble_row_back)};
                 lv_obj_scroll_to_view(focus_rows[new_idx], LV_ANIM_ON);
               }
+              id(reset_idle_timer)->execute();
               return;
             }
 
@@ -4404,6 +4406,7 @@ sensor:
                   lv_obj_scroll_to_view(rows_k[new_idx], LV_ANIM_ON);
                 }
               }
+              id(reset_idle_timer)->execute();
               return;
             }
 
@@ -4426,11 +4429,13 @@ sensor:
                 lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
                 lv_obj_scroll_to_view(new_idx == 0 ? id(dbg_row_recal) : id(dbg_row_back), LV_ANIM_ON);
               }
+              id(reset_idle_timer)->execute();
               return;
             }
 
             // ═══ 音量调节（仅主/浮层/频谱页，频谱页旋转同步返回主页）═══
             if (active != id(main_page)->obj && active != id(volume_big_page)->obj && active != id(spectrum_page)->obj) return;
+            if (id(standby) || id(temp_protect) || !id(system_ready)) return;
             // 屏幕休眠时恢复亮度
             if (id(display_is_off)) {
               auto call = id(display_backlight)->turn_on();
@@ -4447,24 +4452,13 @@ sensor:
             float pct = roundf((float)new_vol * 100.0f / (float)id(max_volume));
             if (pct > 100.0f) pct = 100.0f;
             id(volume_number)->publish_state(pct);
-        - if:
-            condition:
-              lambda: 'return lv_scr_act() == id(spectrum_page)->obj;'
-            then:
-              # 频谱页旋转 → 调音量 + 返回主页
-              - script.execute: send_volume_to_pga
-              - lvgl.page.show:
-                  id: main_page
-                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                  time: 150ms
-            else:
-              - if:
-                  condition:
-                    lambda: 'return lv_scr_act() != id(settings_page)->obj;'
-                  then:
-                    - script.execute: send_volume_to_pga
-                    - script.execute: show_volume_big
-        - script.execute: reset_idle_timer
+            id(send_volume_to_pga)->execute();
+            if (active == id(spectrum_page)->obj) {
+              lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 150, 0, false);
+            } else {
+              id(show_volume_big)->execute();
+            }
+            id(reset_idle_timer)->execute();
   - platform: template
     name: "机箱温度"
     id: ntc_temp
@@ -5671,7 +5665,7 @@ binary_sensor:
           - ON for at most 400ms
           - OFF for at least 300ms
         then:
-          # 三击：固件版本行隐藏入口 → 跳转诊断页 (仅在设置页焦点Row 10生效)
+          # 三击：固件版本行隐藏入口 → 跳转诊断页 (仅在设置页焦点 Row 11 生效)
           - if:
               condition:
                 lambda: >-
