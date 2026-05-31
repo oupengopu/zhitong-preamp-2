@@ -244,16 +244,20 @@ static void _parse_adv_data(const uint8_t* data, uint8_t len,
 static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
     if (len == 0) return HID_EVT_NONE;
 
-    // ═══ Keyboard boot report: 8 bytes ═══
-    //   byte 0: modifier, byte 1: reserved, bytes 2-7: key codes (USB HID Keyboard page 0x07)
-    if (len >= 8) {
+    // ═══ Keyboard boot report: 8 bytes, or Report ID + keyboard report: 9 bytes ═══
+    //   8B: byte 0=modifier, byte 1=reserved, bytes 2-7=key codes
+    //   9B: byte 0=Report ID, byte 1=modifier, byte 2=reserved, bytes 3-8=key codes
+    if (len == 8 || len == 9) {
+        int key_start = (len == 9) ? 3 : 2;
+        int key_end   = (len == 9) ? 9 : 8;
+
         bool all_zero = true;
-        for (int i = 2; i < 8; i++) {
+        for (int i = key_start; i < key_end; i++) {
             if (data[i] != 0) { all_zero = false; break; }
         }
         if (all_zero) return HID_EVT_NONE;
 
-        for (int i = 2; i < 8; i++) {
+        for (int i = key_start; i < key_end; i++) {
             uint8_t key = data[i];
             if (key == 0) continue;
             switch (key) {
@@ -312,6 +316,28 @@ static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
     // ═══ Consumer page report: 3 bytes (Report ID + Usage) ═══
     if (len == 3) {
         uint16_t usage = data[1] | (data[2] << 8);
+        switch (usage) {
+            // ── 媒体键  [标准] ──
+            case 0xE9: return HID_EVT_VOLUME_UP;
+            case 0xEA: return HID_EVT_VOLUME_DOWN;
+            case 0xE2: return HID_EVT_MUTE;
+            case 0xCD: return HID_EVT_PLAY_PAUSE;
+            case 0xB5: return HID_EVT_NEXT_TRACK;
+            case 0xB6: return HID_EVT_PREV_TRACK;
+            case 0x30: return HID_EVT_POWER;
+            // ── 切换输入  [自定义] ──
+            case 0x233: return HID_EVT_CYCLE_INPUT;
+        }
+        return HID_EVT_NONE;
+    }
+
+    // ═══ Consumer page report: 4 bytes (Report ID + Usage + value) ═══
+    // 部分市售遥控器多带一个 value/release 字节: value=0 表示松开, 不产生事件。
+    if (len == 4) {
+        uint16_t usage = data[1] | (data[2] << 8);
+        uint8_t value = data[3];
+        if (value == 0) return HID_EVT_NONE;
+
         switch (usage) {
             // ── 媒体键  [标准] ──
             case 0xE9: return HID_EVT_VOLUME_UP;
@@ -924,11 +950,13 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             // ── Capture raw HID event for debug viewer ──
             if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                 S().has_raw_event = false;
-                if (n_len >= 8) {
-                    // Keyboard boot report
+                if (n_len == 8 || n_len == 9) {
+                    // Keyboard boot report, optionally prefixed by Report ID
+                    int key_start = (n_len == 9) ? 3 : 2;
+                    int key_end   = (n_len == 9) ? 9 : 8;
                     S().last_raw_page = 0x07;
                     S().last_raw_usage = 0;
-                    for (int i = 2; i < 8; i++) {
+                    for (int i = key_start; i < key_end; i++) {
                         if (n_val[i] != 0) { S().last_raw_usage = n_val[i]; break; }
                     }
                     S().last_raw_value = S().last_raw_usage ? 1 : 0;
@@ -944,6 +972,18 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     S().last_raw_page = 0x0C;
                     S().last_raw_usage = n_val[1] | (n_val[2] << 8);
                     S().last_raw_value = 1;
+                    S().has_raw_event = true;
+                } else if (n_len == 4) {
+                    // 4-byte consumer report (Report ID + usage + value)
+                    S().last_raw_page = 0x0C;
+                    S().last_raw_usage = n_val[1] | (n_val[2] << 8);
+                    S().last_raw_value = n_val[3];
+                    S().has_raw_event = true;
+                } else {
+                    // Unknown/vendor report: keep enough info for field diagnostics
+                    S().last_raw_page = 0xFFFF;
+                    S().last_raw_usage = n_len;
+                    S().last_raw_value = n_len > 0 ? n_val[0] : 0;
                     S().has_raw_event = true;
                 }
                 xSemaphoreGive(S().mux);
