@@ -59,6 +59,7 @@ esphome:
             }
 
             if (id(current_input) < 0 || id(current_input) > 3) id(current_input) = 0;
+            id(active_input) = id(current_input);
             if (id(max_volume) < 10 || id(max_volume) > 255) id(max_volume) = 255;
             if (id(power_on_limit) < 10 || id(power_on_limit) > 255) id(power_on_limit) = 192;
             if (id(balance) < -20 || id(balance) > 20) id(balance) = 0;
@@ -3086,6 +3087,10 @@ globals:
     type: int
     restore_value: false
     initial_value: '0'
+  - id: active_input
+    type: int
+    restore_value: false
+    initial_value: '0'
   - id: input_vol_0
     type: int
     restore_value: true
@@ -3820,9 +3825,10 @@ script:
     then:
       - lambda: |-
           if (id(current_input) < 0 || id(current_input) > 3) id(current_input) = 0;
+          if (id(active_input) < 0 || id(active_input) > 3) id(active_input) = id(current_input);
           id(switching_input) = true;
           id(switching_target_input) = id(current_input);
-          switch (id(current_input)) {
+          switch (id(active_input)) {
             case 0: id(input_vol_0) = id(volume_val); id(last_saved_vol_0) = id(volume_val); break;
             case 1: id(input_vol_1) = id(volume_val); id(last_saved_vol_1) = id(volume_val); break;
             case 2: id(input_vol_2) = id(volume_val); id(last_saved_vol_2) = id(volume_val); break;
@@ -3887,6 +3893,7 @@ script:
           id(volume_number)->publish_state(vol_pct);
 
           id(switching_input) = false;
+          id(active_input) = id(switching_target_input);
 
       - if:
           condition:
@@ -4864,6 +4871,17 @@ interval:
                     if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
                     id(settings_active_idx) = -1;
                   }
+                } else if (is_keymap) {
+                  int active = id(keymap_active_idx);
+                  if (active >= 0 && active <= 7) {
+                    lv_obj_t* rows_k[] = {
+                      id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                      id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                      id(keymap_row_6), id(keymap_row_7)
+                    };
+                    lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                  }
+                  id(keymap_active_idx) = -1;
                 }
                 lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                 id(last_display_interaction) = now;  // 防重复触发
@@ -5586,6 +5604,22 @@ binary_sensor:
                             }
                             if (idx == 9) {
                               id(keymap_focus_idx) = 0;
+                              id(keymap_active_idx) = -1;
+                              lv_obj_t* rows_k[] = {
+                                id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                                id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                                id(keymap_row_6), id(keymap_row_7), id(keymap_row_back)
+                              };
+                              lv_color_t hl = get_theme_accent(id(theme));
+                              for (int i = 0; i <= 8; i++) {
+                                lv_obj_set_style_border_width(rows_k[i], i == 0 ? 3 : 0, LV_PART_MAIN);
+                                if (i == 0) {
+                                  lv_obj_set_style_border_color(rows_k[i], hl, LV_PART_MAIN);
+                                  lv_obj_set_style_border_side(rows_k[i], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
+                                }
+                                lv_obj_set_style_bg_color(rows_k[i],
+                                  i == 0 ? lv_color_hex(0x1E2D42) : (i == 8 ? lv_color_hex(0x111827) : lv_color_hex(0x162032)), LV_PART_MAIN);
+                              }
                               id(last_display_interaction) = millis();
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
@@ -5689,12 +5723,10 @@ binary_sensor:
                                               // 重校准
                                               bool ok = msgeq7::recalibrate();
                                               lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+                                            } else {
+                                              lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                                             }
                                         - script.execute: reset_idle_timer
-                                        - lvgl.page.show:
-                                            id: settings_page
-                                            animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                                            time: 200ms
                                       else:
                                         - if:
                                             condition:
@@ -5754,6 +5786,29 @@ binary_sensor:
                 lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj || lv_scr_act() == id(remote_keys_page)->obj;'
               then:
                 # 设置页/蓝牙遥控页/诊断页长按 → 返回主页面（不触发待机）
+                - lambda: |-
+                    if (lv_scr_act() == id(settings_page)->obj) {
+                      int active = id(settings_active_idx);
+                      if (active >= 0) {
+                        lv_obj_t** rows = settings_ui::rows();
+                        lv_obj_t** bars = settings_ui::bars();
+                        if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                        if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
+                      }
+                      id(settings_active_idx) = -1;
+                    }
+                    if (lv_scr_act() == id(remote_keys_page)->obj) {
+                      int active = id(keymap_active_idx);
+                      if (active >= 0 && active <= 7) {
+                        lv_obj_t* rows_k[] = {
+                          id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
+                          id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
+                          id(keymap_row_6), id(keymap_row_7)
+                        };
+                        lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                      }
+                      id(keymap_active_idx) = -1;
+                    }
                 - lvgl.page.show:
                     id: main_page
                     animation: LV_SCREEN_LOAD_ANIM_FADE_IN
