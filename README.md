@@ -458,6 +458,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - FreeRTOS 队列桥接 BLE 回调线程 → ESPHome 主循环
 - BDA 持久化到 NVS（`ble_remote_peer_bda`，`restore_value=true`）
 - 断开自动重试 3 次，间隔逐次增大
+- 扫描遵循 Bluedroid 异步时序：`set_scan_params` 完成后再 `start_scanning`
+- 同时处理连接失败、远端断开 `DISCONNECT_EVT` 与本地关闭 `CLOSE_EVT`，避免状态卡在已连接
+- 扫描结果合并 Advertising Data 与 Scan Response，兼容把名称/UUID 放在 Scan Response 的小遥控器
 - 待机时 BLE 连接保持，遥控器电源键可唤醒
 
 ### BLE 遥控器配对流程
