@@ -1006,16 +1006,6 @@ lvgl:
                   id: main_page
                   animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                   time: 200ms
-    - timeout: 30s
-      then:
-        - if:
-            condition:
-              lvgl.page.is_showing: settings_page
-            then:
-              - lvgl.page.show:
-                  id: main_page
-                  animation: LV_SCREEN_LOAD_ANIM_FADE_IN
-                  time: 200ms
 
   on_resume:
     then:
@@ -1032,6 +1022,7 @@ lvgl:
       - light.turn_on:
           id: display_backlight
           transition_length: 500ms
+          brightness: !lambda 'return id(display_brightness) / 100.0f;'
       - globals.set: {id: display_is_off, value: 'false'}
 
   pages:
@@ -4776,8 +4767,10 @@ interval:
               if (hold_start != 0) {
                 hold_start = 0;
                 triggered = false;
-                lv_label_set_text(id(lbl_factory_msg), "");
-                lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
+                if (!id(standby)) {
+                  lv_label_set_text(id(lbl_factory_msg), "");
+                  lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
+                }
               }
             }
           }
@@ -4833,8 +4826,8 @@ interval:
             }
             was_signal = has_signal;
 
-            // 待机或系统未就绪时不自动跳转（但不 return，继续执行后续更新）
-            if (!id(standby) && id(system_ready)) {
+            // 待机、静音或系统未就绪时不自动跳转（但不 return，继续执行后续更新）
+            if (!id(standby) && !id(soft_mute) && id(system_ready)) {
               lv_obj_t* active = lv_scr_act();
 
               // 1. 主页面 → 频谱页：信号存在且稳定 ≥15 秒
@@ -5064,9 +5057,11 @@ interval:
                 bool has_peer = !bda.empty() && bda != "\"\"" && bda.length() >= 17;
                 if (has_peer) {
                   lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x555555), LV_PART_MAIN);
                 } else {
                   lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
                 }
               }
             }
@@ -5133,10 +5128,12 @@ interval:
                 bool has_peer = !id(ble_remote_peer_bda).empty() && id(ble_remote_peer_bda) != "\"\"";
                 if (connected || has_peer) {
                   lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_set_style_text_color(id(lbl_ble_remote_indicator),
                     connected ? _accent : lv_color_hex(0x555555), LV_PART_MAIN);
                 } else {
                   lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
                 }
                 // 更新 ble_remote_page 返回按钮文字（断开留在本页，不返回设置）
                 lv_label_set_text(id(lbl_ble_back), connected ? "断开" : "返回设置");
