@@ -70,10 +70,12 @@ static void setup() {
   dev_conf.queue_size = 1;
 
   ret = spi_bus_add_device(SPI3_HOST, &dev_conf, &_spi_dev);
-  if (ret != ESP_OK) {
-    ESP_LOGE("pga2311", "SPI device add failed: %s", esp_err_to_name(ret));
-    return;
-  }
+if (ret != ESP_OK) {
+  ESP_LOGE("pga2311", "SPI device add failed: %s", esp_err_to_name(ret));
+  spi_bus_free(SPI3_HOST);
+  _spi_dev = nullptr;
+  return;
+}
 
   _initialized = true;
   ESP_LOGI("pga2311", "PGA2311 初始化完成 (CS=IO42, CLK=IO41, SDI=IO2) [ESP-IDF SPI3_HOST]");
