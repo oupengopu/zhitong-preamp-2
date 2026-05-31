@@ -577,6 +577,8 @@ cd preview && py -3.11 -m http.server 8084
 
 3. **MCP23017 中断配置**: 配置为 Open-Drain + Active-Low (`open_drain_interrupt: true`)，ESP32-S3 端用内部上拉，防电平冲突。**音频检测输入端建议加硬件 RC 低通滤波**——音频信号临界点的高频抖动会引发中断风暴。若测试中遇到"某路输入突然不检测"的现象，疑似 MCP23017 中断锁死（INT 保持低电平不复位），需 I2C 读取 GPIO/INTCAP 寄存器手动清除。
 
+   音频检测 binary_sensor 使用 `use_interrupt: false` 是为了避免 ESPHome 对 MCP 扩展 IO 尝试挂 ESP32 原生 GPIO ISR 并输出误导性 polling warning；MCP23017 Hub 仍通过 `interrupt_pin: GPIO12` + 各 GPB 输入 `interrupt: CHANGE` 中断唤醒并刷新缓存。
+
 4. **ESP32-S3 NTC 校准**: 使用 `ADC_ATTEN_DB_6` + `curve_fitting` 校准方案。6dB 衰减虽量程较小 (0~2.5V) 但线性远优于 12dB, 对室内前级足够。
 
 5. **MSGEQ7 时序**: 3.3V 供电时输出建立需 36-40μs (vs 5V 的 18μs), STROBE 低脉冲和 RESET 脉冲均已放宽到 40-100μs。

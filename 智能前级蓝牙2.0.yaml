@@ -5972,9 +5972,13 @@ binary_sensor:
   - platform: gpio
     name: "音频检测-CD"
     id: audio_cd
+    # MCP23017 自身通过 GPIO12/INTB 中断唤醒并刷新缓存；
+    # gpio binary_sensor 不能对扩展 IO 挂 ESP32 原生 ISR，显式关闭可避免误导性 polling warning。
+    use_interrupt: false
     pin:
       mcp23xxx: mcp23017_hub
       number: 8
+      interrupt: CHANGE
       mode:
         input: true
         pullup: true
@@ -5992,9 +5996,11 @@ binary_sensor:
   - platform: gpio
     name: "音频检测-DAC"
     id: audio_dac
+    use_interrupt: false
     pin:
       mcp23xxx: mcp23017_hub
       number: 9
+      interrupt: CHANGE
       mode:
         input: true
         pullup: true
@@ -6012,9 +6018,11 @@ binary_sensor:
   - platform: gpio
     name: "音频检测-PC"
     id: audio_pc
+    use_interrupt: false
     pin:
       mcp23xxx: mcp23017_hub
       number: 10
+      interrupt: CHANGE
       mode:
         input: true
         pullup: true
@@ -6032,9 +6040,11 @@ binary_sensor:
   - platform: gpio
     name: "音频检测-AUX"
     id: audio_aux
+    use_interrupt: false
     pin:
       mcp23xxx: mcp23017_hub
       number: 11
+      interrupt: CHANGE
       mode:
         input: true
         pullup: true
