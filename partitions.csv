@@ -1,5 +1,5 @@
 # ESP32-S3 16MB Flash Partition Table (OTA)
-# 两块 6MB OTA 分区，剩余 ~4MB 存储空间
+# Two 6MB OTA slots, remaining ~4MB storage
 nvs,      data, nvs,       0x009000, 0x005000,
 otadata,  data, ota,       0x00E000, 0x002000,
 app0,     app,  ota_0,     0x010000, 0x600000,

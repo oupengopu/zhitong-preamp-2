@@ -262,6 +262,7 @@ esp32_ble_server:
                       if (now - id(last_switch_ms) < 1500) break;
                       if (id(current_input) != input) {
                         id(last_switch_ms) = now;
+                        id(last_manual_input_ms) = now;
                         id(current_input) = input;
                         const char* names[] = {"CD", "DAC", "PC", "AUX"};
                         id(input_select)->publish_state(names[input]);
@@ -423,9 +424,8 @@ api:
             if (v > id(max_volume)) v = id(max_volume);
             id(volume_val) = v;
             id(last_v_change_ms) = now;
-
-        - script.execute: send_volume_to_pga
-        - script.execute: reset_idle_timer
+            id(send_volume_to_pga)->execute();
+            id(reset_idle_timer)->execute();
 
     - service: set_mute
       variables:
@@ -436,22 +436,28 @@ api:
             id(soft_mute) = muted;
             if (muted) id(mute_switch)->turn_off();
             else       id(mute_switch)->turn_on();
-        - script.execute: send_volume_to_pga
-        - script.execute: reset_idle_timer
+            id(send_volume_to_pga)->execute();
+            id(reset_idle_timer)->execute();
 
     - service: set_input
       variables:
         input_name: string
       then:
         - lambda: |-
-            if (!id(system_ready)) return;
+            if (!id(system_ready) || id(switching_input)) return;
             uint32_t now = millis();
             if (now - id(last_switch_ms) < 1500) return;
+            int target = -1;
+            if      (input_name == "CD")  target = 0;
+            else if (input_name == "DAC") target = 1;
+            else if (input_name == "PC")  target = 2;
+            else if (input_name == "AUX") target = 3;
+            if (target < 0) return;
             id(last_switch_ms) = now;
-            if      (input_name == "CD")  { id(current_input) = 0; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-            else if (input_name == "DAC") { id(current_input) = 1; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-            else if (input_name == "PC")  { id(current_input) = 2; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-            else if (input_name == "AUX") { id(current_input) = 3; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+            id(last_manual_input_ms) = now;
+            id(current_input) = target;
+            id(switch_input)->execute();
+            id(reset_idle_timer)->execute();
     - service: recalibrate_msgeq7
       then:
         - lambda: |-
@@ -760,9 +766,12 @@ switch:
     turn_on_action:
       - if:
           condition:
-            lambda: 'return id(standby);'
+            lambda: 'return id(standby) && !id(temp_protect);'
           then:
             - script.execute: exit_standby
+          else:
+            - lambda: |-
+                if (id(temp_protect)) id(standby_switch)->publish_state(false);
 
   # ── 输入继电器 (MCP23017 GPA0~GPA3, CD/DAC/PC/AUX) ──
   - platform: gpio
@@ -3146,6 +3155,14 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: temp_protect_forced_standby
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: auto_switch_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   # ── V6/V17 fade 内核变量 ──
   - id: current_db
@@ -3444,12 +3461,15 @@ script:
           id(display_brightness)  = 80;
           id(auto_input)          = true;
           id(output_mode)         = false;
+          id(temp_protect_forced_standby) = false;
+          id(auto_switch_pending) = false;
           id(theme)               = 0;
           id(input_vol_0)         = 160;
           id(input_vol_1)         = 160;
           id(input_vol_2)         = 160;
           id(input_vol_3)         = 160;
           id(soft_mute)           = false;
+          id(relay_out)->turn_off();
           // 重置按键映射为恒等映射
           id(key_map_1) = 1; id(key_map_2) = 2; id(key_map_3) = 3;
           id(key_map_4) = 4; id(key_map_5) = 5; id(key_map_6) = 6;
@@ -4004,6 +4024,7 @@ script:
     then:
       - delay: 200ms   # 等待所有传感器稳定, 避免多个信号交叉触发
       - lambda: |-
+          id(auto_switch_pending) = false;
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
           // 检查当前输入是否还有信号
@@ -4017,11 +4038,14 @@ script:
           // 当前输入还有信号 → 无需处理（可能是其他输入触发导致脚本启动）
           if (cur_has_signal) return;
 
+          id(auto_switch_pending) = true;
           ESP_LOGI("auto_input", "信号丢失，等待 8s 看是否恢复...");
 
       - delay: 8s   # 信号丢失等待期（mode:restart → 信号恢复时传感器触发，脚本重新开始）
 
       - lambda: |-
+          if (!id(auto_switch_pending)) return;
+          id(auto_switch_pending) = false;
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
           // ── 8s 后再次检查当前输入是否恢复 ──
@@ -4259,6 +4283,13 @@ sensor:
                     bool v = !id(output_mode);
                     id(output_mode) = v;
                     lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
+                    if (v) {
+                      lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
+                      lv_obj_remove_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
+                    } else {
+                      lv_obj_remove_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
+                      lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
+                    }
                     if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
                     break;
                   }
@@ -4448,18 +4479,29 @@ sensor:
               lambda: 'return x > 72.0f && !id(temp_protect);'
             then:
               - logger.log: "温度超限(>72)，触发保护性静音"
-              - lambda: 'id(temp_protect) = true;'
-              - switch.turn_off: mute_switch
-              - script.execute: send_volume_to_pga
+              - lambda: |-
+                  id(temp_protect_forced_standby) = !id(standby);
+                  id(temp_protect) = true;
+                  id(mute_switch)->turn_off();
+                  id(send_volume_to_pga)->execute();
+                  if (id(temp_protect_forced_standby)) {
+                    id(standby_switch)->turn_off();
+                  }
         - if:
             condition:
               lambda: 'return x < 55.0f && id(temp_protect);'
             then:
               - logger.log: "温度恢复(<55)，解除保护层"
-              - lambda: 'id(temp_protect) = false;'
               - lambda: |-
-                  if (!id(soft_mute)) id(mute_switch)->turn_on();
-              - script.execute: send_volume_to_pga
+                  bool wake_from_protect = id(temp_protect_forced_standby);
+                  id(temp_protect) = false;
+                  id(temp_protect_forced_standby) = false;
+                  if (wake_from_protect && id(standby)) {
+                    id(standby_switch)->turn_on();
+                  } else if (!id(standby)) {
+                    if (!id(soft_mute)) id(mute_switch)->turn_on();
+                    id(send_volume_to_pga)->execute();
+                  }
 
   - platform: wifi_signal
     name: "WiFi信号"
@@ -4547,8 +4589,8 @@ number:
           if (v > id(max_volume)) v = id(max_volume);
           id(volume_val) = v;
           id(last_v_change_ms) = millis();
-      - script.execute: send_volume_to_pga
-      - script.execute: reset_idle_timer
+          id(send_volume_to_pga)->execute();
+          id(reset_idle_timer)->execute();
 
   - platform: template
     name: "声道平衡 Balance"
@@ -4597,8 +4639,8 @@ number:
 
                 pga2311::set_volume(r_reg, l_reg);
           }
-      - script.execute: send_volume_to_pga
-      - script.execute: reset_idle_timer
+          id(send_volume_to_pga)->execute();
+          id(reset_idle_timer)->execute();
   - platform: template
     name: "最大音量上限 Max"
     id: max_volume_number
@@ -4610,6 +4652,7 @@ number:
     initial_value: 255
     set_action:
       - lambda: |-
+          if (!id(system_ready) || id(switching_input)) return;
           float old_max = id(max_volume) > 0 ? (float)id(max_volume) : 1.0f;
           float current_pct = (float)id(volume_val) / old_max;
           id(max_volume) = (int)x;
@@ -4617,11 +4660,11 @@ number:
           if (new_vol > id(max_volume)) new_vol = id(max_volume);
           id(volume_val) = new_vol;
           id(max_volume_number)->publish_state((float)id(max_volume));
-      - lambda: |-
           float pct = (float)id(volume_val) / (float)id(max_volume);
           if (pct > 1.0f) pct = 1.0f;
           id(volume_number)->publish_state(pct * 100.0f);
-      - script.execute: send_volume_to_pga
+          id(send_volume_to_pga)->execute();
+          id(reset_idle_timer)->execute();
 
   - platform: template
     name: "开机音量限制 Limit"
@@ -4655,7 +4698,7 @@ number:
           }
           id(display_is_off) = false;
           id(display_brightness_number)->publish_state((float)id(display_brightness));
-      - script.execute: reset_idle_timer
+          id(reset_idle_timer)->execute();
 
   - platform: template
     name: "息屏超时 Timeout"
@@ -4682,7 +4725,8 @@ number:
       - lambda: |-
           if (!id(system_ready)) return;
           id(theme) = (int)x;
-      - script.execute: apply_theme
+          id(apply_theme)->execute();
+          id(reset_idle_timer)->execute();
 
 select:
   - platform: template
@@ -5916,7 +5960,11 @@ binary_sensor:
                     condition:
                       lambda: 'return id(standby);'
                     then:
-                      - script.execute: exit_standby
+                      - if:
+                          condition:
+                            lambda: 'return !id(temp_protect);'
+                          then:
+                            - script.execute: exit_standby
                     else:
                       - if:
                           condition:

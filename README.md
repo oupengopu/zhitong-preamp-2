@@ -169,6 +169,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `balance` | int | 平衡 (-20~20) |
 | `soft_mute` | bool | 软静音标志 |
 | `standby` | bool | 待机状态 |
+| `temp_protect` | bool | 温度保护状态 |
+| `temp_protect_forced_standby` | bool | 本次温保是否强制进入待机，用于降温后决定是否自动唤醒 |
 | `current_db` | float | 当前实际 dB |
 | `target_db` | float | 目标 dB (渐变更新的目标) |
 | `theme` | int | 颜色主题索引 (0~7) |
@@ -178,6 +180,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `system_ready` | bool | 系统就绪标志 |
 | `switching_input` | bool | 正在切换输入 |
 | `switching_target_input` | int | 输入切换脚本锁定的目标通道快照 |
+| `auto_switch_pending` | bool | 自动输入切换 8 秒等待期闩锁，防止无效启动后延迟段误切换 |
 | `audio_cd/dac/pc/aux` | binary_sensor | 各输入音频检测状态 |
 | `settings_focus_idx` | int | 设置页焦点索引 (0~11) |
 | `settings_active_idx` | int | 设置页调节模式索引 (-1=浏览模式) |
@@ -198,7 +201,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 |------|------|
 | `switch_input` | 切换输入: 保存当前实际通道音量→软静音→切继电器→恢复目标通道音量→取消静音 |
 | `apply_theme` | 应用主题色到 LVGL 控件（LED/分隔线/音量条/频谱条/设置页 bar/主题色点） |
-| `auto_switch_input` | 自动输入选择 (8s 等待, 优先级 CD>DAC>PC>AUX, 无信号则保持) |
+| `auto_switch_input` | 自动输入选择 (8s 等待 + pending 闩锁, 优先级 CD>DAC>PC>AUX, 无信号则保持) |
 | `display_idle_timer` | 显示超时管理 (可配置分钟数, 调低亮度而非关屏) |
 | `exit_standby` | 退出待机: 渐变亮度 (800ms) → 应用主题 → 恢复音量 → 自动切换 |
 | `factory_reset` | 恢复出厂: 重置全局变量 → 显示提示 → 清除 WiFi → 重启 (编码器按住 10s 触发) |
@@ -362,6 +365,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 ### 温度保护
 - ≥72°C 强制待机，屏幕显示红色 **"保护!"**
 - <55°C 退出保护，恢复正常显示
+- 保护期间禁止 HA、BLE、编码器等路径唤醒，`send_volume_to_pga` 始终输出静音。
+- 只有本次温保从运行状态强制进入待机时，降温后才自动唤醒；如果用户本来就在待机，不会被温保解除误唤醒。
 
 ### 待机
 - 彻底关屏 + 静音 + 暂停 LVGL，WiFi 保持连接
@@ -592,6 +597,12 @@ cd preview && py -3.11 -m http.server 8084
 13. **输入切换音量记忆约定**: 修改输入切换逻辑时，必须区分 `active_input`（实际接通通道）和 `current_input`（目标通道）。保存旧音量只能使用 `active_input`，否则会把旧通道音量写入目标通道的 `input_vol_*`。
 
 14. **页面调节状态清理**: settings_page 和 remote_keys_page 离开页面时需要清理 `settings_active_idx` / `keymap_active_idx` 以及对应行背景/bar 高度。新增返回路径、自动回页路径或长按路径时必须同步处理。
+
+15. **ESPHome lambda guard 约定**: YAML action 列表中，`lambda` 内的 `return` 只退出当前 lambda，不会阻止后续 `script.execute` / `switch.*` action 执行。带 guard 的服务、number、select、BLE 命令入口，必须把后续副作用放进同一个 lambda 的 guard 之后，或用外层 `if:` 包裹。
+
+16. **温度保护唤醒约定**: 所有唤醒路径应通过 `standby_switch->turn_on()` 或显式检查 `!temp_protect`。保护期间不得直接执行 `exit_standby`，解除保护时只根据 `temp_protect_forced_standby` 决定是否自动恢复。
+
+17. **自动输入切换延迟闩锁**: `auto_switch_input` 使用 `auto_switch_pending` 标记真正进入 8 秒等待期。新增音频检测触发路径时，不要绕过该脚本直接延迟切换，避免上一次无效启动留下的延迟段误切输入。
 
 ---
 
