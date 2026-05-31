@@ -3554,11 +3554,26 @@ script:
                   if (base_reg > 255) base_reg = 255;
                 }
 
-                int bal   = id(balance);
-                int l_reg = base_reg - (bal > 0 ? bal : 0);
-                int r_reg = base_reg + (bal < 0 ? bal : 0);
-                if (l_reg < 0) l_reg = 0;
-                if (r_reg < 0) r_reg = 0;
+                int bal = id(balance);
+                if (bal < -20) bal = -20;
+                if (bal > 20)  bal = 20;
+
+                // balance > 0 = 偏右：只衰减左声道
+                // balance < 0 = 偏左：只衰减右声道
+                int l_reg = base_reg;
+                int r_reg = base_reg;
+
+                if (bal > 0) {
+                 l_reg -= bal;
+                } else if (bal < 0) {
+                 r_reg += bal;   // bal 为负数，所以这里等价于 r_reg - abs(bal)
+                }
+
+                // 完整限幅，防止未来算法调整后越界
+                if (l_reg < 0)   l_reg = 0;
+                if (l_reg > 255) l_reg = 255;
+                if (r_reg < 0)   r_reg = 0;
+                if (r_reg > 255) r_reg = 255;
 
                 pga2311::set_volume(r_reg, l_reg);
             - delay: 15ms
@@ -3578,13 +3593,28 @@ script:
             if (base_reg > 255) base_reg = 255;
           }
 
-          int bal   = id(balance);
-          int l_reg = base_reg - (bal > 0 ? bal : 0);
-          int r_reg = base_reg + (bal < 0 ? bal : 0);
-          if (l_reg < 0) l_reg = 0;
-          if (r_reg < 0) r_reg = 0;
+                int bal = id(balance);
+                if (bal < -20) bal = -20;
+                if (bal > 20)  bal = 20;
 
-          pga2311::set_volume(r_reg, l_reg);
+                // balance > 0 = 偏右：只衰减左声道
+                // balance < 0 = 偏左：只衰减右声道
+                int l_reg = base_reg;
+                int r_reg = base_reg;
+
+                if (bal > 0) {
+                 l_reg -= bal;
+                } else if (bal < 0) {
+                 r_reg += bal;   // bal 为负数，所以这里等价于 r_reg - abs(bal)
+                }
+
+                // 完整限幅，防止未来算法调整后越界
+                if (l_reg < 0)   l_reg = 0;
+                if (l_reg > 255) l_reg = 255;
+                if (r_reg < 0)   r_reg = 0;
+                if (r_reg > 255) r_reg = 255;
+
+                pga2311::set_volume(r_reg, l_reg);
 
           float vol_pct = roundf((float)id(volume_val) * 100.0f / (float)id(max_volume));
           if (vol_pct > 100.0f) vol_pct = 100.0f;
@@ -4429,13 +4459,28 @@ number:
               if (base_reg > 255) base_reg = 255;
             }
 
-            int bal = id(balance);
-            int l_reg = base_reg - (bal > 0 ? bal : 0);
-            int r_reg = base_reg + (bal < 0 ? bal : 0);
-            if (l_reg < 0) l_reg = 0;
-            if (r_reg < 0) r_reg = 0;
+                int bal = id(balance);
+                if (bal < -20) bal = -20;
+                if (bal > 20)  bal = 20;
 
-            pga2311::set_volume(r_reg, l_reg);
+                // balance > 0 = 偏右：只衰减左声道
+                // balance < 0 = 偏左：只衰减右声道
+                int l_reg = base_reg;
+                int r_reg = base_reg;
+
+                if (bal > 0) {
+                 l_reg -= bal;
+                } else if (bal < 0) {
+                 r_reg += bal;   // bal 为负数，所以这里等价于 r_reg - abs(bal)
+                }
+
+                // 完整限幅，防止未来算法调整后越界
+                if (l_reg < 0)   l_reg = 0;
+                if (l_reg > 255) l_reg = 255;
+                if (r_reg < 0)   r_reg = 0;
+                if (r_reg > 255) r_reg = 255;
+
+                pga2311::set_volume(r_reg, l_reg);
           }
       - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
