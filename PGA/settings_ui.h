@@ -10,7 +10,7 @@
 
 namespace settings_ui {
 
-constexpr int N = 12;
+constexpr int N = 13;
 
 constexpr int bar_base_heights[N] = {
   16,  // 0  最大音量 (特殊，比其它可调项高)
@@ -23,8 +23,9 @@ constexpr int bar_base_heights[N] = {
   0,   // 7  主题色彩 (无 bar)
   0,   // 8  蓝牙遥控 (导航项, 无 bar)
   0,   // 9  遥控器按键 (导航项, 无 bar)
-  0,   // 10 固件版本 (只读, 无 bar)
-  0    // 11 IP地址 (只读, 无 bar)
+  0,   // 10 输出模式 (无 bar)
+  0,   // 11 固件版本 (只读, 无 bar)
+  0    // 12 IP地址 (只读, 无 bar)
 };
 
 // 返回 rows / bars 指针数组（Meyers Singleton，线程安全）
@@ -42,7 +43,7 @@ inline lv_obj_t** bars() {
 inline void init(
   lv_obj_t* r0, lv_obj_t* r1, lv_obj_t* r2, lv_obj_t* r3,
   lv_obj_t* r4, lv_obj_t* r5, lv_obj_t* r6, lv_obj_t* r7,
-  lv_obj_t* r8, lv_obj_t* r9, lv_obj_t* r10, lv_obj_t* r11,  // 8=蓝牙,9=按键,10=版本,11=IP
+  lv_obj_t* r8, lv_obj_t* r9, lv_obj_t* r10, lv_obj_t* r11, lv_obj_t* r12,  // 8=蓝牙,9=按键,10=输出,11=版本,12=IP
   lv_obj_t* b0, lv_obj_t* b1, lv_obj_t* b2,
   lv_obj_t* b5, lv_obj_t* b6) {
   static bool done = false;
@@ -51,12 +52,12 @@ inline void init(
   lv_obj_t** b = bars();
   r[0] = r0; r[1] = r1; r[2] = r2; r[3] = r3;
   r[4] = r4; r[5] = r5; r[6] = r6; r[7] = r7;
-  r[8] = r8; r[9] = r9; r[10] = r10; r[11] = r11;
+  r[8] = r8; r[9] = r9; r[10] = r10; r[11] = r11; r[12] = r12;
   b[0] = b0; b[1] = b1; b[2] = b2;
   b[3] = nullptr; b[4] = nullptr;
   b[5] = b5; b[6] = b6;
   b[7] = nullptr; b[8] = nullptr; b[9] = nullptr;
-  b[10] = nullptr; b[11] = nullptr;
+  b[10] = nullptr; b[11] = nullptr; b[12] = nullptr;
   done = true;
 }
 

@@ -653,12 +653,12 @@
 
 <div class="title">智能前级2.0 — 三屏设计 · 立体声频谱 · 编码器操作</div>
 <div class="info-badge">
-  🎯 <strong>第一屏</strong> 控制展示 ｜ 10s 无操作 → <strong>第二屏</strong> 立体声频谱 ｜ 编码器双击 → <strong>第三屏</strong> 设置
+    🎯 <strong>第一屏</strong> 控制展示 ｜ 信号稳定 15s → <strong>第二屏</strong> 立体声频谱 ｜ 编码器双击 → <strong>第三屏</strong> 设置
   <span style="display:block;font-size:11px;margin-top:4px;color:#4A6890;">
     📟 编码器: 旋转=音量(大字浮层) ｜ 单击=确认/唤醒 ｜ 双击=切换设置页 ｜ 长按=待机/AP配网
   </span>
   <span style="display:block;font-size:11px;margin-top:2px;color:#4A6890;">
-    设置→蓝牙遥控→遥控器按键 ｜ 当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">10</span>s 后自动跳转频谱
+    设置→蓝牙遥控→遥控器按键 ｜ 当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">15</span>s 后自动跳转频谱
   </span>
 </div>
 
@@ -675,6 +675,9 @@
       <div style="flex:1"></div>
       <div class="right-status">
         <div class="icon" id="autoSwitchIcon" style="font-size:22px;width:30px;"><span class="mdi mdi-swap-horizontal"></span></div>
+        <!-- 输出模式: 变压器 / 直通 -->
+        <div class="icon" id="iconTransformer" style="font-size:18px;width:22px;color:var(--accent);"><span class="mdi mdi-source-branch"></span></div>
+        <div class="icon" id="iconDirect" style="font-size:18px;width:22px;color:var(--accent);display:none;"><span class="mdi mdi-ray-start-arrow"></span></div>
         <div class="icon" style="color:var(--accent);font-size:24px;width:30px;"><span class="mdi mdi-thermometer"></span></div>
         <div class="temp"><span id="tempVal">32.5</span><span class="deg">°C</span></div>
         <div class="icon" id="muteIcon" style="color:#EF4444;display:none;"><span class="mdi mdi-volume-off"></span></div>
@@ -829,15 +832,22 @@
         <div class="no-bar"></div>
         <span class="val input-val" id="valKeymapStatus">已映射</span>
       </div>
-      <!-- Row 10: 固件版本 (read-only) -->
-      <div class="settings-row read-only" data-row="10">
+      <!-- Row 10: 输出模式 -->
+      <div class="settings-row" data-row="10">
+        <span class="mdi mdi-swap-vertical-bold icon"></span>
+        <span class="label">输出模式</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valOutputMode">变压器</span>
+      </div>
+      <!-- Row 11: 固件版本 (read-only) -->
+      <div class="settings-row read-only" data-row="11">
         <span class="mdi mdi-information-outline icon"></span>
         <span class="label">固件版本</span>
         <div class="no-bar"></div>
         <span class="val" id="valFirmware">v2.1.0</span>
       </div>
-      <!-- Row 11: IP地址 (read-only) -->
-      <div class="settings-row read-only" data-row="11">
+      <!-- Row 12: IP地址 (read-only) -->
+      <div class="settings-row read-only" data-row="12">
         <span class="mdi mdi-ip-network icon"></span>
         <span class="label">IP地址</span>
         <div class="no-bar"></div>
@@ -985,12 +995,12 @@
 
 <!-- 页面指示点 -->
 <div class="page-dots">
-  <div class="page-dot active" onclick="showPage(0)" title="控制屏"></div>
-  <div class="page-dot" onclick="showPage(1)" title="频谱屏"></div>
-  <div class="page-dot" onclick="showPage(2)" title="设置屏"></div>
-  <div class="page-dot" onclick="showPage(3)" title="蓝牙遥控"></div>
-  <div class="page-dot" onclick="showPage(4)" title="诊断信息"></div>
-  <div class="page-dot" onclick="showPage(5)" title="遥控器按键"></div>
+  <div class="page-dot active" onclick="manualShowPage(0)" title="控制屏"></div>
+  <div class="page-dot" onclick="manualShowPage(1)" title="频谱屏"></div>
+  <div class="page-dot" onclick="manualShowPage(2)" title="设置屏"></div>
+  <div class="page-dot" onclick="manualShowPage(3)" title="蓝牙遥控"></div>
+  <div class="page-dot" onclick="manualShowPage(4)" title="诊断信息"></div>
+  <div class="page-dot" onclick="manualShowPage(5)" title="遥控器按键"></div>
 </div>
 
 <!-- 编码器旋钮模拟 -->
@@ -1048,6 +1058,7 @@
     <label style="color:#4A6890;font-size:10px;">功能:</label>
     <label><input type="checkbox" id="chkAutoSwitch" checked onchange="onUserAction('auto_switch')"> 自动切换</label>
     <label><input type="checkbox" id="chkBleConnected" onchange="toggleBleConnected()"> BLE遥控</label>
+    <label><input type="checkbox" id="chkOutputMode" onchange="toggleOutputMode()"> 直通输出</label>
   </div>
 </div>
 
@@ -1057,9 +1068,10 @@
     wifi: true, ble: false, standby: false, muted: false,
     maxVolume: 160, powerOnLimit: 110, brightness: 80, displayTimeout: 5,
     autoSwitch: true,
+    outputMode: false,  // false=变压器输出, true=直通输出
     currentPage: 0,  // 0=main, 1=spectrum, 2=settings, 3=ble_remote
     volBigVisible: false,  // 大字音量浮层是否可见
-    idleTimer: null, idleCount: 30, specInterval: null, volBigTimer: null,
+    idleTimer: null, idleCount: 15, specInterval: null, volBigTimer: null,
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
     theme: 0,  // 0=翠绿, 1=赤红, 2=天蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
     settingsFocus: 0,
@@ -1169,11 +1181,16 @@
     }
   }
 
+  function manualShowPage(idx) {
+    showPage(idx);
+    resetIdleTimer();
+  }
+
   function resetIdleTimer() {
     if (state.standby) return;
     resetPageIdleTimer();
-    state.idleCount = 30;
-    document.getElementById('idleCountdown').textContent = '30';
+    state.idleCount = state.currentPage === 1 ? 10 : 15;
+    document.getElementById('idleCountdown').textContent = String(state.idleCount);
     if (state.idleTimer) clearInterval(state.idleTimer);
     state.idleTimer = setInterval(() => {
       state.idleCount--;
@@ -1181,13 +1198,14 @@
       if (state.idleCount <= 0) {
         clearInterval(state.idleTimer);
         state.idleTimer = null;
-        // 自动页面切换仅限主页和频谱页
-        if (state.currentPage === 0 && state.signalDetected[state.input]) {
+        // 自动页面切换仅限主页和频谱页；静音时冻结频谱，不自动跳转
+        if (!state.muted && state.currentPage === 0 && state.signalDetected[state.input]) {
           showPage(1);
-        } else if (state.currentPage === 1 && !state.signalDetected[state.input]) {
+        } else if (!state.muted && state.currentPage === 1 && !state.signalDetected[state.input]) {
           showPage(0);
+        } else if (state.currentPage === 0 || state.currentPage === 1) {
+          resetIdleTimer();
         }
-        // 设置页/蓝牙遥控页不自动跳转
       }
     }, 1000);
   }
@@ -1228,8 +1246,8 @@
     document.querySelectorAll('.settings-row').forEach((el, i) => {
       el.classList.toggle('focused', i === idx && active < 0);
       el.classList.toggle('adjusting', i === idx && active === idx);
-      // Read-only rows (9,10) don't get focused style
-      if (i === 9 || i === 10) {
+      // Read-only rows (11,12) don't get focused style, row 10 (output mode) is click-to-toggle
+      if (i === 11 || i === 12) {
         el.classList.toggle('focused', false);
         el.classList.toggle('adjusting', false);
         el.style.borderLeftColor = i === idx ? 'var(--accent)' : 'transparent';
@@ -1242,7 +1260,7 @@
   document.addEventListener('keydown', (e) => {
     // ── 设置页键盘处理 ──
     if (state.currentPage === 2) {
-      const N = 11;
+      const N = 13;
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
           e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
           e.key === 'Enter' || e.key === 'Escape') {
@@ -1277,7 +1295,17 @@
           return;
         }
         if (idx === 10) {
-          // 固件版本 (Row 10)：三击进入诊断页
+          // 输出模式: 单击切换浏览/调节模式
+          if (state.settingsActive < 0) {
+            state.settingsActive = idx;
+          } else {
+            state.settingsActive = -1;
+          }
+          updateSettingsFocus();
+          return;
+        }
+        if (idx === 11) {
+          // 固件版本 (Row 11)：三击进入诊断页
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -1289,7 +1317,7 @@
           state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
           return;
         }
-        if (idx > 7) return;  // 只读项(10)不进调节
+        if (idx > 10) return;  // 只读项(11,12)和输出模式(10)不进调节
         if (state.settingsActive < 0) {
           state.settingsActive = idx;
         } else {
@@ -1364,6 +1392,13 @@
             if (v < 0) v = 7; if (v > 7) v = 0;
             setTheme(v);
             break;
+          }
+          case 10: { // 输出模式（toggle 变压器/直通）
+              state.outputMode = !state.outputMode;
+              document.getElementById('valOutputMode').textContent = state.outputMode ? '直通' : '变压器';
+              document.getElementById('chkOutputMode').checked = state.outputMode;
+              updateOutputModeIcons();
+              break;
           }
         }
       }
@@ -1574,6 +1609,8 @@
     state.standby = document.getElementById('chkStandby').checked;
     if (state.standby) {
       if (state.idleTimer) clearInterval(state.idleTimer);
+      state.idleTimer = null;
+      clearPageIdleTimer();
       showPage(0);
     } else resetIdleTimer();
   }
@@ -1583,6 +1620,7 @@
     const el = document.getElementById('muteIcon');
     el.style.display = state.muted ? '' : 'none';
     updateLed(state.input);
+    resetIdleTimer();
   }
 
   function toggleBleConnected() {
@@ -1596,6 +1634,20 @@
     if (navLabel) navLabel.textContent = state.bleRemoteConnected ? '已连接' : '未连接';
     if (state.currentPage === 3) updateBlePage();
     updateBleRemoteIndicator();
+  }
+
+  function toggleOutputMode() {
+    state.outputMode = document.getElementById('chkOutputMode').checked;
+    document.getElementById('valOutputMode').textContent = state.outputMode ? '直通' : '变压器';
+    updateOutputModeIcons();
+  }
+
+  function updateOutputModeIcons() {
+    const transformerEl = document.getElementById('iconTransformer');
+    const directEl = document.getElementById('iconDirect');
+    // 选中的显示，未选的隐藏
+    if (transformerEl) transformerEl.style.display = state.outputMode ? 'none' : '';
+    if (directEl) directEl.style.display = state.outputMode ? '' : 'none';
   }
 
   // ── BLE 遥控状态栏指示（耳机电量风格） ──
@@ -1695,6 +1747,8 @@
     // WiFi 图标跟随主题
     const wifiIcon = document.getElementById('wifiIcon');
     if (wifiIcon && state.wifi) wifiIcon.style.color = hex;
+    // 输出模式图标 (直通时直通图标跟随主题)
+    updateOutputModeIcons();
     // 温度数值跟随主题
     const tempVal = document.getElementById('tempVal');
     if (tempVal) tempVal.style.color = hex;
@@ -2054,8 +2108,9 @@
     if (seconds <= 0) return;
     state.pageIdleTimer = setTimeout(() => {
       state.pageIdleTimer = null;
-      // 超时后返回主页（仅在当前页未改变时）
-      if (state.currentPage >= 2 && state.currentPage <= 4) {
+      // 超时后返回主页，并清理调节状态，匹配固件里的 interval 回页逻辑
+      if (state.currentPage === 2 || state.currentPage === 3 || state.currentPage === 4 || state.currentPage === 5) {
+        cleanupPageAdjustState();
         showPage(0);
       }
     }, seconds * 1000);
@@ -2072,6 +2127,13 @@
     const p = state.currentPage;
     if (p === 2 || p === 3 || p === 5) startPageIdleTimer(10);
     else if (p === 4) startPageIdleTimer(30);
+  }
+
+  function cleanupPageAdjustState() {
+    state.settingsActive = -1;
+    state.keymapActive = -1;
+    updateSettingsFocus();
+    updateKeymapPage();
   }
 
   // ═══════════════════════════════════════════════════
@@ -2126,7 +2188,7 @@
           }
         }
         // 固件版本三击追踪 (不受双击拦截影响)
-        if (state.currentPage === 2 && state.settingsFocus === 10) {
+        if (state.currentPage === 2 && state.settingsFocus === 11) {
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -2169,7 +2231,7 @@
           }
         }
         // 固件版本三击追踪 (不受双击拦截影响)
-        if (state.currentPage === 2 && state.settingsFocus === 10) {
+        if (state.currentPage === 2 && state.settingsFocus === 11) {
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -2228,7 +2290,7 @@
           state.volume = v;
           updateVolume();
           updateLed(state.input);
-          showVolumeBig();
+          if (page === 0) showVolumeBig();
           document.getElementById('volSlider').value = v;
           this.flashAction((diff > 0 ? '▼ ' : '▲ ') + v);
         }
@@ -2236,7 +2298,7 @@
         if (page === 1) showPage(0);
       } else if (page === 2) {
         // 设置页
-        const N = 12;
+        const N = 13;
         if (state.settingsActive < 0) {
           // 浏览模式：移动焦点 (无限循环)
           let next = state.settingsFocus + diff;
@@ -2319,6 +2381,14 @@
               if (v < 0) v = 7; if (v > 7) v = 0;
               setTheme(v);
               this.flashAction('主题: ' + THEMES[v]);
+              break;
+            }
+            case 10: {
+              state.outputMode = !state.outputMode;
+              document.getElementById('valOutputMode').textContent = state.outputMode ? '直通' : '变压器';
+              document.getElementById('chkOutputMode').checked = state.outputMode;
+              updateOutputModeIcons();
+              this.flashAction(state.outputMode ? '直通输出' : '变压器输出');
               break;
             }
           }
@@ -2409,7 +2479,18 @@
           showPage(5);
           return;
         }
-        if (idx > 8) return;  // 只读项(10,11)无反应；9=遥控器按键已处理
+        if (idx === 10) {
+          // 输出模式: 单击切换浏览/调节模式 (与输入选择/主题一致)
+          if (state.settingsActive < 0) {
+            state.settingsActive = idx;
+          } else {
+            state.settingsActive = -1;
+          }
+          updateSettingsFocus();
+          this.flashAction(state.settingsActive >= 0 ? '调节 输出模式' : '确认');
+          return;
+        }
+        if (idx > 10) return;  // 只读项(11,12)无反应
         if (state.settingsActive < 0) {
           state.settingsActive = idx;
         } else {
@@ -2463,9 +2544,8 @@
 
     doubleClick() {
       if (state.standby) return;
-      // 只在主页(0)和频谱页(1)有效
+      // 与当前固件一致: 主页/频谱页/大字音量浮层有效
       if (state.currentPage > 1) return;
-      // 任意页面双击 → 静音切换
       state.muted = !state.muted;
       document.getElementById('chkMute').checked = state.muted;
       const el = document.getElementById('muteIcon');
@@ -2478,8 +2558,8 @@
     longPress() {
       this.holdFired = true;
       const page = state.currentPage;
-      // 设置页 / 蓝牙遥控页 / 诊断页 → 返回主页面
-      if (page === 2 || page === 3 || page === 4) {
+      // 设置页 / 蓝牙遥控页 / 诊断页 / 遥控器按键页 → 返回主页面
+      if (page === 2 || page === 3 || page === 4 || page === 5) {
         this.flashAction('返回主页');
         clearPageIdleTimer();
         showPage(0);

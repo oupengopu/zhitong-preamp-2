@@ -96,6 +96,12 @@ esphome:
             id(input_select)->publish_state(names[id(current_input)]);
             id(standby_switch)->publish_state(!id(standby));
 
+            // 初始化输出继电器状态 (GPA4)
+            if (id(output_mode))
+              id(relay_out)->turn_on();
+            else
+              id(relay_out)->turn_off();
+
         - if:
             condition:
               lambda: 'return !id(standby);'
@@ -599,7 +605,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_16
     size: 16
-    glyphs: ["󰔏", "󰕽"]
+    glyphs: ["󰔏", "󰕽", "󰘬", "󰑃"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -611,7 +617,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
     size: 24
-    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼"]
+    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -798,6 +804,18 @@ switch:
     pin:
       mcp23xxx: mcp23017_hub
       number: 3
+      mode:
+        output: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+
+  # ── 输出继电器 (MCP23017 GPA4, 低=变压器输出/常闭, 高=直通输出) ──
+  - platform: gpio
+    id: relay_out
+    name: "继电器-输出"
+    pin:
+      mcp23xxx: mcp23017_hub
+      number: 4
       mode:
         output: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -1169,6 +1187,34 @@ lvgl:
             text_align: CENTER
             text_color: !lambda |-
               return id(auto_input) ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+
+        # ── 输出模式指示 (变压器 / 直通) ──
+        - label:
+            id: lbl_out_transformer
+            x: 100
+            y: 2
+            width: 20
+            height: 16
+            text: "\U000F062C"  # mdi-source-branch (变压器)
+            text_font: mdi_icons_16
+            text_align: CENTER
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
+            hidden: !lambda |-
+              return id(output_mode);
+        - label:
+            id: lbl_out_direct
+            x: 100
+            y: 2
+            width: 20
+            height: 16
+            text: "\U000F0443"  # mdi-ray-start-arrow (直通)
+            text_font: mdi_icons_16
+            text_align: CENTER
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
+            hidden: !lambda |-
+              return !id(output_mode);
 
         # ── 温度计图标 + 温度值 ──
         - label:
@@ -2991,7 +3037,40 @@ lvgl:
                   text_align: RIGHT
                   width: 50
 
-        # ── Row 10: 固件版本 (read-only) ──
+        # ── Row 10: 输出模式 ──
+        - obj:
+            id: row_output_mode
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_output_mode
+                  text: "\U000F028F"  # mdi-swap-vertical-bold
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "输出模式"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  id: val_output_mode
+                  text: !lambda |-
+                    return std::string(id(output_mode) ? "直通" : "变压器");
+                  text_font: font_cn
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 50
+
+        # ── Row 11: 固件版本 (read-only) ──
         - obj:
             id: row_firmware
             height: 90
@@ -3021,7 +3100,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
-        # ── Row 11: IP地址 (read-only) ──
+        # ── Row 12: IP地址 (read-only) ──
         - obj:
             id: row_ip
             height: 90
@@ -3212,6 +3291,12 @@ globals:
     restore_value: true
     initial_value: 'true'
 
+  # ── 输出模式: false=变压器输出(低电平/常闭), true=直通输出(高电平) ──
+  - id: output_mode
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
   # ── 设置页菜单导航 ──
   - id: settings_focus_idx
     type: int
@@ -3358,6 +3443,7 @@ script:
           id(display_timeout_min) = 5;
           id(display_brightness)  = 80;
           id(auto_input)          = true;
+          id(output_mode)         = false;
           id(theme)               = 0;
           id(input_vol_0)         = 160;
           id(input_vol_1)         = 160;
@@ -3689,6 +3775,9 @@ script:
           // 温度数值
           lv_obj_set_style_text_color(id(lbl_temp_value), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_temp_unit), accent, LV_PART_MAIN);
+          // 输出模式图标 (始终跟随主题色)
+          lv_obj_set_style_text_color(id(lbl_out_transformer), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_out_direct), accent, LV_PART_MAIN);
           // 频谱页温度
           lv_obj_set_style_text_color(id(lbl_spec_temp), accent, LV_PART_MAIN);
           // 手机 APP BLE 图标 (仅连接时跟随主题)
@@ -3714,7 +3803,7 @@ script:
             lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
             lv_obj_set_style_bg_color(id(theme_dot), colors[id(theme)], LV_PART_MAIN);
           }
-          // 设置页图标 (rows 0-7 跟随主题, 9-10 固定灰)
+          // 设置页图标 (rows 0-7 跟随主题, 10 输出模式跟随主题, 8-9 蓝牙/按键导航, 11-12 固定灰)
           lv_obj_set_style_text_color(id(icon_max_vol), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_power_on), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_balance), accent, LV_PART_MAIN);
@@ -3723,6 +3812,7 @@ script:
           lv_obj_set_style_text_color(id(icon_brightness), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_timeout), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_theme), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_output_mode), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_ble_remote), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_keymap), accent, LV_PART_MAIN);
           // 平衡指示点
@@ -4026,7 +4116,7 @@ sensor:
               // ── 更新焦点指示（左边界 + 背景） ──
               auto set_focus = [&](int i) {
                 for (int j = 0; j < settings_ui::N; j++) {
-                  if (j < 8 || j == 8 || j == 9) {
+                  if (j < 8 || j == 8 || j == 9 || j == 10) {
                     if (j == i) {
                       lv_obj_set_style_border_width(rows[j], 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(rows[j], hl_color, LV_PART_MAIN);
@@ -4035,10 +4125,10 @@ sensor:
                     } else {
                       lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(rows[j],
-                        j < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                        j < 8 || j == 10 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
                     }
                   } else {
-                    // Read-only rows (10, 11): no border, slightly darker bg
+                    // Read-only rows (11, 12): no border, slightly darker bg
                     lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                     lv_obj_set_style_bg_color(rows[j],
                       (j == i) ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
@@ -4163,6 +4253,13 @@ sensor:
                     }
                     id(theme_number)->publish_state((float)v);
                     id(apply_theme)->execute();
+                    break;
+                  }
+                  case 10: { // 输出模式（toggle 变压器/直通）
+                    bool v = !id(output_mode);
+                    id(output_mode) = v;
+                    lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
+                    if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
                     break;
                   }
                 }
@@ -5535,7 +5632,7 @@ binary_sensor:
               condition:
                 lambda: >-
                   return lv_scr_act() == id(settings_page)->obj &&
-                         id(settings_focus_idx) == 10;  // Row 10=固件版本
+                         id(settings_focus_idx) == 11;  // Row 11=固件版本
               then:
                 - lambda: |-
                     id(debug_focus_idx) = 0;
@@ -5624,7 +5721,7 @@ binary_sensor:
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
                             }
-                            if (idx == 10 || idx == 11) return;  // 只读项(固件版本/IP地址)不进调节
+                            if (idx == 11 || idx == 12) return;  // 只读项(固件版本/IP地址)不进调节
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x25374F), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
@@ -5751,6 +5848,7 @@ binary_sensor:
                                                           (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
                                                           (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
                                                           (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+                                                          (lv_obj_t*)id(row_output_mode),
                                                           (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
                                                           (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
                                                           (lv_obj_t*)id(bar_balance),
@@ -5760,7 +5858,7 @@ binary_sensor:
                                                         for (int i = 0; i < settings_ui::N; i++) {
                                                           lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
                                                           lv_obj_set_style_bg_color(rows[i],
-                                                            i < 8 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                                                            (i < 8 || i == 10) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
                                                         }
                                                         lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
                                                         lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
