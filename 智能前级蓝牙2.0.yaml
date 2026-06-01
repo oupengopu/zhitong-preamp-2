@@ -66,7 +66,7 @@ esphome:
             if (id(display_timeout_min) < 1 || id(display_timeout_min) > 60) id(display_timeout_min) = 5;
             if (id(display_brightness) < 0 || id(display_brightness) > 100) id(display_brightness) = 80;
             if (id(spectrum_auto_seconds) < 0 || id(spectrum_auto_seconds) > 60) id(spectrum_auto_seconds) = 15;
-            if (id(spectrum_theme) < 0 || id(spectrum_theme) > 3) id(spectrum_theme) = 0;
+            if (id(spectrum_theme) < 0 || id(spectrum_theme) > 4) id(spectrum_theme) = 2;
             if (id(volume_val) < 0) id(volume_val) = 0;
 
             id(current_db) = -96.0f;
@@ -1777,7 +1777,7 @@ lvgl:
             text_color: 0x5A7090
             text_align: RIGHT
 
-        # ── Retro VU theme overlay (hidden unless spectrum_theme == 2) ──
+        # ── Retro VU theme overlay (hidden unless spectrum_theme == 4) ──
         - obj:
             id: vu_panel_l
             x: 18
@@ -3406,9 +3406,9 @@ lvgl:
               - label:
                   id: val_spectrum_theme
                   text: !lambda |-
-                    const char* names[] = {"经典柱状", "LED矩阵", "复古VU", "示波线"};
+                    const char* names[] = {"经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU"};
                     int v = id(spectrum_theme);
-                    if (v < 0 || v > 3) v = 0;
+                    if (v < 0 || v > 4) v = 2;
                     return std::string(names[v]);
                   text_font: font_cn
                   text_color: 0xE2E8F0
@@ -3552,7 +3552,7 @@ globals:
   - id: spectrum_theme
     type: int
     restore_value: true
-    initial_value: '0'
+    initial_value: '2'
 
   # ── 防抖与原子锁 ──
   - id: last_saved_vol_0
@@ -3808,7 +3808,7 @@ script:
           id(auto_input)          = true;
           id(output_mode)         = false;
           id(spectrum_auto_seconds) = 15;
-          id(spectrum_theme)      = 0;
+          id(spectrum_theme)      = 2;
           id(temp_protect_forced_standby) = false;
           id(auto_switch_pending) = false;
           id(theme)               = 0;
@@ -4674,10 +4674,10 @@ sensor:
                   }
                   case 12: { // 频谱样式
                     int v = id(spectrum_theme) + step;
-                    while (v < 0) v += 4;
-                    while (v > 3) v -= 4;
+                    while (v < 0) v += 5;
+                    while (v > 4) v -= 5;
                     id(spectrum_theme) = v;
-                    const char* names[] = {"经典柱状", "LED矩阵", "复古VU", "示波线"};
+                    const char* names[] = {"经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU"};
                     lv_label_set_text(id(val_spectrum_theme), names[v]);
                     break;
                   }
@@ -5216,11 +5216,11 @@ interval:
               id(lbl_vu_power_l), id(lbl_vu_power_r), id(vu_needle_l), id(vu_needle_r)
             };
             int style = id(spectrum_theme);
-            if (style < 0 || style > 3) style = 0;
+            if (style < 0 || style > 4) style = 2;
             static int last_style = -1;
             if (style != last_style) {
               last_style = style;
-              bool retro_vu = style == 2;
+              bool retro_vu = style == 4;
               bool scope = style == 3;
               for (auto *o : vu_objs) {
                 if (retro_vu) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
@@ -5271,17 +5271,39 @@ interval:
                 int w = 27;
                 int y = 30;
                 int h = 88;
-                if (style == 1) { lx = 24 + i * 24; rx = 236 + i * 24; w = 18; y = 34; h = 78; }
+                if (style == 1) { lx = 186 - i * 24; rx = 220 + i * 24; w = 18; y = 34; h = 78; }
+                if (style == 2) { lx = 24 + i * 24; rx = 236 + i * 24; w = 18; y = 34; h = 78; }
                 if (style == 3) { lx = 16 + i * 28; rx = 228 + i * 28; w = 22; y = 72; h = 5; }
                 lv_obj_set_x(bars_L[i], lx); lv_obj_set_y(bars_L[i], y); lv_obj_set_width(bars_L[i], w); lv_obj_set_height(bars_L[i], h);
                 lv_obj_set_x(bars_R[i], rx); lv_obj_set_y(bars_R[i], y); lv_obj_set_width(bars_R[i], w); lv_obj_set_height(bars_R[i], h);
                 lv_obj_set_x(peaks_L[i], lx); lv_obj_set_width(peaks_L[i], w);
                 lv_obj_set_x(peaks_R[i], rx); lv_obj_set_width(peaks_R[i], w);
               }
+              lv_color_t accent_now = get_theme_accent(id(theme));
+              lv_color_t spec_colors[] = {
+                lv_color_hex(0x0F766E), lv_color_hex(0x10B981), lv_color_hex(0x22C55E),
+                lv_color_hex(0x34D399), lv_color_hex(0xFACC15), lv_color_hex(0xF97316),
+                lv_color_hex(0xEF4444)
+              };
+              for (int i = 0; i < 7; i++) {
+                lv_obj_set_style_radius(bars_L[i], (style == 1) ? 9 : (style == 2 ? 0 : 1), LV_PART_MAIN);
+                lv_obj_set_style_radius(bars_R[i], (style == 1) ? 9 : (style == 2 ? 0 : 1), LV_PART_MAIN);
+                if (style == 1) {
+                  lv_obj_set_style_bg_color(bars_L[i], accent_now, LV_PART_INDICATOR);
+                  lv_obj_set_style_bg_color(bars_R[i], accent_now, LV_PART_INDICATOR);
+                  lv_obj_set_style_bg_opa(bars_L[i], LV_OPA_30, LV_PART_MAIN);
+                  lv_obj_set_style_bg_opa(bars_R[i], LV_OPA_30, LV_PART_MAIN);
+                } else {
+                  lv_obj_set_style_bg_color(bars_L[i], spec_colors[i], LV_PART_INDICATOR);
+                  lv_obj_set_style_bg_color(bars_R[i], spec_colors[i], LV_PART_INDICATOR);
+                  lv_obj_set_style_bg_opa(bars_L[i], LV_OPA_COVER, LV_PART_MAIN);
+                  lv_obj_set_style_bg_opa(bars_R[i], LV_OPA_COVER, LV_PART_MAIN);
+                }
+              }
             };
 
-            const int bar_top = (style == 1) ? 34 : 30;
-            const int bar_h = (style == 1) ? 78 : 88;
+            const int bar_top = (style == 1 || style == 2) ? 34 : 30;
+            const int bar_h = (style == 1 || style == 2) ? 78 : 88;
             const int peak_h = 2;
 
             for (int i = 0; i < 7; i++) {
@@ -5324,7 +5346,7 @@ interval:
               }
               int avg_l = sum_l / 7;
               int avg_r = sum_r / 7;
-              if (style == 2) {
+              if (style == 4) {
                 static float vu_angle_l = -420.0f;
                 static float vu_angle_r = -420.0f;
                 float target_l = -420.0f + ((float)avg_l / 255.0f) * 840.0f;
