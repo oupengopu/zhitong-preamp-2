@@ -1777,6 +1777,48 @@ lvgl:
             text_color: 0x5A7090
             text_align: RIGHT
 
+        # ── Retro VU theme overlay (hidden unless spectrum_theme == 2) ──
+        - obj:
+            id: vu_panel_l
+            x: 18
+            y: 29
+            width: 184
+            height: 94
+            bg_color: 0x5BBDE8
+            bg_opa: 0%
+            border_width: 1
+            border_color: 0x0C2340
+            border_opa: 0%
+            radius: 2
+            hidden: true
+        - obj:
+            id: vu_panel_r
+            x: 226
+            y: 29
+            width: 184
+            height: 94
+            bg_color: 0x5BBDE8
+            bg_opa: 0%
+            border_width: 1
+            border_color: 0x0C2340
+            border_opa: 0%
+            radius: 2
+            hidden: true
+        - label: { id: lbl_vu_l, x: 26, y: 34, width: 18, height: 12, text: "L", text_font: montserrat_12, text_color: 0x144A78, hidden: true }
+        - label: { id: lbl_vu_r, x: 234, y: 34, width: 18, height: 12, text: "R", text_font: montserrat_12, text_color: 0x144A78, hidden: true }
+        - label: { id: lbl_vu_watts_l, x: 77, y: 48, width: 66, height: 10, text: "WATTS", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_watts_r, x: 285, y: 48, width: 66, height: 10, text: "WATTS", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_scale_top_l, x: 42, y: 58, width: 138, height: 14, text: "4.5   45   45   45   45   450", text_font: montserrat_12, text_align: CENTER, text_color: 0x155A91, hidden: true }
+        - label: { id: lbl_vu_scale_top_r, x: 250, y: 58, width: 138, height: 14, text: "4.5   45   45   45   45   450", text_font: montserrat_12, text_align: CENTER, text_color: 0x155A91, hidden: true }
+        - label: { id: lbl_vu_scale_db_l, x: 42, y: 72, width: 138, height: 10, text: "-50   -40   -30   -20   -10   0", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_scale_db_r, x: 250, y: 72, width: 138, height: 10, text: "-50   -40   -30   -20   -10   0", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_db_l, x: 77, y: 82, width: 66, height: 10, text: "DECIBELS", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_db_r, x: 285, y: 82, width: 66, height: 10, text: "DECIBELS", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_power_l, x: 58, y: 96, width: 104, height: 14, text: "POWER OUTPUT", text_font: montserrat_12, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - label: { id: lbl_vu_power_r, x: 266, y: 96, width: 104, height: 14, text: "POWER OUTPUT", text_font: montserrat_12, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - obj: { id: vu_needle_l, x: 108, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r, x: 316, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+
         # ═══ 左声道 7 段频谱 (w=27, gap=2) ═══
         - bar:
             id: spec_L_0
@@ -5163,31 +5205,113 @@ interval:
               id(peak_R_0), id(peak_R_1), id(peak_R_2),
               id(peak_R_3), id(peak_R_4), id(peak_R_5), id(peak_R_6)
             };
+            lv_obj_t* freqs[] = {
+              id(lbl_freq_0), id(lbl_freq_1), id(lbl_freq_2), id(lbl_freq_3),
+              id(lbl_freq_4), id(lbl_freq_5), id(lbl_freq_6)
+            };
+            lv_obj_t* vu_objs[] = {
+              id(vu_panel_l), id(vu_panel_r), id(lbl_vu_l), id(lbl_vu_r),
+              id(lbl_vu_watts_l), id(lbl_vu_watts_r), id(lbl_vu_scale_top_l), id(lbl_vu_scale_top_r),
+              id(lbl_vu_scale_db_l), id(lbl_vu_scale_db_r), id(lbl_vu_db_l), id(lbl_vu_db_r),
+              id(lbl_vu_power_l), id(lbl_vu_power_r), id(vu_needle_l), id(vu_needle_r)
+            };
+            int style = id(spectrum_theme);
+            if (style < 0 || style > 3) style = 0;
+            static int last_style = -1;
+            if (style != last_style) {
+              last_style = style;
+              bool retro_vu = style == 2;
+              bool scope = style == 3;
+              for (auto *o : vu_objs) {
+                if (retro_vu) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+                else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+              }
+              for (int i = 0; i < 7; i++) {
+                if (retro_vu) {
+                  lv_obj_add_flag(bars_L[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(bars_R[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(peaks_L[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(peaks_R[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_add_flag(freqs[i], LV_OBJ_FLAG_HIDDEN);
+                } else {
+                  lv_obj_remove_flag(bars_L[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_remove_flag(bars_R[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_remove_flag(freqs[i], LV_OBJ_FLAG_HIDDEN);
+                  if (scope) {
+                    lv_obj_add_flag(peaks_L[i], LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_add_flag(peaks_R[i], LV_OBJ_FLAG_HIDDEN);
+                  } else {
+                    lv_obj_remove_flag(peaks_L[i], LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_remove_flag(peaks_R[i], LV_OBJ_FLAG_HIDDEN);
+                  }
+                }
+              }
+              if (retro_vu) {
+                lv_obj_add_flag(id(vu_meter_l), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(vu_meter_r), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_style_bg_color(id(spectrum_page)->obj, lv_color_hex(0x03070C), LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(id(vu_panel_l), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(id(vu_panel_r), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_border_opa(id(vu_panel_l), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_border_opa(id(vu_panel_r), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(id(vu_needle_l), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(id(vu_needle_r), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_transform_pivot_x(id(vu_needle_l), 0, LV_PART_MAIN);
+                lv_obj_set_style_transform_pivot_y(id(vu_needle_l), 1, LV_PART_MAIN);
+                lv_obj_set_style_transform_pivot_x(id(vu_needle_r), 0, LV_PART_MAIN);
+                lv_obj_set_style_transform_pivot_y(id(vu_needle_r), 1, LV_PART_MAIN);
+              } else {
+                lv_obj_remove_flag(id(vu_meter_l), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(id(vu_meter_r), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_style_bg_color(id(spectrum_page)->obj, lv_color_hex(0x111827), LV_PART_MAIN);
+              }
+              for (int i = 0; i < 7; i++) {
+                int lx = 8 + i * 29;
+                int rx = 217 + i * 29;
+                int w = 27;
+                int y = 30;
+                int h = 88;
+                if (style == 1) { lx = 24 + i * 24; rx = 236 + i * 24; w = 18; y = 34; h = 78; }
+                if (style == 3) { lx = 16 + i * 28; rx = 228 + i * 28; w = 22; y = 72; h = 5; }
+                lv_obj_set_x(bars_L[i], lx); lv_obj_set_y(bars_L[i], y); lv_obj_set_width(bars_L[i], w); lv_obj_set_height(bars_L[i], h);
+                lv_obj_set_x(bars_R[i], rx); lv_obj_set_y(bars_R[i], y); lv_obj_set_width(bars_R[i], w); lv_obj_set_height(bars_R[i], h);
+                lv_obj_set_x(peaks_L[i], lx); lv_obj_set_width(peaks_L[i], w);
+                lv_obj_set_x(peaks_R[i], rx); lv_obj_set_width(peaks_R[i], w);
+              }
+            };
 
-            const int bar_top = 30;
-            const int bar_h = 88;
+            const int bar_top = (style == 1) ? 34 : 30;
+            const int bar_h = (style == 1) ? 78 : 88;
             const int peak_h = 2;
 
             for (int i = 0; i < 7; i++) {
               // 左声道
               int l_val = frame.left[i];
-              if (lv_bar_get_value(bars_L[i]) != l_val) {
+              if (style == 3) {
+                int ly = 102 - l_val * 58 / 255;
+                lv_obj_set_y(bars_L[i], ly);
+                lv_bar_set_value(bars_L[i], 255, LV_ANIM_OFF);
+              } else if (lv_bar_get_value(bars_L[i]) != l_val) {
                 lv_bar_set_value(bars_L[i], l_val, LV_ANIM_OFF);
               }
               int l_pk = frame.peak_l[i];
               int l_y = (l_pk < 1) ? (bar_top + bar_h - peak_h)
                                    : (bar_top + bar_h - l_pk * bar_h / 255 - peak_h);
-              if (peaks_L[i]) lv_obj_set_y(peaks_L[i], l_y);
+              if (peaks_L[i] && style != 3) lv_obj_set_y(peaks_L[i], l_y);
 
               // 右声道
               int r_val = frame.right[i];
-              if (lv_bar_get_value(bars_R[i]) != r_val) {
+              if (style == 3) {
+                int ry = 102 - r_val * 58 / 255;
+                lv_obj_set_y(bars_R[i], ry);
+                lv_bar_set_value(bars_R[i], 255, LV_ANIM_OFF);
+              } else if (lv_bar_get_value(bars_R[i]) != r_val) {
                 lv_bar_set_value(bars_R[i], r_val, LV_ANIM_OFF);
               }
               int r_pk = frame.peak_r[i];
               int r_y = (r_pk < 1) ? (bar_top + bar_h - peak_h)
                                    : (bar_top + bar_h - r_pk * bar_h / 255 - peak_h);
-              if (peaks_R[i]) lv_obj_set_y(peaks_R[i], r_y);
+              if (peaks_R[i] && style != 3) lv_obj_set_y(peaks_R[i], r_y);
             }
 
             // ═══ VU 电平条 (L/R 声道独立) ═══
@@ -5200,6 +5324,16 @@ interval:
               }
               int avg_l = sum_l / 7;
               int avg_r = sum_r / 7;
+              if (style == 2) {
+                static float vu_angle_l = -420.0f;
+                static float vu_angle_r = -420.0f;
+                float target_l = -420.0f + ((float)avg_l / 255.0f) * 840.0f;
+                float target_r = -420.0f + ((float)avg_r / 255.0f) * 840.0f;
+                vu_angle_l += (target_l - vu_angle_l) * 0.18f;
+                vu_angle_r += (target_r - vu_angle_r) * 0.18f;
+                lv_obj_set_style_transform_angle(id(vu_needle_l), (int)vu_angle_l, LV_PART_MAIN);
+                lv_obj_set_style_transform_angle(id(vu_needle_r), (int)vu_angle_r, LV_PART_MAIN);
+              }
               if (avg_l != last_vu_l) {
                 last_vu_l = avg_l;
                 lv_bar_set_value(id(vu_meter_l), avg_l, LV_ANIM_OFF);
