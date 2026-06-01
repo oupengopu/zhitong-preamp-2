@@ -65,6 +65,8 @@ esphome:
             if (id(balance) < -20 || id(balance) > 20) id(balance) = 0;
             if (id(display_timeout_min) < 1 || id(display_timeout_min) > 60) id(display_timeout_min) = 5;
             if (id(display_brightness) < 0 || id(display_brightness) > 100) id(display_brightness) = 80;
+            if (id(spectrum_auto_seconds) < 0 || id(spectrum_auto_seconds) > 60) id(spectrum_auto_seconds) = 15;
+            if (id(spectrum_theme) < 0 || id(spectrum_theme) > 3) id(spectrum_theme) = 0;
             if (id(volume_val) < 0) id(volume_val) = 0;
 
             id(current_db) = -96.0f;
@@ -3299,7 +3301,79 @@ lvgl:
                   text_align: RIGHT
                   width: 50
 
-        # ── Row 11: 固件版本 (read-only) ──
+        # ── Row 11: 频谱跳转 ──
+        - obj:
+            id: row_spectrum_auto
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_spectrum_auto
+                  text: "\U000F057D"  # mdi-swap-horizontal
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "频谱跳转"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  id: val_spectrum_auto
+                  text: !lambda |-
+                    if (id(spectrum_auto_seconds) <= 0) return std::string("禁用");
+                    char buf[12];
+                    snprintf(buf, sizeof(buf), "%d秒", id(spectrum_auto_seconds));
+                    return std::string(buf);
+                  text_font: font_cn
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 70
+
+        # ── Row 12: 频谱样式 ──
+        - obj:
+            id: row_spectrum_theme
+            height: 90
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x162032
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  id: icon_spectrum_theme
+                  text: "\U000F066A"  # mdi-tune-vertical
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 30
+              - label:
+                  text: "频谱样式"
+                  text_font: font_cn
+                  text_color: color_gray
+                  width: 80
+              - label:
+                  id: val_spectrum_theme
+                  text: !lambda |-
+                    const char* names[] = {"经典柱状", "LED矩阵", "复古VU", "示波线"};
+                    int v = id(spectrum_theme);
+                    if (v < 0 || v > 3) v = 0;
+                    return std::string(names[v]);
+                  text_font: font_cn
+                  text_color: 0xE2E8F0
+                  text_align: RIGHT
+                  width: 90
+
+        # ── Row 13: 固件版本 (read-only) ──
         - obj:
             id: row_firmware
             height: 90
@@ -3330,7 +3404,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
-        # ── Row 12: IP地址 (read-only) ──
+        # ── Row 14: IP地址 (read-only) ──
         - obj:
             id: row_ip
             height: 90
@@ -3426,6 +3500,14 @@ globals:
     restore_value: true
     initial_value: '160'
   - id: theme
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: spectrum_auto_seconds
+    type: int
+    restore_value: true
+    initial_value: '15'
+  - id: spectrum_theme
     type: int
     restore_value: true
     initial_value: '0'
@@ -3683,6 +3765,8 @@ script:
           id(display_brightness)  = 80;
           id(auto_input)          = true;
           id(output_mode)         = false;
+          id(spectrum_auto_seconds) = 15;
+          id(spectrum_theme)      = 0;
           id(temp_protect_forced_standby) = false;
           id(auto_switch_pending) = false;
           id(theme)               = 0;
@@ -4064,6 +4148,8 @@ script:
           lv_obj_set_style_text_color(id(icon_timeout), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_theme), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_output_mode), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_spectrum_auto), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_spectrum_theme), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_ble_remote), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_keymap), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_firmware), accent, LV_PART_MAIN);
@@ -4373,7 +4459,7 @@ sensor:
               // ── 更新焦点指示（左边界 + 背景） ──
               auto set_focus = [&](int i) {
                 for (int j = 0; j < settings_ui::N; j++) {
-                  if (j < 8 || j == 8 || j == 9 || j == 10) {
+                  if (j <= 12) {
                     if (j == i) {
                       lv_obj_set_style_border_width(rows[j], 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(rows[j], hl_color, LV_PART_MAIN);
@@ -4382,10 +4468,10 @@ sensor:
                     } else {
                       lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(rows[j],
-                        j < 8 || j == 10 ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                        (j < 8 || j == 10 || j == 11 || j == 12) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
                     }
                   } else {
-                    // Read-only rows (11, 12): no border, slightly darker bg
+                    // Read-only rows (13, 14): no border, slightly darker bg
                     lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                     lv_obj_set_style_bg_color(rows[j],
                       (j == i) ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
@@ -4525,6 +4611,32 @@ sensor:
                       lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
                     }
                     if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
+                    break;
+                  }
+                  case 11: { // 频谱跳转：0=禁用，5~60秒
+                    int v = id(spectrum_auto_seconds);
+                    if (v <= 0 && step > 0) v = 5;
+                    else if (v <= 5 && step < 0) v = 0;
+                    else v += step * 5;
+                    if (v < 0) v = 0;
+                    if (v > 60) v = 60;
+                    id(spectrum_auto_seconds) = v;
+                    if (v <= 0) {
+                      lv_label_set_text(id(val_spectrum_auto), "禁用");
+                    } else {
+                      char buf[12];
+                      snprintf(buf, sizeof(buf), "%d秒", v);
+                      lv_label_set_text(id(val_spectrum_auto), buf);
+                    }
+                    break;
+                  }
+                  case 12: { // 频谱样式
+                    int v = id(spectrum_theme) + step;
+                    while (v < 0) v += 4;
+                    while (v > 3) v -= 4;
+                    id(spectrum_theme) = v;
+                    const char* names[] = {"经典柱状", "LED矩阵", "复古VU", "示波线"};
+                    lv_label_set_text(id(val_spectrum_theme), names[v]);
                     break;
                   }
                 }
@@ -5098,6 +5210,30 @@ interval:
               }
             }
 
+            // Main page mini spectrum: real MSGEQ7 motion inside the floating volume panel.
+            {
+              lv_obj_t* mini_specs[] = {
+                id(mini_spec_0), id(mini_spec_1), id(mini_spec_2), id(mini_spec_3),
+                id(mini_spec_4), id(mini_spec_5), id(mini_spec_6), id(mini_spec_7),
+                id(mini_spec_8), id(mini_spec_9), id(mini_spec_10), id(mini_spec_11)
+              };
+              static int last_h[12] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+              const int base_y = 96;
+              for (int i = 0; i < 12; i++) {
+                int band = (i * 7) / 12;
+                int next_band = band < 6 ? band + 1 : band;
+                int raw = (frame.combined[band] * 2 + frame.combined[next_band]) / 3;
+                int h = 4 + raw * 12 / 255;
+                if (h < 4) h = 4;
+                if (h > 16) h = 16;
+                if (h != last_h[i]) {
+                  last_h[i] = h;
+                  lv_obj_set_height(mini_specs[i], h);
+                  lv_obj_set_y(mini_specs[i], base_y - h);
+                }
+              }
+            }
+
             // ═══ 信号强度 (供 LED 呼吸用, 取 L/R 较大值) ═══
             {
               int sum_l = 0, sum_r = 0;
@@ -5206,9 +5342,11 @@ interval:
             if (!id(standby) && !id(soft_mute) && id(system_ready)) {
               lv_obj_t* active = lv_scr_act();
 
-              // 1. 主页面 → 频谱页：信号存在且稳定 ≥15 秒
+              // 1. 主页面 → 频谱页：信号存在且稳定达到用户设置时间（0=禁用）
               if (active == id(main_page)->obj && has_signal
-                  && signal_stable_ms > 0 && (now - signal_stable_ms >= 15000)) {
+                  && id(spectrum_auto_seconds) > 0
+                  && signal_stable_ms > 0
+                  && (now - signal_stable_ms >= (uint32_t)id(spectrum_auto_seconds) * 1000UL)) {
                 lv_scr_load_anim(id(spectrum_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
               }
               // 2. 频谱页 → 主页面：信号消失 ≥10 秒
@@ -5287,6 +5425,28 @@ interval:
 
           // ═══ 主题强调色 ═══
           lv_color_t _accent = get_theme_accent(id(theme));
+
+          // Subtle hardware-safe visual effects: only opacity changes, no extra objects.
+          {
+            uint32_t now_fx = millis();
+            uint32_t v_dt = now_fx - id(last_v_change_ms);
+            uint8_t panel_opa = (v_dt < 1000) ? (uint8_t)(16 - (v_dt * 12 / 1000)) : 4;
+            static uint8_t last_panel_opa = 255;
+            if (panel_opa != last_panel_opa) {
+              last_panel_opa = panel_opa;
+              lv_obj_set_style_border_opa(id(main_volume_panel), panel_opa, LV_PART_MAIN);
+            }
+
+            int phase = (now_fx / 120) % 12;
+            uint8_t pulse = (uint8_t)(150 + (phase <= 6 ? phase : 12 - phase) * 14);
+            static uint8_t last_pulse = 0;
+            if (pulse != last_pulse) {
+              last_pulse = pulse;
+              if (wifi::global_wifi_component->is_connected()) lv_obj_set_style_opa(id(lbl_wifi), pulse, LV_PART_MAIN);
+              if (id(ble_connected)) lv_obj_set_style_opa(id(lbl_ble), pulse, LV_PART_MAIN);
+              if (id(ble_remote_connected)) lv_obj_set_style_opa(id(lbl_ble_remote_indicator), pulse, LV_PART_MAIN);
+            }
+          }
 
           // ═══ 平衡条更新 ═══
           {
@@ -5930,7 +6090,7 @@ binary_sensor:
               condition:
                 lambda: >-
                   return lv_scr_act() == id(settings_page)->obj &&
-                         id(settings_focus_idx) == 11;  // Row 11=固件版本
+                         id(settings_focus_idx) == 13;  // Row 13=固件版本
               then:
                 - lambda: |-
                     id(debug_focus_idx) = 0;
@@ -6019,7 +6179,7 @@ binary_sensor:
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
                             }
-                            if (idx == 11 || idx == 12) return;  // 只读项(固件版本/IP地址)不进调节
+                            if (idx == 13 || idx == 14) return;  // 只读项(固件版本/IP地址)不进调节
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x25374F), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
@@ -6147,6 +6307,7 @@ binary_sensor:
                                                           (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
                                                           (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
                                                           (lv_obj_t*)id(row_output_mode),
+                                                          (lv_obj_t*)id(row_spectrum_auto), (lv_obj_t*)id(row_spectrum_theme),
                                                           (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
                                                           (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
                                                           (lv_obj_t*)id(bar_balance),
@@ -6156,7 +6317,7 @@ binary_sensor:
                                                         for (int i = 0; i < settings_ui::N; i++) {
                                                           lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
                                                           lv_obj_set_style_bg_color(rows[i],
-                                                            (i < 8 || i == 10) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                                                            (i < 8 || i == 10 || i == 11 || i == 12) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
                                                         }
                                                         lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
                                                         lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
