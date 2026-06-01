@@ -1094,8 +1094,205 @@ lvgl:
 
     # ── 主页面：SquareLine 绿色风格 428×142 ──
     - id: main_page
-      bg_color: 0x111827
+      bg_color: 0x0A1220
       widgets:
+        # Modern fixed-coordinate instrument layout (428x142 TFT)
+        - label:
+            id: lbl_brand_title
+            x: 24
+            y: 12
+            width: 100
+            height: 12
+            text: "ZHITONG AUDIO"
+            text_font: montserrat_12
+            text_align: LEFT
+            text_color: 0xF8FAFC
+        - label:
+            id: lbl_brand_sub
+            x: 24
+            y: 24
+            width: 120
+            height: 9
+            text: "REFERENCE PREAMP 2.0"
+            text_font: montserrat_8
+            text_align: LEFT
+            text_color: 0x64748B
+        - obj:
+            id: main_status_pill
+            x: 302
+            y: 11
+            width: 104
+            height: 20
+            bg_color: 0x060C16
+            bg_opa: 45%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 35%
+            radius: 0
+        - obj:
+            id: src_card_0
+            x: 24
+            y: 36
+            width: 41
+            height: 41
+            bg_color: 0x08121E
+            bg_opa: 55%
+            border_width: 1
+            border_color: 0x10B981
+            border_opa: 55%
+            radius: 0
+        - obj:
+            id: src_card_1
+            x: 70
+            y: 36
+            width: 41
+            height: 41
+            bg_color: 0x08121E
+            bg_opa: 38%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 28%
+            radius: 0
+        - obj:
+            id: src_card_2
+            x: 24
+            y: 81
+            width: 41
+            height: 41
+            bg_color: 0x08121E
+            bg_opa: 38%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 28%
+            radius: 0
+        - obj:
+            id: src_card_3
+            x: 70
+            y: 81
+            width: 41
+            height: 41
+            bg_color: 0x08121E
+            bg_opa: 38%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 28%
+            radius: 0
+        - obj:
+            id: main_volume_panel
+            x: 123
+            y: 38
+            width: 182
+            height: 79
+            bg_color: 0x0B1220
+            bg_opa: 62%
+            border_width: 1
+            border_color: 0x94A3B8
+            border_opa: 4%
+            radius: 0
+        - obj:
+            id: main_volume_highlight
+            x: 137
+            y: 38
+            width: 154
+            height: 1
+            bg_color: 0xFFFFFF
+            bg_opa: 8%
+        - label:
+            id: lbl_main_input_prefix
+            x: 137
+            y: 50
+            width: 26
+            height: 9
+            text: "INPUT"
+            text_font: montserrat_8
+            text_align: LEFT
+            text_color: 0x64748B
+        - label:
+            id: lbl_main_active_input
+            x: 164
+            y: 50
+            width: 26
+            height: 9
+            text: "CD"
+            text_font: montserrat_8
+            text_align: LEFT
+            text_color: 0x10B981
+        - label:
+            id: lbl_main_volume_driver
+            x: 214
+            y: 50
+            width: 78
+            height: 9
+            text: "PGA2311 DIGITAL VOLUME"
+            text_font: montserrat_8
+            text_align: RIGHT
+            text_color: 0x64748B
+        - obj:
+            id: main_output_tile
+            x: 318
+            y: 38
+            width: 86
+            height: 40
+            bg_color: 0x060C16
+            bg_opa: 42%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 24%
+            radius: 0
+        - obj:
+            id: main_auto_tile
+            x: 318
+            y: 78
+            width: 86
+            height: 39
+            bg_color: 0x060C16
+            bg_opa: 42%
+            border_width: 1
+            border_color: 0x263244
+            border_opa: 24%
+            radius: 0
+        - label:
+            id: lbl_main_output_caption
+            x: 326
+            y: 47
+            width: 70
+            height: 9
+            text: "OUTPUT"
+            text_font: montserrat_8
+            text_align: LEFT
+            text_color: 0x64748B
+        - label:
+            id: lbl_main_output_value
+            x: 326
+            y: 61
+            width: 70
+            height: 16
+            text: !lambda |-
+              return std::string(id(output_mode) ? "DIRECT" : "TRANSFORMER");
+            text_font: montserrat_16
+            text_align: LEFT
+            text_color: 0x10B981
+        - label:
+            id: lbl_main_auto_caption
+            x: 326
+            y: 87
+            width: 70
+            height: 9
+            text: "INPUT MODE"
+            text_font: montserrat_8
+            text_align: LEFT
+            text_color: 0x64748B
+        - label:
+            id: lbl_main_auto_value
+            x: 326
+            y: 101
+            width: 70
+            height: 16
+            text: !lambda |-
+              return std::string(id(auto_input) ? "AUTO" : "MANUAL");
+            text_font: montserrat_16
+            text_align: LEFT
+            text_color: 0x10B981
         # ════════════════════════════════════════════
         # 顶栏 — MDI 输入源图标 + LED + 温度 + WiFi/BLE
         # ════════════════════════════════════════════
@@ -1103,10 +1300,10 @@ lvgl:
         # ── MDI 输入源图标 (4个) ──
         - label:
             id: lbl_src_radio
-            x: 5
-            y: 0
-            width: 22
-            height: 29
+            x: 29
+            y: 47
+            width: 17
+            height: 18
             text: "\U000F0960"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1114,10 +1311,10 @@ lvgl:
               return id(current_input) == 0 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_gamepad
-            x: 28
-            y: 0
-            width: 22
-            height: 29
+            x: 75
+            y: 47
+            width: 17
+            height: 18
             text: "\U000F061A"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1125,10 +1322,10 @@ lvgl:
               return id(current_input) == 1 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_laptop
-            x: 51
-            y: 0
-            width: 22
-            height: 29
+            x: 29
+            y: 92
+            width: 17
+            height: 18
             text: "\U000F0322"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1136,50 +1333,58 @@ lvgl:
               return id(current_input) == 2 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_music
-            x: 74
-            y: 0
-            width: 22
-            height: 29
+            x: 75
+            y: 92
+            width: 17
+            height: 18
             text: "\U000F186C"
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
               return id(current_input) == 3 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+        - label: { id: lbl_src_name_0, x: 48, y: 48, width: 16, height: 10, text: "CD", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_1, x: 94, y: 48, width: 16, height: 10, text: "DAC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_2, x: 48, y: 93, width: 16, height: 10, text: "PC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_3, x: 94, y: 93, width: 16, height: 10, text: "AUX", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_state_0, x: 48, y: 62, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: 0x10B981 }
+        - label: { id: lbl_src_state_1, x: 94, y: 62, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
+        - label: { id: lbl_src_state_2, x: 48, y: 107, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
+        - label: { id: lbl_src_state_3, x: 94, y: 107, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: 0x10B981 }
 
         # ── 4颗 LED 指示灯 (输入源) ──
         - led:
             id: led_src_0
-            x: 12
-            y: 18
-            width: 8
-            height: 8
+            x: 31
+            y: 68
+            width: 12
+            height: 3
             color: 0x10B981
             bg_color: 0x444444
             radius: 9999
         - led:
             id: led_src_1
-            x: 35
-            y: 18
-            width: 8
-            height: 8
+            x: 77
+            y: 68
+            width: 12
+            height: 3
             color: 0x10B981
             bg_color: 0x444444
             radius: 9999
         - led:
             id: led_src_2
-            x: 58
-            y: 18
-            width: 8
-            height: 8
+            x: 31
+            y: 113
+            width: 12
+            height: 3
             color: 0x10B981
             bg_color: 0x444444
             radius: 9999
         - led:
             id: led_src_3
-            x: 81
-            y: 18
-            width: 8
-            height: 8
+            x: 77
+            y: 113
+            width: 12
+            height: 3
             color: 0x10B981
             bg_color: 0x444444
             radius: 9999
@@ -1196,6 +1401,7 @@ lvgl:
             text_align: CENTER
             text_color: !lambda |-
               return id(auto_input) ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+            hidden: true
 
         # ── 输出模式指示 (变压器 / 直通) ──
         - label:
@@ -1210,7 +1416,7 @@ lvgl:
             text_color: !lambda |-
               return get_theme_accent(id(theme));
             hidden: !lambda |-
-              return id(output_mode);
+              return true;
         - label:
             id: lbl_out_direct
             x: 100
@@ -1223,24 +1429,24 @@ lvgl:
             text_color: !lambda |-
               return get_theme_accent(id(theme));
             hidden: !lambda |-
-              return !id(output_mode);
+              return true;
 
         # ── 温度计图标 + 温度值 ──
         - label:
             id: lbl_thermo_icon
-            x: 270
-            y: 2
-            width: 20
-            height: 16
+            x: 310
+            y: 13
+            width: 14
+            height: 14
             text: "\U000F050F"
             text_font: mdi_icons_16
             text_align: CENTER
             text_color: 0x10B981
         - label:
             id: lbl_temp_value
-            x: 288
-            y: 2
-            width: 36
+            x: 326
+            y: 14
+            width: 28
             height: 14
             text: !lambda |-
               static char buf[8];
@@ -1254,9 +1460,9 @@ lvgl:
             text_font: montserrat_12
         - label:
             id: lbl_temp_unit
-            x: 322
-            y: 4
-            width: 18
+            x: 352
+            y: 16
+            width: 14
             height: 10
             text: "°C"
             text_color: 0x8E9FB8
@@ -1266,9 +1472,9 @@ lvgl:
         # ── 静音指示 ──
         - label:
             id: lbl_mute
-            x: 340
-            y: 2
-            width: 28
+            x: 366
+            y: 14
+            width: 22
             height: 14
             text: !lambda |-
               return std::string(id(soft_mute) ? "静音" : "");
@@ -1279,10 +1485,10 @@ lvgl:
         # ── BLE 图标 ──
         - label:
             id: lbl_ble
-            x: 376
-            y: 0
-            width: 28
-            height: 27
+            x: 366
+            y: 11
+            width: 18
+            height: 18
             text: "\U000F00AF"
             text_font: mdi_icons_27
             text_align: CENTER
@@ -1292,8 +1498,8 @@ lvgl:
         # ── BLE Remote 指示（蓝牙遥控器连接 + 耳机电量条） ──
         - label:
             id: lbl_ble_remote_indicator
-            x: 376
-            y: 13
+            x: 382
+            y: 19
             width: 12
             height: 14
             text: "\U000F00AF"
@@ -1314,8 +1520,8 @@ lvgl:
         # ── BLE Remote 电池条（耳机电量风格） ──
         - obj:
             id: ble_remote_batt_outline
-            x: 390
-            y: 16
+            x: 396
+            y: 22
             width: 14
             height: 7
             bg_opa: 0
@@ -1370,10 +1576,10 @@ lvgl:
         # ── WiFi 图标 ──
         - label:
             id: lbl_wifi
-            x: 404
-            y: 0
-            width: 24
-            height: 27
+            x: 390
+            y: 11
+            width: 18
+            height: 18
             text: "\U000F05A9"
             text_font: mdi_icons_24
             text_align: CENTER
@@ -1395,22 +1601,22 @@ lvgl:
         # ════════════════════════════════════════════
         - obj:
             id: separator
-            x: 0
-            y: 31
-            width: 428
+            x: 24
+            y: 123
+            width: 380
             height: 1
             bg_color: 0x10B981
-            bg_opa: 50%
+            bg_opa: 25%
 
         # ════════════════════════════════════════════
         # 音量大数字 dB 值 (Montserrat 30 绿色)
         # ════════════════════════════════════════════
         - label:
             id: lbl_vol_db
-            x: 80
-            y: 20
-            width: 268
-            height: 28
+            x: 123
+            y: 61
+            width: 182
+            height: 34
             text: !lambda |-
               float reg_f = (float)id(volume_val);
               float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
@@ -1420,33 +1626,47 @@ lvgl:
             text_color: 0x10B981
             bg_opa: 0%
             text_align: CENTER
-            text_font: montserrat_27
+            text_font: montserrat_30
+
+        # Small decorative spectrum inside the floating volume panel
+        - obj: { id: mini_spec_0, x: 137, y: 88, width: 8, height: 8, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_1, x: 148, y: 85, width: 8, height: 11, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_2, x: 159, y: 84, width: 8, height: 12, bg_color: 0x10B981, bg_opa: 55%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_3, x: 170, y: 87, width: 8, height: 9, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_4, x: 181, y: 89, width: 8, height: 7, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_5, x: 192, y: 86, width: 8, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_6, x: 203, y: 82, width: 8, height: 14, bg_color: 0x10B981, bg_opa: 70%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_7, x: 214, y: 83, width: 8, height: 13, bg_color: 0x10B981, bg_opa: 58%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_8, x: 225, y: 87, width: 8, height: 9, bg_color: 0x10B981, bg_opa: 40%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_9, x: 236, y: 90, width: 8, height: 6, bg_color: 0x10B981, bg_opa: 32%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_10, x: 247, y: 86, width: 8, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_11, x: 258, y: 84, width: 8, height: 12, bg_color: 0x10B981, bg_opa: 62%, border_width: 0, radius: 1 }
 
         # ════════════════════════════════════════════
         # 水平音量条 (绿色, 满宽)
         # ════════════════════════════════════════════
         - bar:
             id: bar_volume
-            x: 5
-            y: 50
-            width: 418
-            height: 14
+            x: 142
+            y: 96
+            width: 125
+            height: 5
             value: !lambda return (float)id(volume_val) * 100.0f / (float)id(max_volume);
             min_value: 0
             max_value: 100
             indicator:
               bg_color: 0x10B981
-              radius: 7
-            bg_color: 0xE9E8E8
-            bg_opa: 42%
-            radius: 7
+              radius: 1
+            bg_color: 0x334155
+            bg_opa: 60%
+            radius: 1
 
         # ═══ 左右声道平衡指示 ═══
         # 平衡条: L ─────●────── R
         - label:
             id: lbl_bal_L
-            x: 56
-            y: 112
+            x: 38
+            y: 126
             width: 12
             height: 14
             text: "L"
@@ -1455,8 +1675,8 @@ lvgl:
             text_color: 0x8E9FB8
         - label:
             id: lbl_bal_R
-            x: 360
-            y: 112
+            x: 386
+            y: 126
             width: 12
             height: 14
             text: "R"
@@ -1465,26 +1685,26 @@ lvgl:
             text_color: 0x8E9FB8
         - obj:
             id: balance_track
-            x: 70
-            y: 116
-            width: 288
-            height: 4
+            x: 54
+            y: 130
+            width: 319
+            height: 2
             bg_color: 0x444444
             bg_opa: 100%
         - obj:
             id: balance_dot
             x: 210
-            y: 111
-            width: 8
-            height: 14
+            y: 126
+            width: 7
+            height: 7
             bg_color: 0x10B981
             bg_opa: cover
             radius: 3
         - label:
             id: lbl_balance_val
-            x: 70
-            y: 124
-            width: 288
+            x: 54
+            y: 134
+            width: 319
             height: 12
             text: !lambda |-
               int b = id(balance);
@@ -1977,7 +2197,7 @@ lvgl:
 
     # ── 蓝牙遥控设置页 ──
     - id: ble_remote_page
-      bg_color: 0x111827
+      bg_color: 0x0A1220
       layout:
         type: flex
         flex_flow: column
@@ -2174,7 +2394,7 @@ lvgl:
     # 8 个源按键 + 返回设置
     # 交互: 旋转选行 → 单击进入调节 → 旋转循环映射 → 单击确认
     - id: remote_keys_page
-      bg_color: 0x111827
+      bg_color: 0x0A1220
       layout:
         type: flex
         flex_flow: column
@@ -2477,7 +2697,7 @@ lvgl:
 
     # ── 诊断信息页 (内存监控) ──
     - id: debug_page
-      bg_color: 0x111827
+      bg_color: 0x0A1220
       layout:
         type: flex
         flex_flow: column
@@ -2641,7 +2861,7 @@ lvgl:
 
     # ── 设置页面 (单列列表，选中→进入→调节→确认) ──
     - id: settings_page
-      bg_color: 0x111827
+      bg_color: 0x0A1220
       layout:
         type: flex
         flex_flow: column
@@ -2978,7 +3198,7 @@ lvgl:
                   text_font: font_cn
                   text_color: 0xE2E8F0
                   text_align: RIGHT
-                  width: 50
+                  width: 120
 
         # ── Row 8: 蓝牙遥控 (导航项) ──
         - obj:
@@ -3090,6 +3310,7 @@ lvgl:
             bg_color: 0x111827
             widgets:
               - label:
+                  id: icon_firmware
                   text: "\U000F02FD"  # mdi-information-outline
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
@@ -3120,6 +3341,7 @@ lvgl:
             bg_color: 0x111827
             widgets:
               - label:
+                  id: icon_ip
                   text: "\U000F0A60"  # mdi-ip-network
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
@@ -3784,6 +4006,12 @@ script:
           lv_led_set_color(id(led_src_3), accent);
           // 分隔线
           lv_obj_set_style_bg_color(id(separator), accent, LV_PART_MAIN);
+          lv_obj_t* mini_specs[] = {
+            id(mini_spec_0), id(mini_spec_1), id(mini_spec_2), id(mini_spec_3),
+            id(mini_spec_4), id(mini_spec_5), id(mini_spec_6), id(mini_spec_7),
+            id(mini_spec_8), id(mini_spec_9), id(mini_spec_10), id(mini_spec_11)
+          };
+          for (auto *o : mini_specs) lv_obj_set_style_bg_color(o, accent, LV_PART_MAIN);
           // dB 标签
           lv_obj_set_style_text_color(id(lbl_vol_db), accent, LV_PART_MAIN);
           // 音量条指示器
@@ -3809,6 +4037,9 @@ script:
           // WiFi 图标 (仅连接时跟随主题)
           if (wifi::global_wifi_component->is_connected())
             lv_obj_set_style_text_color(id(lbl_wifi), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_main_active_input), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_main_output_value), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_main_auto_value), accent, LV_PART_MAIN);
           // 设置页进度条指示器
           lv_obj_set_style_bg_color(id(bar_max_vol), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_power_on_limit), accent, LV_PART_INDICATOR);
@@ -3835,6 +4066,8 @@ script:
           lv_obj_set_style_text_color(id(icon_output_mode), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_ble_remote), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_keymap), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_firmware), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(icon_ip), accent, LV_PART_MAIN);
           // 平衡指示点
           lv_obj_set_style_bg_color(id(balance_dot), accent, LV_PART_MAIN);
           // 频谱页输入源图标
@@ -4283,6 +4516,7 @@ sensor:
                     bool v = !id(output_mode);
                     id(output_mode) = v;
                     lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
+                    lv_label_set_text(id(lbl_main_output_value), v ? "DIRECT" : "TRANSFORMER");
                     if (v) {
                       lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
                       lv_obj_remove_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
@@ -5060,9 +5294,9 @@ interval:
             int bal = id(balance);
             if (bal != last_bal) {
               last_bal = bal;
-              int dot_x = 210 + bal * 144 / 20;
-              if (dot_x < 66) dot_x = 66;
-              if (dot_x > 354) dot_x = 354;
+              int dot_x = 210 + bal * 159 / 20;
+              if (dot_x < 54) dot_x = 54;
+              if (dot_x > 373) dot_x = 373;
               lv_obj_set_x(id(balance_dot), dot_x);
               lv_obj_set_style_text_color(id(lbl_bal_L),
                 bal < 0 ? _accent : lv_color_hex(0x8E9FB8), LV_PART_MAIN);
@@ -5082,8 +5316,33 @@ interval:
           {
             static int last_input = -1;
             int cur = id(current_input);
-            if (cur != last_input) {
+            bool sigs[] = {id(audio_cd)->state, id(audio_dac)->state, id(audio_pc)->state, id(audio_aux)->state};
+            static bool last_sigs[] = {false, false, false, false};
+            bool sig_changed = false;
+            for (int i = 0; i < 4; i++) {
+              if (sigs[i] != last_sigs[i]) {
+                last_sigs[i] = sigs[i];
+                sig_changed = true;
+              }
+            }
+            if (cur != last_input || sig_changed) {
               last_input = cur;
+              lv_obj_t* cards[] = {id(src_card_0), id(src_card_1), id(src_card_2), id(src_card_3)};
+              lv_obj_t* names_lbl[] = {id(lbl_src_name_0), id(lbl_src_name_1), id(lbl_src_name_2), id(lbl_src_name_3)};
+              lv_obj_t* states_lbl[] = {id(lbl_src_state_0), id(lbl_src_state_1), id(lbl_src_state_2), id(lbl_src_state_3)};
+              const char* state_text[] = {"IDLE", "SIGNAL"};
+              for (int i = 0; i < 4; i++) {
+                bool active = (i == cur);
+                lv_obj_set_style_bg_color(cards[i], active ? lv_color_hex(0x0B2A24) : lv_color_hex(0x08121E), LV_PART_MAIN);
+                lv_obj_set_style_border_color(cards[i], active ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                lv_obj_set_style_text_color(names_lbl[i], lv_color_hex(0xF8FAFC), LV_PART_MAIN);
+                lv_label_set_text(states_lbl[i], state_text[sigs[i] ? 1 : 0]);
+                lv_obj_set_style_text_color(states_lbl[i], sigs[i]
+                  ? (active ? _accent : lv_color_hex(0x5DAF95))
+                  : lv_color_hex(0x64748B), LV_PART_MAIN);
+              }
+              const char* input_names[] = {"CD", "DAC", "PC", "AUX"};
+              lv_label_set_text(id(lbl_main_active_input), input_names[cur]);
               for (int i = 0; i < 4; i++) {
                 lv_obj_t* led = nullptr;
                 switch (i) {
@@ -5097,13 +5356,13 @@ interval:
                 }
               }
               lv_obj_set_style_text_color(id(lbl_src_radio),
-                cur == 0 ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+                cur == 0 ? _accent : (sigs[0] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_src_gamepad),
-                cur == 1 ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+                cur == 1 ? _accent : (sigs[1] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_src_laptop),
-                cur == 2 ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+                cur == 2 ? _accent : (sigs[2] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_src_music),
-                cur == 3 ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+                cur == 3 ? _accent : (sigs[3] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
             }
             // ── LED 呼吸灯 + 信号强度指示 (嵌套在同作用域, 使用上方 cur) ──
             {
@@ -5492,12 +5751,13 @@ interval:
           {
             static bool last_auto_switch = false;
             bool auto_now = id(auto_input);
-            if (auto_now != last_auto_switch) {
-              last_auto_switch = auto_now;
-              lv_obj_set_style_text_color(id(lbl_auto_switch),
-                auto_now ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+              if (auto_now != last_auto_switch) {
+                last_auto_switch = auto_now;
+                lv_obj_set_style_text_color(id(lbl_auto_switch),
+                  auto_now ? _accent : lv_color_hex(0x444444), LV_PART_MAIN);
+                lv_label_set_text(id(lbl_main_auto_value), auto_now ? "AUTO" : "MANUAL");
+              }
             }
-          }
 
           // ═══ 频谱页: 输入源图标 + 名称更新 (含变化检测) ═══
           {

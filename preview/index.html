@@ -2291,6 +2291,108 @@
     opacity: 1;
   }
 
+  /* TFT coordinate lock: main page now maps to fixed 2x device pixels */
+  .page-main-redesign .main-topline {
+    left: 48px;
+    right: 48px;
+    top: 24px;
+    height: 40px;
+  }
+  .page-main-redesign .right-status.status-pill {
+    top: -2px;
+    right: 0;
+    width: 206px;
+    height: 38px;
+  }
+  .page-main-redesign .input-rail {
+    display: block;
+    left: 48px;
+    top: 72px;
+    width: 174px;
+    height: 172px;
+  }
+  .page-main-redesign .source-card {
+    position: absolute;
+    width: 82px;
+    height: 82px;
+  }
+  .page-main-redesign .source-card:nth-child(1) { left: 0; top: 0; }
+  .page-main-redesign .source-card:nth-child(2) { left: 92px; top: 0; }
+  .page-main-redesign .source-card:nth-child(3) { left: 0; top: 90px; }
+  .page-main-redesign .source-card:nth-child(4) { left: 92px; top: 90px; }
+  .page-main-redesign .main-volume-panel {
+    left: 246px;
+    top: 76px;
+    width: 364px;
+    height: 158px;
+    padding: 18px 22px 12px;
+    border-color: rgba(148,163,184,.035);
+    background:
+      linear-gradient(180deg, rgba(13,20,34,.62), rgba(5,10,18,.42)),
+      linear-gradient(90deg, rgba(255,255,255,.014), transparent);
+    box-shadow:
+      0 14px 30px rgba(0,0,0,.22),
+      0 0 0 1px rgba(255,255,255,.018),
+      inset 0 1px 0 rgba(255,255,255,.028);
+  }
+  .page-main-redesign .main-volume-panel::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+    pointer-events: none;
+  }
+  .page-main-redesign .main-volume-panel::after {
+    content: '';
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: -10px;
+    height: 10px;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,.34), transparent 70%);
+    pointer-events: none;
+  }
+  .page-main-redesign .db-label {
+    margin-top: 10px;
+    height: 58px;
+    line-height: 58px;
+    font-size: 52px;
+  }
+  .page-main-redesign .main-side-meter {
+    display: block;
+    right: 48px;
+    top: 76px;
+    width: 172px;
+    height: 158px;
+  }
+  .page-main-redesign .side-tile {
+    position: absolute;
+    left: 0;
+    width: 172px;
+    height: 79px;
+  }
+  .page-main-redesign .side-tile:nth-child(1) { top: 0; }
+  .page-main-redesign .side-tile:nth-child(2) { top: 79px; }
+  .page-main-redesign .separator {
+    top: 246px;
+    left: 48px;
+    right: 48px;
+  }
+  .page-main-redesign .bal-row {
+    left: 76px;
+    top: 239px;
+    width: 704px;
+    height: 40px;
+  }
+  .page-main-redesign .bal-label.r { left: 686px; }
+  .page-main-redesign .bal-track {
+    left: 32px;
+    width: 638px;
+  }
+
   /* Diagnostics page: two-column information console */
   .page-debug .debug-list {
     display: grid !important;
