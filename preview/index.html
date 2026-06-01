@@ -386,7 +386,7 @@
     line-height: 90px;
   }
   .settings-row.read-only .icon {
-    color: #6B7280;
+    color: var(--accent);
   }
   .settings-row .bar-wrap {
     flex: 1;
@@ -647,6 +647,1433 @@
   }
   .keymap-row .action.disabled { color: #6B7280; }
   .keymap-row.back-row .label { color: #8E9FB8; font-size: 14px; }
+  /* ===================== Rebuilt modern preview theme ===================== */
+  .page-main-redesign,
+  .page-settings,
+  .page-ble,
+  .page-debug,
+  .page-keymap,
+  #pageSpectrum {
+    background:
+      radial-gradient(circle at 26% 18%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 24%),
+      linear-gradient(180deg, #0B1220 0%, #111827 58%, #0A0F1A 100%);
+    color: #E5E7EB;
+    overflow: hidden;
+  }
+  .page-main-redesign::before,
+  .page-settings::before,
+  .page-ble::before,
+  .page-debug::before,
+  .page-keymap::before,
+  #pageSpectrum::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(circle at center, #000 0%, transparent 82%);
+    opacity: .72;
+  }
+  .page-main-redesign::after,
+  .page-settings::after,
+  .page-ble::after,
+  .page-debug::after,
+  .page-keymap::after,
+  #pageSpectrum::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(0,0,0,.22), transparent 18%, transparent 82%, rgba(0,0,0,.2));
+  }
+
+  .main-topline {
+    position: absolute;
+    left: 22px;
+    right: 18px;
+    top: 14px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 4;
+  }
+  .brand-lockup .brand {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #F8FAFC;
+  }
+  .brand-lockup .sub {
+    margin-top: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: color-mix(in srgb, var(--accent) 72%, #94A3B8);
+  }
+  .right-status.status-pill {
+    position: static;
+    height: 36px;
+    padding: 0 10px;
+    gap: 6px;
+    border: 1px solid rgba(148,163,184,.16);
+    border-radius: 6px;
+    background: rgba(15,23,42,.58);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .right-status.status-pill .icon {
+    height: 28px;
+    width: 28px;
+    color: var(--accent);
+  }
+  .right-status.status-pill .temp {
+    font-size: 14px;
+    color: #E5E7EB;
+  }
+  .right-status.status-pill .temp .deg {
+    color: color-mix(in srgb, var(--accent) 66%, #94A3B8);
+  }
+
+  .input-rail {
+    position: absolute;
+    left: 22px;
+    top: 72px;
+    width: 150px;
+    height: 156px;
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 7px;
+    z-index: 4;
+  }
+  .source-card {
+    height: 33px;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    grid-template-rows: 14px 10px 5px;
+    align-content: center;
+    column-gap: 8px;
+    padding: 4px 9px 4px 7px;
+    border: 1px solid rgba(148,163,184,.12);
+    border-radius: 6px;
+    background: rgba(15,23,42,.64);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .source-card.selected {
+    border-color: color-mix(in srgb, var(--accent) 58%, rgba(255,255,255,.12));
+    background: color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,.76));
+  }
+  .source-card .src-icon {
+    grid-row: 1 / 3;
+    grid-column: 1;
+    width: 34px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    justify-self: center;
+    font-size: 24px;
+    line-height: 1;
+    color: #3B485C;
+    text-shadow: none;
+  }
+  .source-card.signal .src-icon,
+  .source-card.selected .src-icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 48%, transparent));
+  }
+  .source-card .src-name {
+    grid-column: 2;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .7px;
+    color: #F8FAFC;
+    line-height: 14px;
+  }
+  .source-card .src-state {
+    grid-column: 2;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .9px;
+    color: #64748B;
+    line-height: 10px;
+  }
+  .source-card.signal .src-state {
+    color: color-mix(in srgb, var(--accent) 76%, #CBD5E1);
+  }
+  .source-card .led {
+    position: static;
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: center;
+    align-self: center;
+    width: 22px;
+    height: 4px;
+    border-radius: 999px;
+    opacity: .9;
+  }
+
+  .main-volume-panel {
+    position: absolute;
+    left: 196px;
+    top: 72px;
+    width: 410px;
+    height: 156px;
+    z-index: 4;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.35px;
+    color: #64748B;
+  }
+  .active-input-name {
+    color: var(--accent);
+  }
+  .page-main-redesign .db-label {
+    position: static;
+    margin-top: 10px;
+    height: 54px;
+    line-height: 54px;
+    text-align: left;
+    font-size: 50px;
+    font-weight: 700;
+    color: #F8FAFC;
+    letter-spacing: 0;
+    text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+  .volume-scale {
+    margin-top: 2px;
+    height: 30px;
+    display: grid;
+    grid-template-columns: repeat(21, 1fr);
+    gap: 4px;
+    align-items: end;
+  }
+  .volume-scale span {
+    height: 8px;
+    border-radius: 2px 2px 0 0;
+    background: color-mix(in srgb, var(--accent) 38%, #1F2937);
+    opacity: .62;
+    transition: height .12s ease, opacity .12s ease, background .12s ease;
+  }
+  .page-main-redesign .volume-bar-wrap {
+    position: static;
+    margin-top: 14px;
+    height: 9px;
+    width: 100%;
+    background: rgba(148,163,184,.18);
+    border-radius: 999px;
+    opacity: 1;
+  }
+  .page-main-redesign .volume-bar-fill {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 50%, #0F172A), var(--accent));
+    border-radius: 999px;
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 34%, transparent);
+  }
+  .page-main-redesign .volume-bar-fill::after {
+    display: none;
+  }
+  .vol-pct {
+    margin-top: 7px;
+    text-align: right;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748B;
+  }
+
+  .main-side-meter {
+    position: absolute;
+    right: 22px;
+    top: 72px;
+    width: 190px;
+    height: 156px;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    z-index: 4;
+  }
+  .side-tile {
+    border: 1px solid rgba(148,163,184,.13);
+    border-radius: 6px;
+    background: rgba(15,23,42,.68);
+    padding: 12px 14px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .tile-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.45px;
+    color: #64748B;
+  }
+  .tile-value {
+    margin-top: 10px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    color: #E2E8F0;
+  }
+  .tile-value.accent {
+    color: var(--accent);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+
+  .page-main-redesign .separator {
+    top: 248px;
+    left: 22px;
+    right: 22px;
+    height: 1px;
+    opacity: .55;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 58%, transparent), transparent);
+    animation: none;
+  }
+  .page-main-redesign .bal-row {
+    top: 237px;
+    left: 196px;
+    width: 410px;
+    height: 34px;
+    z-index: 4;
+  }
+  .page-main-redesign .bal-label {
+    top: 2px;
+    width: 16px;
+    height: 18px;
+    font-size: 10px;
+    line-height: 18px;
+    color: #64748B;
+  }
+  .page-main-redesign .bal-label.l { left: 0; }
+  .page-main-redesign .bal-label.r { left: 394px; }
+  .page-main-redesign .bal-track {
+    top: 10px;
+    left: 22px;
+    width: 366px;
+    height: 3px;
+    background: rgba(148,163,184,.2);
+  }
+  .page-main-redesign .bal-dot {
+    top: 6px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+  }
+  .page-main-redesign .bal-value {
+    margin-top: 20px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: #64748B;
+  }
+
+  .page-settings .settings-list,
+  .page-ble .ble-list,
+  .page-keymap .keymap-list,
+  .page-debug .debug-list {
+    position: absolute;
+    inset: 12px 18px;
+    z-index: 4;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .page-settings .settings-list::-webkit-scrollbar,
+  .page-ble .ble-list::-webkit-scrollbar,
+  .page-keymap .keymap-list::-webkit-scrollbar,
+  .page-debug .debug-list::-webkit-scrollbar { display: none; }
+  .settings-row,
+  .ble-row,
+  .keymap-row,
+  .debug-row {
+    min-height: 48px;
+    border: 1px solid rgba(148,163,184,.1);
+    border-left: 3px solid transparent;
+    border-radius: 6px;
+    background: rgba(15,23,42,.62);
+    margin-bottom: 7px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.032);
+  }
+  .settings-row.focused,
+  .settings-row.adjusting,
+  .ble-row.focused,
+  .keymap-row.focused,
+  .keymap-row.adjusting,
+  .debug-row.focused {
+    border-left-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,.72));
+  }
+  .settings-row .icon,
+  .ble-row .icon,
+  .keymap-row .icon,
+  .debug-row .icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 34%, transparent));
+  }
+  .settings-row[data-row="11"] .icon,
+  .settings-row[data-row="12"] .icon {
+    color: #6B7280;
+    filter: none;
+  }
+  .settings-row .val,
+  .ble-row .rssi,
+  .keymap-row .action {
+    color: color-mix(in srgb, var(--accent) 78%, #E5E7EB);
+  }
+  .settings-bar {
+    background: rgba(148,163,184,.17);
+  }
+  .settings-bar-fill,
+  .settings-bar-fill.white-fill {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, #0F172A), var(--accent));
+    box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+
+  .page-debug .debug-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 10px;
+    overflow: hidden;
+  }
+  .page-debug .debug-row {
+    margin: 0;
+    min-height: 40px;
+  }
+  .page-debug .title-row {
+    grid-column: 1 / -1;
+  }
+  .page-debug .back-row {
+    min-height: 42px;
+  }
+
+  #pageSpectrum .spec-style-label {
+    position: absolute;
+    left: 50%;
+    top: 6px;
+    transform: translateX(-50%);
+    z-index: 6;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: color-mix(in srgb, var(--accent) 72%, #94A3B8);
+    pointer-events: none;
+  }
+  #pageSpectrum.spec-style-mirror .ch-group {
+    align-items: center;
+  }
+  #pageSpectrum.spec-style-mirror .ch-group .bar {
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 32%, #020617)) !important;
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+  #pageSpectrum.spec-style-led .ch-group {
+    gap: 4px;
+  }
+  #pageSpectrum.spec-style-led .ch-group .bar {
+    border-radius: 0;
+    box-shadow: 0 0 12px rgba(34, 197, 94, .22);
+  }
+  #pageSpectrum.spec-style-led .ch-group .bar::after,
+  #pageSpectrum.spec-style-scope .ch-group .bar::after {
+    display: none;
+  }
+  #pageSpectrum.spec-style-led {
+    background:
+      radial-gradient(circle at 16% 42%, rgba(250,204,21,.18), transparent 30%),
+      radial-gradient(circle at 78% 52%, rgba(34,197,94,.1), transparent 36%),
+      linear-gradient(180deg, #0B1220 0%, #111827 58%, #070C14 100%);
+  }
+  #pageSpectrum.spec-style-led .spec-status {
+    top: 8px;
+    left: 18px;
+    right: 18px;
+    height: 36px;
+    padding: 0;
+    background: none;
+  }
+  #pageSpectrum.spec-style-led .spec-status .input-name {
+    position: relative;
+    font-size: 23px;
+    line-height: 24px;
+    color: #F8FAFC;
+    letter-spacing: .4px;
+    gap: 4px;
+  }
+  #pageSpectrum.spec-style-led .spec-status .input-name::after {
+    content: 'LED MATRIX ANALYZER';
+    position: absolute;
+    left: 42px;
+    top: 24px;
+    font-size: 8px;
+    line-height: 8px;
+    font-weight: 600;
+    letter-spacing: .8px;
+    color: rgba(250,204,21,.45);
+  }
+  #pageSpectrum.spec-style-led .spec-status .input-name .mdi {
+    font-size: 27px;
+    color: #FACC15 !important;
+    filter: drop-shadow(0 0 6px rgba(250,204,21,.42));
+  }
+  #pageSpectrum.spec-style-led #specInputName {
+    font-size: 23px !important;
+  }
+  #pageSpectrum.spec-style-led .spec-status .spec-temp {
+    right: 0;
+    top: 2px;
+    font-size: 16px !important;
+    color: #FACC15 !important;
+    text-shadow: 0 0 10px rgba(250,204,21,.28);
+  }
+  #pageSpectrum.spec-style-led .spec-style-label {
+    display: none;
+  }
+  #pageSpectrum.spec-style-led .spec-area {
+    top: 50px;
+    left: 18px;
+    right: 18px;
+    bottom: 38px;
+    padding: 0;
+  }
+  #pageSpectrum.spec-style-led .ch-divider,
+  #pageSpectrum.spec-style-led .freq-divider {
+    width: 10px;
+  }
+  #pageSpectrum.spec-style-led .ch-group .bar .peak {
+    display: none !important;
+  }
+  #pageSpectrum.spec-style-led .vu-meter-row {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    height: 7px;
+    gap: 10px;
+  }
+  #pageSpectrum.spec-style-led .vu-meter-wrap {
+    border-radius: 2px;
+    background: rgba(250,204,21,.12);
+  }
+  #pageSpectrum.spec-style-led .vu-meter-fill {
+    border-radius: 2px;
+    background: linear-gradient(90deg, #D4A80F, #FACC15);
+    box-shadow: 0 0 12px rgba(250,204,21,.36);
+  }
+  #pageSpectrum.spec-style-led .freq-bar {
+    left: 18px;
+    right: 18px;
+    bottom: 3px;
+    padding: 0;
+  }
+  #pageSpectrum.spec-style-led .freq-bar .freq-group span {
+    color: rgba(148,163,184,.25);
+  }
+  #pageSpectrum.spec-style-scope .ch-group {
+    align-items: center;
+    gap: 4px;
+  }
+  #pageSpectrum.spec-style-scope .ch-group .bar {
+    height: 4px !important;
+    min-height: 4px;
+    border-radius: 999px;
+    background: var(--accent) !important;
+    box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 58%, transparent);
+    transition: transform .08s ease;
+  }
+  #pageSpectrum.spec-style-vu .spec-area {
+    display: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-row {
+    left: 30px;
+    right: 30px;
+    top: 48px;
+    bottom: 34px;
+    height: auto;
+    gap: 34px;
+    z-index: 5;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap {
+    overflow: visible;
+    border-radius: 4px;
+    border: 2px solid rgba(3,7,18,.95);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.22), transparent 18%),
+      radial-gradient(ellipse at 50% 42%, #8ED8FF 0%, #4AA8F7 42%, #0B5FB8 78%, #063767 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 24px rgba(250,204,21,.08);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap::before {
+    content: none;
+    position: absolute;
+    left: 50%;
+    top: 16px;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    color: rgba(4,38,82,.58);
+    text-shadow: 0 1px 0 rgba(255,255,255,.16);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap::after {
+    content: 'L';
+    position: absolute;
+    left: 14px;
+    top: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(248,250,252,.7);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap:nth-child(2)::after {
+    content: 'R';
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-fill {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    width: 49%;
+    height: 2px;
+    max-width: none;
+    transform-origin: left center;
+    transform: rotate(-42deg);
+    border-radius: 999px;
+    background: #0F172A;
+    box-shadow: 0 0 4px rgba(2,6,23,.4);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-fill::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: -7px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #020617;
+    border: 2px solid rgba(15,23,42,.95);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-fill::after {
+    display: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 18px;
+    bottom: 18px;
+    height: auto;
+    border: none;
+    border-radius: 0;
+    pointer-events: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale::before {
+    content: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale::after {
+    content: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  #pageSpectrum.spec-style-vu .freq-bar {
+    display: none;
+  }
+  #pageSpectrum.spec-style-vu .spec-style-label {
+    display: none;
+  }
+
+  /* Blue glass VU: inspired by classic high-end blue power meters */
+  #pageSpectrum.spec-style-vu {
+    background:
+      linear-gradient(180deg, #03060B 0%, #050A12 58%, #020409 100%);
+  }
+  #pageSpectrum.spec-style-vu::before {
+    opacity: .12;
+  }
+  #pageSpectrum.spec-style-vu .spec-status {
+    background: none;
+    height: 32px;
+  }
+  #pageSpectrum.spec-style-vu .spec-status .input-name {
+    opacity: .34;
+  }
+  #pageSpectrum.spec-style-vu .spec-status .input-name .mdi {
+    color: #3B94F7 !important;
+    filter: none;
+  }
+  #pageSpectrum.spec-style-vu .spec-status .spec-temp {
+    color: rgba(148,163,184,.42) !important;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap {
+    border: 2px solid #05070D;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.09), transparent 19%),
+      radial-gradient(ellipse at 50% 45%, #A5E0FF 0%, #48A9FF 45%, #0B63C5 78%, #063B73 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 -18px 34px rgba(0,20,55,.34),
+      0 0 34px rgba(0,113,227,.14);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap::before {
+    content: none;
+    top: 14px;
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    color: rgba(3,51,107,.58);
+    text-shadow: 0 1px 0 rgba(255,255,255,.18);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap::after {
+    top: 12px;
+    color: rgba(3,51,107,.72);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-fill {
+    background: #0A1320;
+    box-shadow: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-fill::before {
+    background: #020617;
+    border-color: rgba(2,6,23,.95);
+    box-shadow: 0 0 8px rgba(2,6,23,.42);
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale {
+    border-top-color: rgba(3,51,107,.62);
+    box-shadow: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale::before {
+    content: none;
+  }
+  #pageSpectrum.spec-style-vu .vu-meter-wrap .vu-scale::after {
+    content: none;
+  }
+
+  /* Main screen v2: compact instrument-panel layout from the preferred mockup */
+  .page-main-redesign {
+    background:
+      radial-gradient(circle at 16% 28%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 22%),
+      radial-gradient(circle at 72% 52%, rgba(30,41,59,.34), transparent 34%),
+      linear-gradient(180deg, #0A1220 0%, #111827 64%, #070C14 100%);
+  }
+  .page-main-redesign::before {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(rgba(16,185,129,.045) 1px, transparent 1px);
+    background-size: 22px 22px, 22px 22px, 4px 4px;
+    opacity: .78;
+    mask-image: linear-gradient(90deg, #000, #000);
+  }
+  .page-main-redesign .main-topline {
+    left: 28px;
+    right: 24px;
+    top: 12px;
+    height: 34px;
+  }
+  .page-main-redesign .brand-lockup .brand {
+    font-size: 13px;
+    letter-spacing: .8px;
+    line-height: 15px;
+  }
+  .page-main-redesign .brand-lockup .sub {
+    margin-top: 1px;
+    font-size: 8px;
+    letter-spacing: .7px;
+    color: #64748B;
+  }
+  .page-main-redesign .right-status.status-pill {
+    position: absolute;
+    right: 0;
+    top: -2px;
+    width: 210px;
+    height: 40px;
+    padding: 0 9px;
+    justify-content: flex-end;
+    border-radius: 0;
+    border-color: rgba(148,163,184,.1);
+    background: rgba(6,12,22,.42);
+    box-shadow: inset 1px 0 0 rgba(255,255,255,.04), inset 0 -1px 0 rgba(255,255,255,.04);
+  }
+  .page-main-redesign .right-status.status-pill .icon {
+    width: 24px !important;
+    height: 24px;
+    font-size: 21px !important;
+  }
+  .page-main-redesign .right-status.status-pill .temp {
+    font-size: 12px;
+  }
+  .page-main-redesign .right-status.status-pill #muteIcon,
+  .page-main-redesign .right-status.status-pill #bleIcon {
+    display: flex;
+  }
+  .page-main-redesign .right-status.status-pill #bleRemoteIndicator {
+    display: flex;
+  }
+
+  .page-main-redesign .input-rail {
+    left: 24px;
+    top: 52px;
+    width: 174px;
+    height: 172px;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .page-main-redesign .source-card {
+    height: auto;
+    grid-template-columns: 30px 1fr;
+    grid-template-rows: 18px 12px 6px;
+    column-gap: 7px;
+    padding: 9px 7px 7px 7px;
+    border-radius: 0;
+    border-color: rgba(148,163,184,.08);
+    background: rgba(9,15,27,.48);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .page-main-redesign .source-card.selected {
+    border-color: color-mix(in srgb, var(--accent) 48%, rgba(148,163,184,.1));
+    border-left: 4px solid var(--accent);
+    padding-left: 4px;
+    background: color-mix(in srgb, var(--accent) 11%, rgba(9,15,27,.58));
+  }
+  .page-main-redesign .source-card .src-icon {
+    width: 30px;
+    height: 24px;
+    font-size: 23px;
+  }
+  .page-main-redesign .source-card .src-name {
+    font-size: 12px;
+    letter-spacing: .35px;
+    line-height: 15px;
+  }
+  .page-main-redesign .source-card .src-state {
+    font-size: 7px;
+    letter-spacing: .65px;
+    line-height: 9px;
+  }
+  .page-main-redesign .source-card .led {
+    width: 25px;
+    height: 4px;
+  }
+
+  .page-main-redesign .main-volume-panel {
+    left: 204px;
+    top: 52px;
+    width: 448px;
+    height: 172px;
+    padding: 18px 22px 14px;
+    border: 1px solid rgba(148,163,184,.1);
+    background:
+      linear-gradient(180deg, rgba(15,23,42,.82), rgba(6,12,22,.66)),
+      linear-gradient(90deg, rgba(255,255,255,.03), transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.045),
+      0 16px 36px rgba(0,0,0,.2);
+  }
+  .page-main-redesign .panel-header {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .page-main-redesign .db-label {
+    margin-top: 12px;
+    height: 62px;
+    line-height: 62px;
+    text-align: center;
+    font-size: 54px;
+  }
+  .page-main-redesign .db-label::after {
+    content: '•';
+    margin-left: 14px;
+    font-size: 22px;
+    color: var(--accent);
+    vertical-align: middle;
+  }
+  .page-main-redesign .volume-scale {
+    margin-top: 0;
+    height: 24px;
+    gap: 5px;
+  }
+  .page-main-redesign .volume-scale span {
+    border-radius: 1px 1px 0 0;
+    opacity: .58;
+  }
+  .page-main-redesign .volume-bar-wrap {
+    margin-top: 7px;
+    height: 10px;
+    border-radius: 1px;
+  }
+  .page-main-redesign .volume-bar-fill {
+    border-radius: 1px;
+  }
+  .page-main-redesign .vol-pct {
+    margin-top: 3px;
+    font-size: 10px;
+  }
+
+  .page-main-redesign .main-side-meter {
+    right: 24px;
+    top: 52px;
+    width: 170px;
+    height: 172px;
+    gap: 0;
+    grid-template-rows: 1fr 1fr;
+  }
+  .page-main-redesign .side-tile {
+    border-radius: 0;
+    border-color: rgba(148,163,184,.09);
+    border-left: none;
+    background: rgba(8,14,25,.52);
+    padding: 13px 12px;
+  }
+  .page-main-redesign .side-tile + .side-tile {
+    border-top: none;
+  }
+  .page-main-redesign .tile-label {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .page-main-redesign .tile-value {
+    margin-top: 10px;
+    font-size: 18px;
+    letter-spacing: .25px;
+  }
+
+  .page-main-redesign .separator {
+    top: 233px;
+    left: 24px;
+    right: 24px;
+  }
+  .page-main-redesign .bal-row {
+    left: 42px;
+    top: 230px;
+    width: 772px;
+    height: 40px;
+  }
+  .page-main-redesign .bal-label {
+    top: 4px;
+    font-size: 11px;
+    color: #94A3B8;
+  }
+  .page-main-redesign .bal-label.l { left: 0; }
+  .page-main-redesign .bal-label.r { left: 754px; }
+  .page-main-redesign .bal-track {
+    left: 32px;
+    top: 12px;
+    width: 708px;
+    height: 3px;
+    background: rgba(148,163,184,.24);
+  }
+  .page-main-redesign .bal-dot {
+    top: 7px;
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+  }
+  .page-main-redesign .bal-value {
+    margin-top: 22px;
+    color: color-mix(in srgb, var(--accent) 48%, #64748B);
+  }
+
+  /* Secondary pages follow the main instrument-panel visual system */
+  .page-settings,
+  .page-ble,
+  .page-debug,
+  .page-keymap {
+    background:
+      radial-gradient(circle at 18% 24%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 27%),
+      radial-gradient(circle at 82% 58%, rgba(30,41,59,.28), transparent 34%),
+      linear-gradient(180deg, #0A1220 0%, #111827 62%, #070C14 100%);
+  }
+  .page-settings::before,
+  .page-ble::before,
+  .page-debug::before,
+  .page-keymap::before {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.032) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.026) 1px, transparent 1px),
+      linear-gradient(color-mix(in srgb, var(--accent) 18%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px, 22px 22px, 4px 4px;
+    mask-image: linear-gradient(90deg, #000, #000);
+    opacity: .7;
+  }
+
+  .page-settings .settings-list,
+  .page-ble .ble-list,
+  .page-keymap .keymap-list,
+  .page-debug .debug-list {
+    inset: 18px 22px;
+    width: auto !important;
+    height: auto !important;
+    padding: 0;
+    border: 1px solid rgba(148,163,184,.1);
+    background:
+      linear-gradient(180deg, rgba(15,23,42,.74), rgba(6,12,22,.56)),
+      linear-gradient(90deg, rgba(255,255,255,.025), transparent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 14px 34px rgba(0,0,0,.18);
+  }
+
+  .page-settings .settings-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 41px;
+    gap: 7px;
+    overflow: hidden;
+    padding: 34px 12px 12px;
+  }
+  .page-settings .settings-list::before {
+    content: 'SYSTEM SETTINGS';
+    position: absolute;
+    left: 14px;
+    top: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    color: color-mix(in srgb, var(--accent) 70%, #94A3B8);
+  }
+  .page-settings .settings-list::after {
+    content: 'PROFILE / DISPLAY / REMOTE / SYSTEM';
+    position: absolute;
+    right: 14px;
+    top: 10px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: #475569;
+  }
+  .page-settings .settings-row {
+    min-height: 0;
+    height: 41px;
+    margin: 0;
+    padding: 0 8px;
+    display: grid;
+    grid-template-columns: 24px minmax(58px, .88fr) minmax(48px, 1fr) minmax(44px, auto);
+    align-items: center;
+    gap: 7px;
+    border-radius: 0;
+    border-color: rgba(148,163,184,.09);
+    background: rgba(8,14,25,.5);
+  }
+  .page-settings .settings-row.focused,
+  .page-settings .settings-row.adjusting {
+    background: color-mix(in srgb, var(--accent) 12%, rgba(8,14,25,.62));
+    border-color: color-mix(in srgb, var(--accent) 42%, rgba(148,163,184,.12));
+  }
+  .page-settings .settings-row .icon {
+    width: 24px;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .page-settings .settings-row .label {
+    width: auto !important;
+    min-width: 0;
+    color: #CBD5E1;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .35px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .page-settings .settings-row .bar-wrap {
+    width: auto;
+    height: 6px;
+    margin: 0;
+  }
+  .page-settings .settings-row.adjusting .bar-wrap {
+    height: 9px;
+  }
+  .page-settings .settings-row .settings-bar {
+    height: 100%;
+    border-radius: 1px;
+  }
+  .page-settings .settings-row .settings-bar-fill {
+    border-radius: 1px;
+  }
+  .page-settings .settings-row .no-bar {
+    min-width: 0;
+  }
+  .page-settings .settings-row .val {
+    width: auto !important;
+    min-width: 0;
+    justify-self: end;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+  .page-settings .settings-row[data-row="13"],
+  .page-settings .settings-row[data-row="14"] {
+    background: rgba(8,14,25,.36);
+  }
+  .page-settings .settings-row[data-row="13"] .icon,
+  .page-settings .settings-row[data-row="14"] .icon {
+    color: #64748B;
+    filter: none;
+  }
+
+  .page-ble .ble-list,
+  .page-keymap .keymap-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 43px;
+    gap: 8px;
+    overflow: hidden;
+    padding: 38px 14px 14px;
+  }
+  .page-ble .ble-list::before,
+  .page-keymap .keymap-list::before,
+  .page-debug .debug-list::before {
+    position: absolute;
+    left: 14px;
+    top: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    color: color-mix(in srgb, var(--accent) 70%, #94A3B8);
+  }
+  .page-ble .ble-list::before { content: 'BLE REMOTE'; }
+  .page-keymap .keymap-list::before { content: 'REMOTE KEY MAP'; }
+  .page-debug .debug-list::before { content: 'SYSTEM DIAGNOSTICS'; }
+  .page-ble .ble-row,
+  .page-keymap .keymap-row,
+  .page-debug .debug-row {
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    border-radius: 0;
+    border-color: rgba(148,163,184,.09);
+    background: rgba(8,14,25,.5);
+  }
+  .page-ble .ble-row.title-row,
+  .page-keymap .keymap-row.title-row,
+  .page-debug .debug-row.title-row {
+    display: none !important;
+  }
+  .page-ble .hidden-row,
+  .page-keymap .hidden-row,
+  .page-debug .hidden-row {
+    display: none !important;
+  }
+  .page-ble .ble-row.focused,
+  .page-keymap .keymap-row.focused,
+  .page-keymap .keymap-row.adjusting,
+  .page-debug .debug-row.focused {
+    background: color-mix(in srgb, var(--accent) 12%, rgba(8,14,25,.62));
+    border-color: color-mix(in srgb, var(--accent) 42%, rgba(148,163,184,.12));
+  }
+  .page-ble .ble-row .icon,
+  .page-keymap .keymap-row .icon,
+  .page-debug .debug-row .icon {
+    width: 28px;
+    color: var(--accent);
+  }
+  .page-ble .ble-row .label,
+  .page-ble .ble-row .sub,
+  .page-keymap .keymap-row .key-name,
+  .page-keymap .keymap-row.back-row .label,
+  .page-debug .debug-row .label {
+    color: #CBD5E1;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .35px;
+  }
+  .page-keymap .keymap-row .action,
+  .page-ble .ble-row .rssi {
+    justify-self: end;
+    color: color-mix(in srgb, var(--accent) 78%, #E5E7EB);
+  }
+  .page-keymap .keymap-row {
+    padding: 0 12px;
+    display: grid;
+    grid-template-columns: 30px minmax(70px, 1fr) minmax(84px, auto);
+    align-items: center;
+    gap: 8px;
+  }
+  .page-ble .ble-row {
+    padding: 0 12px;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .page-ble #bleStatusRow,
+  .page-ble #bleRawEventRow,
+  .page-ble #bleBackRow {
+    grid-column: 1 / -1;
+  }
+
+  .page-debug .debug-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 40px;
+    gap: 7px 10px;
+    padding: 36px 14px 12px;
+  }
+  .page-debug .debug-row {
+    padding: 0 12px;
+    display: flex;
+  }
+  .page-debug .debug-row.back-row {
+    margin-top: 0;
+  }
+
+  .page-keymap .keymap-list {
+    grid-auto-rows: 36px;
+    gap: 6px;
+    padding: 34px 12px 10px;
+  }
+  .page-keymap .keymap-row .icon {
+    font-size: 21px;
+  }
+  .page-keymap .keymap-row .key-name,
+  .page-keymap .keymap-row .action,
+  .page-keymap .keymap-row.back-row .label {
+    font-size: 11px;
+  }
+
+  /* Secondary pages v2: single-column instrument menus, matching the preferred references */
+  .page-settings .settings-list,
+  .page-ble .ble-list,
+  .page-keymap .keymap-list,
+  .page-debug .debug-list {
+    inset: 10px 14px;
+    padding: 58px 7px 7px;
+    display: flex !important;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 0;
+    border: 1px solid rgba(148,163,184,.13);
+    background:
+      linear-gradient(180deg, rgba(15,23,42,.78), rgba(6,12,22,.6)),
+      linear-gradient(90deg, rgba(255,255,255,.025), transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.045),
+      inset 0 0 0 1px rgba(16,185,129,.035),
+      0 14px 34px rgba(0,0,0,.18);
+  }
+  .page-settings .settings-list::before {
+    content: 'PREAMP CONTROL\aSYSTEM SETTINGS';
+    white-space: pre;
+    position: absolute;
+    left: 10px;
+    top: 8px;
+    font-size: 18px;
+    line-height: 17px;
+    font-weight: 800;
+    letter-spacing: -.1px;
+    color: #F8FAFC;
+  }
+  .page-settings .settings-list::first-line {
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--accent);
+  }
+  .page-settings .settings-list::after {
+    content: '15 ITEMS';
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    padding: 7px 9px;
+    border: 1px solid rgba(148,163,184,.1);
+    background: rgba(8,14,25,.52);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .6px;
+    color: #94A3B8;
+  }
+  .page-ble .ble-list::before,
+  .page-keymap .keymap-list::before,
+  .page-debug .debug-list::before {
+    content: none;
+  }
+  .page-ble .ble-row.title-row,
+  .page-keymap .keymap-row.title-row,
+  .page-debug .debug-row.title-row {
+    display: flex !important;
+    position: absolute;
+    left: 7px;
+    right: 7px;
+    top: 7px;
+    height: 47px;
+    padding: 0 10px;
+    border: 1px solid rgba(148,163,184,.09);
+    background: rgba(8,14,25,.36);
+  }
+  .page-ble .ble-row.title-row .icon,
+  .page-keymap .keymap-row.title-row .icon,
+  .page-debug .debug-row.title-row .icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 34%, transparent));
+  }
+  .page-ble .ble-row.title-row .label,
+  .page-keymap .keymap-row.title-row .key-name,
+  .page-debug .debug-row.title-row .label {
+    color: #F8FAFC !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    letter-spacing: .2px;
+  }
+  .page-settings .settings-row,
+  .page-ble .ble-row,
+  .page-keymap .keymap-row,
+  .page-debug .debug-row {
+    flex: 0 0 43px;
+    width: 100%;
+    min-height: 43px;
+    height: 43px;
+    margin: 0;
+    border-radius: 0;
+    border: 1px solid rgba(148,163,184,.075);
+    border-left: 3px solid transparent;
+    background: rgba(8,14,25,.42);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .page-settings .settings-row {
+    display: grid;
+    grid-template-columns: 28px minmax(120px, 1fr) minmax(210px, 1.2fr) minmax(74px, auto);
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .page-ble .ble-row,
+  .page-keymap .keymap-row {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) minmax(76px, auto);
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .page-debug .debug-row {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+  }
+  .page-settings .settings-row.focused,
+  .page-settings .settings-row.adjusting,
+  .page-ble .ble-row.focused,
+  .page-keymap .keymap-row.focused,
+  .page-keymap .keymap-row.adjusting,
+  .page-debug .debug-row.focused {
+    border-left-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 44%, rgba(148,163,184,.1));
+    background: color-mix(in srgb, var(--accent) 13%, rgba(8,14,25,.62));
+  }
+  .page-settings .settings-row .icon,
+  .page-ble .ble-row .icon,
+  .page-keymap .keymap-row .icon,
+  .page-debug .debug-row .icon {
+    width: 28px;
+    font-size: 22px;
+    color: var(--accent);
+  }
+  .page-settings .settings-row .label,
+  .page-ble .ble-row .label,
+  .page-ble .ble-row .sub,
+  .page-keymap .keymap-row .key-name,
+  .page-keymap .keymap-row.back-row .label,
+  .page-debug .debug-row .label {
+    width: auto !important;
+    color: #CBD5E1;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .1px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .page-settings .settings-row .val,
+  .page-keymap .keymap-row .action,
+  .page-ble .ble-row .rssi {
+    width: auto !important;
+    justify-self: end;
+    color: #F8FAFC;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .page-settings .settings-row .bar-wrap {
+    width: auto;
+    height: 6px;
+    margin: 0;
+  }
+  .page-settings .settings-row .no-bar {
+    min-width: 0;
+  }
+  .page-settings .settings-row .settings-bar,
+  .page-settings .settings-row .settings-bar-fill {
+    border-radius: 1px;
+  }
+  .page-settings .theme-dot {
+    justify-self: end;
+  }
+  .page-keymap .keymap-row.back-row,
+  .page-ble .ble-row.read-only,
+  .page-debug .debug-row.back-row {
+    background: rgba(8,14,25,.32);
+  }
+
+  /* Diagnostics page: two-column information console */
+  .page-debug .debug-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 42px;
+    gap: 6px 10px;
+    overflow: hidden;
+    padding: 62px 10px 8px;
+  }
+  .page-debug .debug-row.title-row {
+    display: flex !important;
+    position: absolute;
+    left: 7px;
+    right: 7px;
+    top: 7px;
+    height: 47px;
+    padding: 0 10px;
+    border: 1px solid rgba(148,163,184,.09);
+    background: rgba(8,14,25,.36);
+  }
+  .page-debug .debug-row {
+    height: 42px;
+    min-height: 42px;
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 0;
+    border: 1px solid rgba(148,163,184,.075);
+    border-left: 3px solid transparent;
+    background: rgba(8,14,25,.42);
+  }
+  .page-debug .debug-row .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #CBD5E1;
+  }
+  .page-debug .debug-row.title-row .label {
+    color: #F8FAFC !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+  }
+  .page-debug .debug-row.title-row .icon {
+    color: var(--accent);
+    font-size: 21px;
+  }
+  .page-debug .debug-row.back-row {
+    background: rgba(8,14,25,.42);
+  }
+  .page-debug .debug-row.back-row.focused,
+  .page-debug .debug-row.focused {
+    border-left-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 44%, rgba(148,163,184,.1));
+    background: color-mix(in srgb, var(--accent) 13%, rgba(8,14,25,.62));
+  }
+  .page-debug #dbgRecalRow {
+    grid-column: 1;
+  }
+  .page-debug #dbgBackRow {
+    grid-column: 2;
+  }
+
+  #pageVolumeBig {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -666,23 +2093,17 @@
 <div class="screen" id="screen">
 
   <!-- ═══ 第一屏：控制界面 (展示) ═══ -->
-  <div class="page active" id="pageMain">
-    <div class="status-bar">
-      <span class="mdi mdi-disc-player src-icon active" id="src0"></span>
-      <span class="mdi mdi-chip src-icon" id="src1"></span>
-      <span class="mdi mdi-laptop src-icon" id="src2"></span>
-      <span class="mdi mdi-audio-input-stereo-minijack src-icon" id="src3"></span>
-      <div style="flex:1"></div>
-      <div class="right-status">
-        <div class="icon" id="autoSwitchIcon" style="font-size:22px;width:30px;"><span class="mdi mdi-swap-horizontal"></span></div>
-        <!-- 输出模式: 变压器 / 直通 -->
-        <div class="icon" id="iconTransformer" style="font-size:18px;width:22px;color:var(--accent);"><span class="mdi mdi-source-branch"></span></div>
-        <div class="icon" id="iconDirect" style="font-size:18px;width:22px;color:var(--accent);display:none;"><span class="mdi mdi-ray-start-arrow"></span></div>
+  <div class="page active page-main-redesign" id="pageMain">
+    <div class="main-topline">
+      <div class="brand-lockup">
+        <div class="brand">ZHITONG AUDIO</div>
+        <div class="sub">REFERENCE PREAMP 2.0</div>
+      </div>
+      <div class="right-status status-pill">
         <div class="icon" style="color:var(--accent);font-size:24px;width:30px;"><span class="mdi mdi-thermometer"></span></div>
         <div class="temp"><span id="tempVal">32.5</span><span class="deg">°C</span></div>
         <div class="icon" id="muteIcon" style="color:#EF4444;display:none;"><span class="mdi mdi-volume-off"></span></div>
         <div class="icon" id="bleIcon" style="font-size:26px;width:34px;"><span class="mdi mdi-bluetooth"></span></div>
-        <!-- BLE 遥控器指示（耳机电量风格） -->
         <div class="ble-remote-indicator" id="bleRemoteIndicator">
           <span class="rem-mdi mdi mdi-bluetooth"></span>
           <div class="ble-remote-batt">
@@ -692,19 +2113,67 @@
         <div class="icon" id="wifiIcon" style="font-size:24px;width:34px;"><span class="mdi mdi-wifi"></span></div>
       </div>
     </div>
-    <div class="led led-0 on" id="led0"></div>
-    <div class="led led-1 off" id="led1"></div>
-    <div class="led led-2 off" id="led2"></div>
-    <div class="led led-3 off" id="led3"></div>
+
+    <div class="input-rail">
+      <div class="source-card selected signal" id="sourceCard0">
+        <span class="mdi mdi-disc-player src-icon active" id="src0"></span>
+        <span class="src-name">CD</span>
+        <span class="src-state" id="srcState0">SIGNAL</span>
+        <div class="led led-0 on" id="led0"></div>
+      </div>
+      <div class="source-card" id="sourceCard1">
+        <span class="mdi mdi-chip src-icon" id="src1"></span>
+        <span class="src-name">DAC</span>
+        <span class="src-state" id="srcState1">IDLE</span>
+        <div class="led led-1 off" id="led1"></div>
+      </div>
+      <div class="source-card" id="sourceCard2">
+        <span class="mdi mdi-laptop src-icon" id="src2"></span>
+        <span class="src-name">PC</span>
+        <span class="src-state" id="srcState2">IDLE</span>
+        <div class="led led-2 off" id="led2"></div>
+      </div>
+      <div class="source-card signal" id="sourceCard3">
+        <span class="mdi mdi-audio-input-stereo-minijack src-icon" id="src3"></span>
+        <span class="src-name">AUX</span>
+        <span class="src-state" id="srcState3">SIGNAL</span>
+        <div class="led led-3 off" id="led3"></div>
+      </div>
+    </div>
+
+    <div class="main-volume-panel">
+      <div class="panel-header">
+        <span>INPUT <span class="active-input-name" id="activeInputName">CD</span></span>
+        <span>PGA2311 DIGITAL VOLUME</span>
+      </div>
+      <div class="db-label" id="dbLabel">-32.0dB</div>
+      <div class="volume-scale" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="volume-bar-wrap"><div class="volume-bar-fill" id="volFill"></div></div>
+      <div class="vol-pct" id="volPctText">60%</div>
+    </div>
+
+    <div class="main-side-meter">
+      <div class="side-tile">
+        <div class="tile-label">OUTPUT</div>
+        <div class="tile-value accent" id="mainOutputMode">TRANSFORMER</div>
+      </div>
+      <div class="side-tile">
+        <div class="tile-label">INPUT MODE</div>
+        <div class="tile-value accent" id="mainAutoMode">AUTO</div>
+      </div>
+    </div>
+
     <div class="separator"></div>
-    <div class="db-label" id="dbLabel">-32.0dB</div>
-    <div class="volume-bar-wrap"><div class="volume-bar-fill" id="volFill"></div></div>
     <div class="bal-row">
       <span class="bal-label l" id="balLabelL">L</span>
       <span class="bal-label r" id="balLabelR">R</span>
       <div class="bal-track"></div>
-      <div class="bal-dot" id="balDot" style="left:420px"></div>
-      <div class="bal-value" id="balVal">平衡</div>
+      <div class="bal-dot" id="balDot" style="left:50%"></div>
+      <div class="bal-value" id="balVal">CENTER</div>
     </div>
 
   </div>
@@ -840,14 +2309,26 @@
         <span class="val input-val" id="valOutputMode">变压器</span>
       </div>
       <!-- Row 11: 固件版本 (read-only) -->
-      <div class="settings-row read-only" data-row="11">
+      <div class="settings-row" data-row="11">
+        <span class="mdi mdi-monitor-dashboard icon"></span>
+        <span class="label">频谱跳转</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valSpectrumAuto">15秒</span>
+      </div>
+      <div class="settings-row" data-row="12">
+        <span class="mdi mdi-chart-bar icon"></span>
+        <span class="label">频谱样式</span>
+        <div class="no-bar"></div>
+        <span class="val input-val" id="valSpectrumTheme">经典柱状</span>
+      </div>
+      <div class="settings-row read-only" data-row="13">
         <span class="mdi mdi-information-outline icon"></span>
         <span class="label">固件版本</span>
         <div class="no-bar"></div>
         <span class="val" id="valFirmware">v2.1.0</span>
       </div>
       <!-- Row 12: IP地址 (read-only) -->
-      <div class="settings-row read-only" data-row="12">
+      <div class="settings-row read-only" data-row="14">
         <span class="mdi mdi-ip-network icon"></span>
         <span class="label">IP地址</span>
         <div class="no-bar"></div>
@@ -1072,6 +2553,8 @@
     currentPage: 0,  // 0=main, 1=spectrum, 2=settings, 3=ble_remote
     volBigVisible: false,  // 大字音量浮层是否可见
     idleTimer: null, idleCount: 15, specInterval: null, volBigTimer: null,
+    mainSpecInterval: null, mainSpecPhase: 0,
+    mainSpecLevels: [8, 12, 18, 24, 20, 14, 9, 11, 16, 23, 27, 20, 13, 9, 12, 18, 22, 17, 12, 8, 6],
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
     theme: 0,  // 0=翠绿, 1=赤红, 2=天蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
     settingsFocus: 0,
@@ -1124,7 +2607,7 @@
   const SRC_MDIS = ['mdi-disc-player','mdi-chip','mdi-laptop','mdi-audio-input-stereo-minijack'];
 
   function onUserAction(type, val) {
-    if (type === 'volume') { state.volume = parseInt(val); updateVolume(); showVolumeBig(); updateLed(state.input); return; }
+    if (type === 'volume') { state.volume = parseInt(val); updateVolume(); updateLed(state.input); return; }
     else if (type === 'input') { setInput(parseInt(val), true); }
     else if (type === 'balance') { state.balance = parseInt(val); updateBalance(); updateBarBalance(); }
     else if (type === 'wifi' || type === 'ble') updateStatus();
@@ -1162,13 +2645,15 @@
 
     // 切页时关闭大字音量浮层
     if (state.volBigVisible) {
-      document.getElementById('pageVolumeBig').classList.remove('active');
+      const overlay = document.getElementById('pageVolumeBig');
+      if (overlay) overlay.classList.remove('active');
       state.volBigVisible = false;
       clearTimeout(state.volBigTimer);
     }
 
     if (prev === 4) stopDebugRefresh();
-    if (idx === 0) stopSpec();
+    if (idx === 0) { stopSpec(); startMainMiniSpec(); }
+    else stopMainMiniSpec();
     if (idx === 1) startSpec();
     if (idx === 2) { stopSpec(); stopDebugRefresh(); updateSettings(); state.settingsFocus = 0; state.settingsActive = -1; updateSettingsFocus(); startPageIdleTimer(10); }
     if (idx === 3) { stopSpec(); stopDebugRefresh(); updateBlePage(); startPageIdleTimer(10); }
@@ -1184,6 +2669,33 @@
   function manualShowPage(idx) {
     showPage(idx);
     resetIdleTimer();
+  }
+
+  function startMainMiniSpec() {
+    const bars = document.querySelectorAll('.main-volume-panel .volume-scale span');
+    if (!bars.length) return;
+    stopMainMiniSpec();
+    const tick = () => {
+      state.mainSpecPhase += 0.18;
+      bars.forEach((bar, i) => {
+        const seed = state.mainSpecLevels[i % state.mainSpecLevels.length] || 10;
+        const wave = Math.sin(state.mainSpecPhase + i * 0.7) * 5;
+        const pulse = Math.sin(state.mainSpecPhase * 0.47 + i * 0.23) * 3;
+        const h = Math.max(5, Math.min(30, seed + wave + pulse + state.volume * 0.08));
+        bar.style.height = h.toFixed(1) + 'px';
+        bar.style.opacity = String(Math.max(0.35, Math.min(1, h / 28)));
+        bar.style.background = h > 23 ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 45%, #1F2937)';
+      });
+    };
+    tick();
+    state.mainSpecInterval = setInterval(tick, 85);
+  }
+
+  function stopMainMiniSpec() {
+    if (state.mainSpecInterval) {
+      clearInterval(state.mainSpecInterval);
+      state.mainSpecInterval = null;
+    }
   }
 
   function resetIdleTimer() {
@@ -1212,7 +2724,8 @@
 
   function setInput(idx, skipReset) {
     state.input = idx;
-    document.getElementById('inputSelect').value = idx;
+    const inputSelect = document.getElementById('inputSelect');
+    if (inputSelect) inputSelect.value = idx;
     // LED: 当前选中根据信号强度显示, 其余熄灭
     for (let i = 0; i < 4; i++) {
       updateLed(i);
@@ -1221,8 +2734,20 @@
     const ids = ['src0','src1','src2','src3'];
     ids.forEach((id, i) => {
       const base = SRC_MDIS[i].replace('mdi-','');
-      document.getElementById(id).className = 'mdi mdi-' + base + ' src-icon' + (state.signalDetected[i] ? ' signal' : '');
+      const icon = document.getElementById(id);
+      if (icon) icon.className = 'mdi mdi-' + base + ' src-icon' + (state.signalDetected[i] ? ' signal' : '');
+      const card = document.getElementById('sourceCard' + i);
+      if (card) {
+        card.classList.toggle('selected', i === idx);
+        card.classList.toggle('signal', !!state.signalDetected[i]);
+      }
+      const label = document.getElementById('srcState' + i);
+      if (label) label.textContent = state.signalDetected[i] ? 'SIGNAL' : 'IDLE';
     });
+    const activeInputName = document.getElementById('activeInputName');
+    if (activeInputName) activeInputName.textContent = SRC_NAMES[idx] || 'CD';
+    const specInputName = document.getElementById('specInputName');
+    if (specInputName) specInputName.textContent = SRC_NAMES[idx] || 'CD';
     if (!skipReset) onUserAction('input', idx);
   }
 
@@ -1233,6 +2758,8 @@
     document.getElementById('dbLabel').textContent = db.toFixed(1) + 'dB';
     document.getElementById('volFill').style.width = pct + '%';
     document.getElementById('volSlider').value = pct;
+    const pctText = document.getElementById('volPctText');
+    if (pctText) pctText.textContent = pct + '%';
     // dB label bounce animation
     const lbl = document.getElementById('dbLabel');
     lbl.classList.remove('bounce');
@@ -1247,7 +2774,7 @@
       el.classList.toggle('focused', i === idx && active < 0);
       el.classList.toggle('adjusting', i === idx && active === idx);
       // Read-only rows (11,12) don't get focused style, row 10 (output mode) is click-to-toggle
-      if (i === 11 || i === 12) {
+      if (i === 13 || i === 14) {
         el.classList.toggle('focused', false);
         el.classList.toggle('adjusting', false);
         el.style.borderLeftColor = i === idx ? 'var(--accent)' : 'transparent';
@@ -1260,7 +2787,7 @@
   document.addEventListener('keydown', (e) => {
     // ── 设置页键盘处理 ──
     if (state.currentPage === 2) {
-      const N = 13;
+      const N = 15;
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
           e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
           e.key === 'Enter' || e.key === 'Escape') {
@@ -1304,7 +2831,7 @@
           updateSettingsFocus();
           return;
         }
-        if (idx === 11) {
+        if (idx === 13) {
           // 固件版本 (Row 11)：三击进入诊断页
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
@@ -1317,7 +2844,7 @@
           state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
           return;
         }
-        if (idx > 10) return;  // 只读项(11,12)和输出模式(10)不进调节
+        if (idx > 12) return;  // read-only rows are 13,14
         if (state.settingsActive < 0) {
           state.settingsActive = idx;
         } else {
@@ -2188,7 +3715,7 @@
           }
         }
         // 固件版本三击追踪 (不受双击拦截影响)
-        if (state.currentPage === 2 && state.settingsFocus === 11) {
+        if (state.currentPage === 2 && state.settingsFocus === 13) {
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -2231,7 +3758,7 @@
           }
         }
         // 固件版本三击追踪 (不受双击拦截影响)
-        if (state.currentPage === 2 && state.settingsFocus === 11) {
+        if (state.currentPage === 2 && state.settingsFocus === 13) {
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -2298,7 +3825,7 @@
         if (page === 1) showPage(0);
       } else if (page === 2) {
         // 设置页
-        const N = 13;
+        const N = 15;
         if (state.settingsActive < 0) {
           // 浏览模式：移动焦点 (无限循环)
           let next = state.settingsFocus + diff;
@@ -2490,7 +4017,7 @@
           this.flashAction(state.settingsActive >= 0 ? '调节 输出模式' : '确认');
           return;
         }
-        if (idx > 10) return;  // 只读项(11,12)无反应
+        if (idx > 12) return;  // read-only rows are 13,14
         if (state.settingsActive < 0) {
           state.settingsActive = idx;
         } else {
@@ -2579,6 +4106,498 @@
     }
   };
 
+  // Modern preview overrides: the rebuilt main screen no longer uses the old
+  // status-bar icons or the large volume overlay.
+  const legacyShowVolumeBig = showVolumeBig;
+  showVolumeBig = function() {};
+
+  const legacySetInput = setInput;
+  setInput = function(idx, skipReset) {
+    state.input = idx;
+    const inputSelect = document.getElementById('inputSelect');
+    if (inputSelect) inputSelect.value = idx;
+    for (let i = 0; i < 4; i++) updateLed(i);
+    const ids = ['src0','src1','src2','src3'];
+    ids.forEach((id, i) => {
+      const base = SRC_MDIS[i].replace('mdi-','');
+      const icon = document.getElementById(id);
+      if (icon) icon.className = 'mdi mdi-' + base + ' src-icon' + (state.signalDetected[i] ? ' signal' : '');
+      const card = document.getElementById('sourceCard' + i);
+      if (card) {
+        card.classList.toggle('selected', i === idx);
+        card.classList.toggle('signal', !!state.signalDetected[i]);
+      }
+      const label = document.getElementById('srcState' + i);
+      if (label) label.textContent = state.signalDetected[i] ? 'SIGNAL' : 'IDLE';
+    });
+    const activeInputName = document.getElementById('activeInputName');
+    if (activeInputName) activeInputName.textContent = SRC_NAMES[idx] || 'CD';
+    const specInputName = document.getElementById('specInputName');
+    if (specInputName) specInputName.textContent = SRC_NAMES[idx] || 'CD';
+    if (!skipReset) onUserAction('input', idx);
+  };
+
+  updateBalance = function() {
+    const bal = state.balance;
+    const balDot = document.getElementById('balDot');
+    if (!balDot) return;
+    let dotPct = 50 + bal * 35 / 20;
+    if (dotPct < 15) dotPct = 15;
+    if (dotPct > 85) dotPct = 85;
+    balDot.style.left = dotPct + '%';
+    balDot.style.transform = 'translateX(-50%)';
+    const lblL = document.getElementById('balLabelL');
+    const lblR = document.getElementById('balLabelR');
+    if (lblL) lblL.style.color = bal < 0 ? getAccent() : '#64748B';
+    if (lblR) lblR.style.color = bal > 0 ? getAccent() : '#64748B';
+    const balVal = document.getElementById('balVal');
+    if (balVal) balVal.textContent = bal === 0 ? 'CENTER' : (bal < 0 ? 'L' : 'R') + Math.abs(bal);
+  };
+
+  updateAutoSwitch = function() {
+    const chk = document.getElementById('chkAutoSwitch');
+    if (chk) state.autoSwitch = chk.checked;
+    const val = document.getElementById('valAutoSwitch');
+    if (val) val.textContent = state.autoSwitch ? '自动' : '手动';
+    const mode = document.getElementById('mainAutoMode');
+    if (mode) mode.textContent = state.autoSwitch ? 'AUTO' : 'MANUAL';
+    const legacyIcon = document.getElementById('autoSwitchIcon');
+    if (legacyIcon) legacyIcon.style.color = state.autoSwitch ? getAccent() : '#444';
+  };
+
+  updateStatus = function() {
+    const chkWifi = document.getElementById('chkWifi');
+    const chkBle = document.getElementById('chkBle');
+    if (chkWifi) state.wifi = chkWifi.checked;
+    if (chkBle) state.ble = chkBle.checked;
+    const wifiIcon = document.getElementById('wifiIcon');
+    if (wifiIcon) wifiIcon.style.color = state.wifi ? getAccent() : '#334155';
+    const bleIcon = document.getElementById('bleIcon');
+    if (bleIcon) {
+      bleIcon.style.display = '';
+      bleIcon.style.color = state.ble ? getAccent() : '#334155';
+      bleIcon.style.opacity = state.ble ? '1' : '.45';
+    }
+    const muteIcon = document.getElementById('muteIcon');
+    if (muteIcon) {
+      muteIcon.style.display = '';
+      muteIcon.style.color = state.muted ? '#EF4444' : '#334155';
+      muteIcon.style.opacity = state.muted ? '1' : '.45';
+    }
+    updateAutoSwitch();
+  };
+
+  const legacyToggleMute = toggleMute;
+  toggleMute = function() {
+    state.muted = document.getElementById('chkMute').checked;
+    const el = document.getElementById('muteIcon');
+    if (el) {
+      el.style.display = '';
+      el.style.color = state.muted ? '#EF4444' : '#334155';
+      el.style.opacity = state.muted ? '1' : '.45';
+    }
+    updateLed(state.input);
+    resetIdleTimer();
+  };
+
+  updateOutputModeIcons = function() {
+    const val = document.getElementById('valOutputMode');
+    if (val) val.textContent = state.outputMode ? '直通' : '变压器';
+    const mainOutput = document.getElementById('mainOutputMode');
+    if (mainOutput) mainOutput.textContent = state.outputMode ? 'DIRECT' : 'TRANSFORMER';
+    const transformerEl = document.getElementById('iconTransformer');
+    const directEl = document.getElementById('iconDirect');
+    if (transformerEl) transformerEl.style.display = state.outputMode ? 'none' : '';
+    if (directEl) directEl.style.display = state.outputMode ? '' : 'none';
+  };
+
+  toggleSignal = function(idx) {
+    const sig = document.getElementById('sig' + idx);
+    if (sig) state.signalDetected[idx] = sig.checked;
+    setInput(state.input, true);
+  };
+
+  updateBleRemoteIndicator = function() {
+    const el = document.getElementById('bleRemoteIndicator');
+    const fill = document.getElementById('bleRemoteBattFill');
+    const icon = el?.querySelector('.rem-mdi');
+    const border = el?.querySelector('.ble-remote-batt');
+    if (!el || !fill) return;
+    const connected = state.bleRemoteConnected;
+    const hex = getAccent();
+    el.style.display = '';
+    el.style.opacity = connected ? '1' : '.45';
+    if (icon) {
+      icon.style.color = connected ? hex : '#334155';
+      icon.style.filter = connected ? `drop-shadow(0 0 4px ${hex}80)` : 'none';
+    }
+    if (border) border.style.borderColor = connected ? hex : '#334155';
+    if (connected && state.bleRemoteBattery >= 0) {
+      const pct = Math.min(100, Math.max(0, state.bleRemoteBattery));
+      fill.style.width = (pct / 100 * 14) + 'px';
+      fill.style.background = pct > 50 ? hex : (pct > 20 ? '#FBBF24' : '#EF4444');
+    } else {
+      fill.style.width = '0px';
+      fill.style.background = '#334155';
+    }
+  };
+
+  const SPECTRUM_AUTO_SECONDS = [0, 15, 30, 60, 120];
+  const SPECTRUM_AUTO_LABELS = ['禁用', '15秒', '30秒', '60秒', '120秒'];
+  const SPECTRUM_STYLE_NAMES = ['经典柱状', '镜像频谱', 'LED点阵', '示波线', '蓝表VU'];
+  const SPECTRUM_STYLE_CLASSES = ['classic', 'mirror', 'led', 'scope', 'vu'];
+  state.spectrumAutoIdx = 1;
+  state.spectrumTheme = 2;
+
+  function modernizeSettingsRows() {
+    const labels = [
+      '最大音量', '开机上限', '声道平衡', '输入选择', '输入自动切换',
+      '屏幕亮度', '息屏超时', '主题色彩', '蓝牙遥控', '遥控器按键',
+      '输出模式', '频谱跳转', '频谱样式', '固件版本', 'IP地址'
+    ];
+    document.querySelectorAll('.settings-row').forEach(row => {
+      const idx = Number(row.dataset.row);
+      const label = row.querySelector('.label');
+      if (label && labels[idx]) label.textContent = labels[idx];
+      row.classList.toggle('read-only', idx === 13 || idx === 14);
+    });
+  }
+
+  function updateSpectrumSettingRows() {
+    const auto = document.getElementById('valSpectrumAuto');
+    const theme = document.getElementById('valSpectrumTheme');
+    if (auto) auto.textContent = SPECTRUM_AUTO_LABELS[state.spectrumAutoIdx] || SPECTRUM_AUTO_LABELS[1];
+    if (theme) theme.textContent = SPECTRUM_STYLE_NAMES[state.spectrumTheme] || SPECTRUM_STYLE_NAMES[0];
+    const counter = document.getElementById('idleCountdown');
+    if (counter && state.spectrumAutoIdx === 0 && state.currentPage <= 1) counter.textContent = '--';
+  }
+
+  function applySpectrumStyle() {
+    const page = document.getElementById('pageSpectrum');
+    if (!page) return;
+    page.classList.remove(...SPECTRUM_STYLE_CLASSES.map(name => 'spec-style-' + name));
+    page.classList.add('spec-style-' + SPECTRUM_STYLE_CLASSES[state.spectrumTheme]);
+    let label = document.getElementById('specStyleLabel');
+    if (!label) {
+      label = document.createElement('div');
+      label.id = 'specStyleLabel';
+      label.className = 'spec-style-label';
+      page.appendChild(label);
+    }
+    label.textContent = state.spectrumTheme === 2 ? 'LED MATRIX ANALYZER' : (state.spectrumTheme === 4 ? 'BLUE GLASS POWER METERS' : (SPECTRUM_STYLE_NAMES[state.spectrumTheme] || SPECTRUM_STYLE_NAMES[0]).toUpperCase());
+    document.querySelectorAll('.vu-meter-wrap').forEach(wrap => {
+      let scale = wrap.querySelector('.vu-scale');
+      if (state.spectrumTheme === 4) {
+        if (!scale) {
+          scale = document.createElement('div');
+          scale.className = 'vu-scale';
+          wrap.appendChild(scale);
+        }
+        scale.innerHTML = `
+          <svg viewBox="0 0 360 122" aria-hidden="true">
+            <path d="M31 79 L52 68 M83 56 L91 68 M132 48 L137 63 M180 45 L180 61 M228 48 L223 63 M277 56 L269 68 M329 79 L308 68"
+                  fill="none" stroke="rgba(3,51,107,.66)" stroke-width="2" stroke-linecap="round"/>
+            <text x="180" y="-2" text-anchor="middle" font-size="8" font-weight="800" letter-spacing="2" fill="rgba(3,51,107,.5)">WATTS</text>
+            <text x="52" y="37" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">4.5</text>
+            <text x="105" y="29" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">45</text>
+            <text x="150" y="25" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">45</text>
+            <text x="198" y="25" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">45</text>
+            <text x="245" y="30" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">45</text>
+            <text x="303" y="42" text-anchor="middle" font-size="15" font-weight="800" fill="rgba(3,51,107,.68)">450</text>
+            <text x="62" y="66" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">-50</text>
+            <text x="110" y="59" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">-40</text>
+            <text x="156" y="56" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">-30</text>
+            <text x="202" y="56" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">-20</text>
+            <text x="248" y="60" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">-10</text>
+            <text x="297" y="70" text-anchor="middle" font-size="9" font-weight="800" fill="rgba(3,51,107,.55)">0</text>
+            <text x="180" y="88" text-anchor="middle" font-size="9" font-weight="800" letter-spacing="4" fill="rgba(3,51,107,.42)">DECIBELS</text>
+            <text x="180" y="108" text-anchor="middle" font-size="14" font-weight="900" letter-spacing="2.5" fill="rgba(3,51,107,.38)">POWER OUTPUT</text>
+          </svg>`;
+      } else if (scale) {
+        scale.remove();
+      }
+    });
+    updateSpectrumSettingRows();
+  }
+
+  function ledMatrixGradient(level) {
+    let color = '#22C55E';
+    let glow = 'rgba(34,197,94,.34)';
+    if (level > 66) { color = '#FACC15'; glow = 'rgba(250,204,21,.42)'; }
+    else if (level > 46) { color = '#34D399'; glow = 'rgba(52,211,153,.34)'; }
+    else if (level < 18) { color = '#EF4444'; glow = 'rgba(239,68,68,.34)'; }
+    else if (level < 32) { color = '#F97316'; glow = 'rgba(249,115,22,.34)'; }
+    return {
+      background: `repeating-linear-gradient(to top, ${color} 0 7px, ${color} 7px 8px, rgba(6,12,22,.36) 8px 11px, transparent 11px 13px)`,
+      shadow: `0 0 12px ${glow}`
+    };
+  }
+
+  const legacyUpdateSettings = updateSettings;
+  updateSettings = function() {
+    modernizeSettingsRows();
+    legacyUpdateSettings();
+    updateSpectrumSettingRows();
+    updateOutputModeIcons();
+  };
+
+  const legacySetTheme = setTheme;
+  setTheme = function(idx) {
+    legacySetTheme(idx);
+    applySpectrumStyle();
+    updateAutoSwitch();
+    updateOutputModeIcons();
+  };
+
+  resetIdleTimer = function() {
+    if (state.standby) return;
+    resetPageIdleTimer();
+    const seconds = SPECTRUM_AUTO_SECONDS[state.spectrumAutoIdx] ?? 15;
+    if (state.idleTimer) clearInterval(state.idleTimer);
+    if (seconds <= 0 && state.currentPage <= 1) {
+      state.idleTimer = null;
+      const counter = document.getElementById('idleCountdown');
+      if (counter) counter.textContent = '--';
+      return;
+    }
+    state.idleCount = state.currentPage === 1 ? 10 : seconds;
+    const counter = document.getElementById('idleCountdown');
+    if (counter) counter.textContent = String(state.idleCount);
+    state.idleTimer = setInterval(() => {
+      state.idleCount--;
+      const liveCounter = document.getElementById('idleCountdown');
+      if (liveCounter) liveCounter.textContent = String(state.idleCount);
+      if (state.idleCount <= 0) {
+        clearInterval(state.idleTimer);
+        state.idleTimer = null;
+        if (!state.muted && state.currentPage === 0 && state.signalDetected[state.input]) {
+          showPage(1);
+        } else if (!state.muted && state.currentPage === 1 && !state.signalDetected[state.input]) {
+          showPage(0);
+        } else if (state.currentPage === 0 || state.currentPage === 1) {
+          resetIdleTimer();
+        }
+      }
+    }, 1000);
+  };
+
+  function adjustSetting(idx, step, flash) {
+    switch (idx) {
+      case 0: {
+        let v = Math.max(10, Math.min(255, state.maxVolume + step));
+        state.maxVolume = v; updateBarMaxVol();
+        const slider = document.getElementById('maxVolSlider'); if (slider) slider.value = v;
+        if (flash) encoder.flashAction('最大音量 ' + v);
+        break;
+      }
+      case 1: {
+        let v = Math.max(10, Math.min(255, state.powerOnLimit + step));
+        state.powerOnLimit = v; updateBarPowerOn();
+        const slider = document.getElementById('powerOnSlider'); if (slider) slider.value = v;
+        if (flash) encoder.flashAction('开机上限 ' + v);
+        break;
+      }
+      case 2: {
+        let v = Math.max(-20, Math.min(20, state.balance + step));
+        state.balance = v; updateBarBalance(); updateBalance();
+        const slider = document.getElementById('balSlider'); if (slider) slider.value = v;
+        if (flash) encoder.flashAction(v === 0 ? '平衡' : ((v < 0 ? 'L' : 'R') + Math.abs(v)));
+        break;
+      }
+      case 3: {
+        let v = state.input + step;
+        if (v < 0) v = 3; if (v > 3) v = 0;
+        setInput(v, true);
+        const val = document.getElementById('valInput'); if (val) val.textContent = SRC_NAMES[v];
+        if (flash) encoder.flashAction('输入 ' + SRC_NAMES[v]);
+        break;
+      }
+      case 4:
+        state.autoSwitch = !state.autoSwitch;
+        document.getElementById('chkAutoSwitch').checked = state.autoSwitch;
+        updateAutoSwitch();
+        if (flash) encoder.flashAction(state.autoSwitch ? '自动切换' : '手动切换');
+        break;
+      case 5: {
+        let v = Math.max(0, Math.min(100, state.brightness + step));
+        state.brightness = v; updateBarBrightness();
+        const slider = document.getElementById('brightSlider'); if (slider) slider.value = v;
+        if (flash) encoder.flashAction('亮度 ' + v + '%');
+        break;
+      }
+      case 6: {
+        let v = Math.max(1, Math.min(60, state.displayTimeout + step));
+        state.displayTimeout = v; updateBarTimeout();
+        const slider = document.getElementById('timeoutSlider'); if (slider) slider.value = v;
+        if (flash) encoder.flashAction('超时 ' + v + '分钟');
+        break;
+      }
+      case 7: {
+        let v = state.theme + step;
+        if (v < 0) v = 7; if (v > 7) v = 0;
+        setTheme(v);
+        if (flash) encoder.flashAction('主题 ' + (THEMES[v] || v));
+        break;
+      }
+      case 10:
+        state.outputMode = !state.outputMode;
+        document.getElementById('chkOutputMode').checked = state.outputMode;
+        updateOutputModeIcons();
+        if (flash) encoder.flashAction(state.outputMode ? '直通输出' : '变压器输出');
+        break;
+      case 11: {
+        let v = state.spectrumAutoIdx + step;
+        if (v < 0) v = SPECTRUM_AUTO_LABELS.length - 1;
+        if (v >= SPECTRUM_AUTO_LABELS.length) v = 0;
+        state.spectrumAutoIdx = v;
+        updateSpectrumSettingRows();
+        resetIdleTimer();
+        if (flash) encoder.flashAction('频谱跳转 ' + SPECTRUM_AUTO_LABELS[v]);
+        break;
+      }
+      case 12: {
+        let v = state.spectrumTheme + step;
+        if (v < 0) v = SPECTRUM_STYLE_NAMES.length - 1;
+        if (v >= SPECTRUM_STYLE_NAMES.length) v = 0;
+        state.spectrumTheme = v;
+        applySpectrumStyle();
+        if (flash) encoder.flashAction('频谱 ' + SPECTRUM_STYLE_NAMES[v]);
+        break;
+      }
+    }
+  }
+
+  function activateSetting() {
+    const idx = state.settingsFocus;
+    if (idx === 8) { state.bleRemoteFocus = 0; state.bleRemoteDeviceCount = 0; showPage(3); return; }
+    if (idx === 9) { state.keymapFocus = 0; state.keymapActive = -1; showPage(5); return; }
+    if (idx === 13) {
+      state.clickCount++;
+      if (state.clickTimer) clearTimeout(state.clickTimer);
+      if (state.clickCount >= 3) { state.clickCount = 0; state.clickTimer = null; showPage(4); return; }
+      state.clickTimer = setTimeout(() => { state.clickCount = 0; state.clickTimer = null; }, 500);
+      return;
+    }
+    if (idx > 12) return;
+    state.settingsActive = state.settingsActive < 0 ? idx : -1;
+    updateSettingsFocus();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (state.currentPage !== 2) return;
+    if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.key)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.key === 'Escape') { state.settingsActive = -1; showPage(0); return; }
+    if (e.key === 'Enter') { activateSetting(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      let next = state.settingsFocus + step;
+      if (next < 0) next = 14; if (next > 14) next = 0;
+      state.settingsFocus = next;
+      updateSettingsFocus();
+      const row = document.querySelector(`.settings-row[data-row="${next}"]`);
+      if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+    if (state.settingsActive >= 0) adjustSetting(state.settingsActive, e.key === 'ArrowRight' ? 1 : -1, false);
+  }, true);
+
+  const originalRotate = encoder.rotate.bind(encoder);
+  encoder.rotate = function(diff) {
+    if (state.currentPage !== 2) return originalRotate(diff);
+    if (state.settingsActive < 0) {
+      let next = state.settingsFocus + diff;
+      if (next < 0) next = 14; if (next > 14) next = 0;
+      state.settingsFocus = next;
+      updateSettingsFocus();
+      const row = document.querySelector(`.settings-row[data-row="${next}"]`);
+      if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+      adjustSetting(state.settingsActive, diff, true);
+    }
+    resetIdleTimer();
+  };
+
+  const originalSingleClick = encoder.singleClick.bind(encoder);
+  encoder.singleClick = function() {
+    if (state.currentPage !== 2) return originalSingleClick();
+    this.flashAction('单击');
+    activateSetting();
+    resetIdleTimer();
+  };
+
+  startSpec = function() {
+    if (state.specInterval) return;
+    applySpectrumStyle();
+    const leftBars = document.querySelectorAll('#specLeft .bar');
+    const rightBars = document.querySelectorAll('#specRight .bar');
+    const leftPeaks = document.querySelectorAll('#specLeft .peak');
+    const rightPeaks = document.querySelectorAll('#specRight .peak');
+    const lBases = [18, 28, 42, 58, 40, 25, 15];
+    const rBases = [22, 32, 38, 52, 44, 30, 18];
+    let lPeaks = [...lBases], rPeaks = [...rBases];
+    const TOTAL_H = 246;
+    const icon = document.getElementById('specSrcIcon');
+    if (icon) { icon.className = 'mdi ' + SRC_MDIS[state.input]; icon.style.color = getAccent(); }
+    const inputName = document.getElementById('specInputName');
+    if (inputName) inputName.textContent = SRC_NAMES[state.input];
+    const temp = document.getElementById('specTemp');
+    if (temp) temp.textContent = state.temp.toFixed(1) + '°C';
+    state.specInterval = setInterval(() => {
+      if (state.muted) return;
+      const scope = state.spectrumTheme === 3;
+      let leftTotal = 0, rightTotal = 0;
+      for (let i = 0; i < 7; i++) {
+        let lh = Math.max(2, Math.min(98, lBases[i] + (Math.random() - 0.3) * 24));
+        let rh = Math.max(2, Math.min(98, rBases[i] + (Math.random() - 0.3) * 24));
+        leftTotal += lh; rightTotal += rh;
+        if (scope) {
+          leftBars[i].style.transform = `translateY(${(50 - lh) * 1.35}px)`;
+          rightBars[i].style.transform = `translateY(${(50 - rh) * 1.35}px)`;
+          leftPeaks[i].style.display = 'none';
+          rightPeaks[i].style.display = 'none';
+        } else {
+          leftBars[i].style.transform = '';
+          rightBars[i].style.transform = '';
+          leftBars[i].style.height = lh + '%';
+          rightBars[i].style.height = rh + '%';
+          if (state.spectrumTheme === 2) {
+            const lg = ledMatrixGradient(lh);
+            const rg = ledMatrixGradient(rh);
+            leftBars[i].style.background = lg.background;
+            leftBars[i].style.boxShadow = lg.shadow;
+            rightBars[i].style.background = rg.background;
+            rightBars[i].style.boxShadow = rg.shadow;
+          }
+          leftPeaks[i].style.display = '';
+          rightPeaks[i].style.display = '';
+          if (lh > lPeaks[i]) lPeaks[i] = lh; else lPeaks[i] -= 0.35;
+          if (rh > rPeaks[i]) rPeaks[i] = rh; else rPeaks[i] -= 0.35;
+          leftPeaks[i].style.top = Math.max(0, TOTAL_H - (lPeaks[i] / 100 * TOTAL_H) - 2) + 'px';
+          rightPeaks[i].style.top = Math.max(0, TOTAL_H - (rPeaks[i] / 100 * TOTAL_H) - 2) + 'px';
+        }
+      }
+      const vuL = leftTotal / 7;
+      const vuR = rightTotal / 7;
+      const vuFillL = document.getElementById('vuFillL');
+      const vuFillR = document.getElementById('vuFillR');
+      if (state.spectrumTheme === 4) {
+        const angleL = -42 + Math.max(0, Math.min(1, vuL / 100)) * 84;
+        const angleR = -42 + Math.max(0, Math.min(1, vuR / 100)) * 84;
+        vuFillL.style.width = '42%';
+        vuFillR.style.width = '42%';
+        vuFillL.style.transform = `rotate(${angleL.toFixed(1)}deg)`;
+        vuFillR.style.transform = `rotate(${angleR.toFixed(1)}deg)`;
+      } else {
+        vuFillL.style.transform = '';
+        vuFillR.style.transform = '';
+        vuFillL.style.width = vuL + '%';
+        vuFillR.style.width = vuR + '%';
+      }
+    }, 70);
+  };
+
   encoder.init();
 
   setInput(0, true);
@@ -2588,6 +4607,12 @@
   updateBleRemoteIndicator();
   resetIdleTimer();
   setTheme(0);
+  updateAutoSwitch();
+  updateOutputModeIcons();
+  modernizeSettingsRows();
+  updateSpectrumSettingRows();
+  applySpectrumStyle();
+  startMainMiniSpec();
 </script>
 </body>
 </html>
