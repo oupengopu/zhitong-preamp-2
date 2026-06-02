@@ -67,7 +67,7 @@ void lv_scr_load_anim(lv_obj_t * scr, lv_scr_load_anim_t anim_type, uint32_t tim
 // ── 主题色辅助函数 (消除 YAML 中 7 处重复 switch-case) ──
 inline lv_color_t get_theme_accent(int theme) {
   lv_color_t colors[] = {
-    lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6),
+    lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC),
     lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A),
     lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)
   };
@@ -76,6 +76,6 @@ inline lv_color_t get_theme_accent(int theme) {
 
 // 主题色名称数组 (font_cn 已包含这些字符)
 inline const char* get_theme_name(int theme) {
-  static const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+  static const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
   return names[theme >= 0 && theme < 8 ? theme : 0];
 }

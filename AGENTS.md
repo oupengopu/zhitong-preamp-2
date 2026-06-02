@@ -12,7 +12,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 **固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component  
+**框架:** ESPHome 2026.5.2 + LVGL v9.x managed component  
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
@@ -215,7 +215,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 |------|------|------|---------|
 | 0 | 翠绿 | 0x10B981 | 高保真经典绿 |
 | 1 | 赤红 | 0xEF4444 | 贵丰 (Gryphon) 雄狮红 |
-| 2 | 天蓝 | 0x3B82F6 | 通用清爽蓝 |
+| 2 | 冰蓝 | 0x7DD3FC | 冷光冰蓝 |
 | 3 | 紫色 | 0x8B5CF6 | 马克莱文森 (Mark Levinson) 高贵紫 |
 | 4 | 麦景图蓝 | 0x0071E3 | 麦景图 (McIntosh) 表头蓝 |
 | 5 | 金嗓子金 | 0xCD9B4A | 金嗓子 (Accuphase) 香槟金 |
