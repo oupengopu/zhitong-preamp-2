@@ -1058,7 +1058,8 @@ lvgl:
             text: "Zhitong Audio"
             text_font: montserrat_36
             text_align: CENTER
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
         # 副标题
         - label:
             id: lbl_splash_sub
@@ -1128,7 +1129,8 @@ lvgl:
             bg_color: 0x08121E
             bg_opa: 55%
             border_width: 1
-            border_color: 0x10B981
+            border_color: !lambda |-
+              return get_theme_accent(id(theme));
             border_opa: 55%
             radius: 0
         - obj:
@@ -1206,7 +1208,8 @@ lvgl:
             text: "CD"
             text_font: montserrat_8
             text_align: LEFT
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
         - label:
             id: lbl_main_volume_driver
             x: 214
@@ -1261,7 +1264,8 @@ lvgl:
               return std::string(id(output_mode) ? "DIRECT" : "TRANSFORMER");
             text_font: montserrat_16
             text_align: LEFT
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
         - label:
             id: lbl_main_auto_caption
             x: 326
@@ -1282,7 +1286,8 @@ lvgl:
               return std::string(id(auto_input) ? "AUTO" : "MANUAL");
             text_font: montserrat_16
             text_align: LEFT
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
         # ════════════════════════════════════════════
         # 顶栏 — MDI 输入源图标 + LED + 温度 + WiFi/BLE
         # ════════════════════════════════════════════
@@ -1298,7 +1303,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(audio_cd)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_cd)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_gamepad
             x: 75
@@ -1309,7 +1314,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(audio_dac)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_dac)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_laptop
             x: 29
@@ -1320,7 +1325,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(audio_pc)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_pc)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_music
             x: 75
@@ -1331,15 +1336,15 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(audio_aux)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_aux)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label: { id: lbl_src_name_0, x: 48, y: 48, width: 16, height: 10, text: "CD", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
         - label: { id: lbl_src_name_1, x: 94, y: 48, width: 16, height: 10, text: "DAC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
         - label: { id: lbl_src_name_2, x: 48, y: 93, width: 16, height: 10, text: "PC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
         - label: { id: lbl_src_name_3, x: 94, y: 93, width: 16, height: 10, text: "AUX", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
-        - label: { id: lbl_src_state_0, x: 48, y: 62, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: 0x10B981 }
+        - label: { id: lbl_src_state_0, x: 48, y: 62, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
         - label: { id: lbl_src_state_1, x: 94, y: 62, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
         - label: { id: lbl_src_state_2, x: 48, y: 107, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
-        - label: { id: lbl_src_state_3, x: 94, y: 107, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: 0x10B981 }
+        - label: { id: lbl_src_state_3, x: 94, y: 107, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
 
         # ── 4颗 LED 指示灯 (输入源) ──
         - led:
@@ -1390,7 +1395,7 @@ lvgl:
             text_font: mdi_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              return id(auto_input) ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(auto_input) ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
             hidden: true
 
         # ── 输出模式指示 (变压器 / 直通) ──
@@ -1431,7 +1436,8 @@ lvgl:
             text: "\U000F050F"
             text_font: mdi_icons_16
             text_align: CENTER
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
         - label:
             id: lbl_temp_value
             x: 310
@@ -1497,16 +1503,7 @@ lvgl:
             text_align: CENTER
             text_color: !lambda |-
               if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
-              switch (id(theme)) {
-                case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x7DD3FC);
-                case 3: return lv_color_hex(0x8B5CF6);
-                case 4: return lv_color_hex(0x0071E3);
-                case 5: return lv_color_hex(0xCD9B4A);
-                case 6: return lv_color_hex(0x06B6D4);
-                case 7: return lv_color_hex(0xF97316);
-                default: return lv_color_hex(0x10B981);
-              }
+              return get_theme_accent(id(theme));
         # ── BLE Remote 电池条（耳机电量风格） ──
         - obj:
             id: ble_remote_batt_outline
@@ -1518,16 +1515,7 @@ lvgl:
             border_width: 1
             border_color: !lambda |-
               if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
-              switch (id(theme)) {
-                case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x7DD3FC);
-                case 3: return lv_color_hex(0x8B5CF6);
-                case 4: return lv_color_hex(0x0071E3);
-                case 5: return lv_color_hex(0xCD9B4A);
-                case 6: return lv_color_hex(0x06B6D4);
-                case 7: return lv_color_hex(0xF97316);
-                default: return lv_color_hex(0x10B981);
-              }
+              return get_theme_accent(id(theme));
             border_opa: !lambda |-
               return id(ble_remote_connected) ? LV_OPA_COVER : LV_OPA_30;
             widgets:
@@ -1542,18 +1530,7 @@ lvgl:
                     bg_color: !lambda |-
                       int batt = id(ble_remote_battery);
                       if (!id(ble_remote_connected) || batt < 0) return lv_color_hex(0x263244);
-                      if (batt > 50) {
-                        switch (id(theme)) {
-                          case 1: return lv_color_hex(0xEF4444);
-                          case 2: return lv_color_hex(0x7DD3FC);
-                          case 3: return lv_color_hex(0x8B5CF6);
-                          case 4: return lv_color_hex(0x0071E3);
-                          case 5: return lv_color_hex(0xCD9B4A);
-                          case 6: return lv_color_hex(0x06B6D4);
-                          case 7: return lv_color_hex(0xF97316);
-                          default: return lv_color_hex(0x10B981);
-                        }
-                      }
+                      if (batt > 50) return get_theme_accent(id(theme));
                       if (batt > 20) return lv_color_hex(0xFBBF24);
                       return lv_color_hex(0xEF4444);
                   value: !lambda |-
@@ -1575,16 +1552,7 @@ lvgl:
             text_align: CENTER
             text_color: !lambda |-
               if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x263244);
-              switch (id(theme)) {
-                case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x7DD3FC);
-                case 3: return lv_color_hex(0x8B5CF6);
-                case 4: return lv_color_hex(0x0071E3);
-                case 5: return lv_color_hex(0xCD9B4A);
-                case 6: return lv_color_hex(0x06B6D4);
-                case 7: return lv_color_hex(0xF97316);
-                default: return lv_color_hex(0x10B981);
-              }
+              return get_theme_accent(id(theme));
 
         # ════════════════════════════════════════════
         # 分隔线
@@ -1595,7 +1563,8 @@ lvgl:
             y: 123
             width: 380
             height: 1
-            bg_color: 0x10B981
+            bg_color: !lambda |-
+              return get_theme_accent(id(theme));
             bg_opa: 25%
 
         # ════════════════════════════════════════════
@@ -1645,7 +1614,8 @@ lvgl:
             min_value: 0
             max_value: 100
             indicator:
-              bg_color: 0x10B981
+              bg_color: !lambda |-
+                return get_theme_accent(id(theme));
               radius: 1
             bg_color: 0x334155
             bg_opa: 60%
@@ -1687,7 +1657,8 @@ lvgl:
             y: 126
             width: 7
             height: 7
-            bg_color: 0x10B981
+            bg_color: !lambda |-
+              return get_theme_accent(id(theme));
             bg_opa: cover
             radius: 3
         - label:
@@ -1733,7 +1704,8 @@ lvgl:
               const char* icons[] = {"\U000F0960", "\U000F061A", "\U000F0322", "\U000F186C"};
               return icons[id(current_input)];
             text_font: mdi_icons_22
-            text_color: 0x10B981
+            text_color: !lambda |-
+              return get_theme_accent(id(theme));
             text_align: LEFT
         - label:
             id: lbl_spec_input
@@ -2133,7 +2105,8 @@ lvgl:
             value: 0
             bg_color: color_track
             indicator:
-              bg_color: 0x10B981
+              bg_color: !lambda |-
+                return get_theme_accent(id(theme));
               bg_opa: cover
             radius: 2
         - bar:
@@ -2147,7 +2120,8 @@ lvgl:
             value: 0
             bg_color: color_track
             indicator:
-              bg_color: 0x10B981
+              bg_color: !lambda |-
+                return get_theme_accent(id(theme));
               bg_opa: cover
             radius: 2
 
@@ -3214,8 +3188,7 @@ lvgl:
                   width: 14
                   height: 14
                   bg_color: !lambda |-
-                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-                    return colors[id(theme)];
+                    return get_theme_accent(id(theme));
                   radius: 10
                   border_width: 0
               - label:
@@ -4149,10 +4122,7 @@ script:
           lv_obj_set_style_bg_color(id(vu_meter_l), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(vu_meter_r), accent, LV_PART_INDICATOR);
           // 主题色点
-          {
-            lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-            lv_obj_set_style_bg_color(id(theme_dot), colors[id(theme)], LV_PART_MAIN);
-          }
+          lv_obj_set_style_bg_color(id(theme_dot), accent, LV_PART_MAIN);
           // 设置页图标 (rows 0-7 跟随主题, 10 输出模式跟随主题, 8-9 蓝牙/按键导航, 11-12 固定灰)
           lv_obj_set_style_text_color(id(icon_max_vol), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_power_on), accent, LV_PART_MAIN);
@@ -4608,8 +4578,7 @@ sensor:
                     {
                       const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
                       lv_label_set_text(id(val_theme), names[v]);
-                      lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-                      lv_obj_set_style_bg_color(id(theme_dot), colors[v], LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(id(theme_dot), get_theme_accent(v), LV_PART_MAIN);
                     }
                     id(theme_number)->publish_state((float)v);
                     id(apply_theme)->execute();
@@ -5733,8 +5702,7 @@ interval:
                 lv_label_set_text(id(lbl_temp_value), "保护!");
               } else {
                 // 恢复为主题 accent 色 (而非硬编码灰色)
-                lv_color_t accents[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-                lv_obj_set_style_text_color(id(lbl_temp_value), accents[id(theme)], LV_PART_MAIN);
+                lv_obj_set_style_text_color(id(lbl_temp_value), get_theme_accent(id(theme)), LV_PART_MAIN);
               }
             }
           }
@@ -6469,8 +6437,7 @@ binary_sensor:
                                                             (i < 8 || i == 10 || i == 11 || i == 12) ? lv_color_hex(0x101827) : lv_color_hex(0x080D16), LV_PART_MAIN);
                                                         }
                                                         lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
-                                                        lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
-                                                        lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
+                                                        lv_obj_set_style_border_color(rows[0], get_theme_accent(id(theme)), LV_PART_MAIN);
                                                         lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                                                         lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x142033), LV_PART_MAIN);
                                                         lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
