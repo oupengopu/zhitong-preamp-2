@@ -613,7 +613,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_16
     size: 16
-    glyphs: ["󰔏", "󰕽", "󰘬", "󰑃"]
+    glyphs: ["󰔏", "󰕽", "󰘬", "󰑃", "\U000F00D6"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -1109,15 +1109,15 @@ lvgl:
             text_color: 0x64748B
         - obj:
             id: main_status_pill
-            x: 302
+            x: 286
             y: 11
-            width: 104
+            width: 120
             height: 20
             bg_color: 0x060C16
-            bg_opa: 45%
+            bg_opa: 34%
             border_width: 1
             border_color: 0x263244
-            border_opa: 35%
+            border_opa: 16%
             radius: 0
         - obj:
             id: src_card_0
@@ -1174,10 +1174,10 @@ lvgl:
             width: 182
             height: 79
             bg_color: 0x0B1220
-            bg_opa: 62%
+            bg_opa: 56%
             border_width: 1
             border_color: 0x94A3B8
-            border_opa: 4%
+            border_opa: 3%
             radius: 0
         - obj:
             id: main_volume_highlight
@@ -1424,7 +1424,7 @@ lvgl:
         # ── 温度计图标 + 温度值 ──
         - label:
             id: lbl_thermo_icon
-            x: 310
+            x: 294
             y: 13
             width: 14
             height: 14
@@ -1434,7 +1434,7 @@ lvgl:
             text_color: 0x10B981
         - label:
             id: lbl_temp_value
-            x: 326
+            x: 310
             y: 14
             width: 28
             height: 14
@@ -1450,7 +1450,7 @@ lvgl:
             text_font: montserrat_12
         - label:
             id: lbl_temp_unit
-            x: 352
+            x: 336
             y: 16
             width: 14
             height: 10
@@ -1462,41 +1462,41 @@ lvgl:
         # ── 静音指示 ──
         - label:
             id: lbl_mute
-            x: 366
-            y: 14
-            width: 22
+            x: 352
+            y: 13
+            width: 13
             height: 14
-            text: !lambda |-
-              return std::string(id(soft_mute) ? "静音" : "");
-            text_font: font_cn_small
+            text: "\U000F00D6"
+            text_font: mdi_icons_16
             text_align: CENTER
-            text_color: 0xEF4444
+            text_color: !lambda |-
+              return id(soft_mute) ? lv_color_hex(0xEF4444) : lv_color_hex(0x263244);
 
         # ── BLE 图标 ──
         - label:
             id: lbl_ble
-            x: 366
-            y: 11
-            width: 18
+            x: 365
+            y: 13
+            width: 13
             height: 18
             text: "\U000F00AF"
-            text_font: mdi_icons_27
+            text_font: mdi_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              if (!id(ble_connected)) return lv_color_hex(0x333333);
+              if (!id(ble_connected)) return lv_color_hex(0x263244);
               return get_theme_accent(id(theme));
         # ── BLE Remote 指示（蓝牙遥控器连接 + 耳机电量条） ──
         - label:
             id: lbl_ble_remote_indicator
-            x: 382
-            y: 19
-            width: 12
+            x: 378
+            y: 16
+            width: 10
             height: 14
             text: "\U000F00AF"
             text_font: mdi_icons_12
             text_align: CENTER
             text_color: !lambda |-
-              if (!id(ble_remote_connected)) return lv_color_hex(0x333333);
+              if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
                 case 2: return lv_color_hex(0x3B82F6);
@@ -1510,14 +1510,14 @@ lvgl:
         # ── BLE Remote 电池条（耳机电量风格） ──
         - obj:
             id: ble_remote_batt_outline
-            x: 396
-            y: 22
-            width: 14
-            height: 7
+            x: 389
+            y: 17
+            width: 11
+            height: 6
             bg_opa: 0
             border_width: 1
             border_color: !lambda |-
-              if (!id(ble_remote_connected)) return lv_color_hex(0x444444);
+              if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
                 case 2: return lv_color_hex(0x3B82F6);
@@ -1533,15 +1533,15 @@ lvgl:
             widgets:
               - bar:
                   id: ble_remote_batt_fill
-                  width: 12
-                  height: 5
+                  width: 9
+                  height: 4
                   x: 1
                   y: 1
-                  bg_color: 0x333333
+                  bg_color: 0x263244
                   indicator:
                     bg_color: !lambda |-
                       int batt = id(ble_remote_battery);
-                      if (!id(ble_remote_connected) || batt < 0) return lv_color_hex(0x333333);
+                      if (!id(ble_remote_connected) || batt < 0) return lv_color_hex(0x263244);
                       if (batt > 50) {
                         switch (id(theme)) {
                           case 1: return lv_color_hex(0xEF4444);
@@ -1566,15 +1566,15 @@ lvgl:
         # ── WiFi 图标 ──
         - label:
             id: lbl_wifi
-            x: 390
-            y: 11
-            width: 18
+            x: 400
+            y: 13
+            width: 14
             height: 18
             text: "\U000F05A9"
-            text_font: mdi_icons_24
+            text_font: mdi_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x333333);
+              if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
                 case 2: return lv_color_hex(0x3B82F6);
@@ -2240,7 +2240,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   text: "\U000F00AF"  # mdi-bluetooth
@@ -2261,7 +2261,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2282,7 +2282,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2308,7 +2308,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2335,7 +2335,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2362,7 +2362,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2399,7 +2399,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2437,7 +2437,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   text: "\U000F0F9D"
@@ -2458,7 +2458,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2489,7 +2489,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2520,7 +2520,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2551,7 +2551,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2582,7 +2582,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2613,7 +2613,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2644,7 +2644,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2675,7 +2675,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2707,7 +2707,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2740,7 +2740,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   text: "\U000F0611"  # mdi-chip
@@ -2761,7 +2761,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   id: lbl_dbg_heap
@@ -2778,7 +2778,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   id: lbl_dbg_minheap
@@ -2795,7 +2795,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   id: lbl_dbg_psram
@@ -2812,7 +2812,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   id: lbl_dbg_minpsram
@@ -2829,7 +2829,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             widgets:
               - label:
                   id: lbl_dbg_uptime
@@ -2846,7 +2846,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2871,7 +2871,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2904,7 +2904,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2948,7 +2948,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -2992,7 +2992,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3038,7 +3038,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3072,7 +3072,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3105,7 +3105,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3149,7 +3149,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3193,7 +3193,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3236,7 +3236,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3269,7 +3269,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3302,7 +3302,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3335,7 +3335,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3371,7 +3371,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x162032
+            bg_color: 0x101827
             border_side: LEFT
             border_width: 0
             border_color: 0x10B981
@@ -3407,7 +3407,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             widgets:
               - label:
                   id: icon_firmware
@@ -3438,7 +3438,7 @@ lvgl:
               type: flex
               flex_flow: row
             pad_all: 4
-            bg_color: 0x111827
+            bg_color: 0x080D16
             widgets:
               - label:
                   id: icon_ip
@@ -4116,9 +4116,29 @@ script:
           // WiFi 图标 (仅连接时跟随主题)
           if (wifi::global_wifi_component->is_connected())
             lv_obj_set_style_text_color(id(lbl_wifi), accent, LV_PART_MAIN);
+          {
+            lv_color_t dim = lv_color_hex(0x263244);
+            bool wifi_ok = wifi::global_wifi_component->is_connected();
+            bool ble_ok = id(ble_connected);
+            bool remote_ok = id(ble_remote_connected);
+            bool mute_ok = id(soft_mute);
+            lv_obj_set_style_opa(id(lbl_thermo_icon), LV_OPA_70, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_temp_value), LV_OPA_80, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_temp_unit), LV_OPA_60, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(lbl_mute), mute_ok ? lv_color_hex(0xEF4444) : dim, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_mute), mute_ok ? LV_OPA_COVER : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(lbl_wifi), wifi_ok ? accent : dim, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(lbl_ble), ble_ok ? accent : dim, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), remote_ok ? accent : dim, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_ble_remote_indicator), remote_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_border_color(id(ble_remote_batt_outline), remote_ok ? accent : dim, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(ble_remote_batt_outline), remote_ok ? LV_OPA_80 : LV_OPA_20, LV_PART_MAIN);
+          }
           lv_obj_set_style_text_color(id(lbl_main_active_input), accent, LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_main_output_value), accent, LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(lbl_main_auto_value), accent, LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_main_output_value), lv_color_mix(accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(lbl_main_auto_value), lv_color_mix(accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
           // 设置页进度条指示器
           lv_obj_set_style_bg_color(id(bar_max_vol), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_power_on_limit), accent, LV_PART_INDICATOR);
@@ -4461,17 +4481,17 @@ sensor:
                       lv_obj_set_style_border_width(rows[j], 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(rows[j], hl_color, LV_PART_MAIN);
                       lv_obj_set_style_border_side(rows[j], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows[j], lv_color_hex(0x142033), LV_PART_MAIN);
                     } else {
                       lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(rows[j],
-                        (j < 8 || j == 10 || j == 11 || j == 12) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                        (j < 8 || j == 10 || j == 11 || j == 12) ? lv_color_hex(0x101827) : lv_color_hex(0x080D16), LV_PART_MAIN);
                     }
                   } else {
                     // Read-only rows (13, 14): no border, slightly darker bg
                     lv_obj_set_style_border_width(rows[j], 0, LV_PART_MAIN);
                     lv_obj_set_style_bg_color(rows[j],
-                      (j == i) ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
+                      (j == i) ? lv_color_hex(0x142033) : lv_color_hex(0x080D16), LV_PART_MAIN);
                   }
                 }
               };
@@ -4675,10 +4695,10 @@ sensor:
                     lv_obj_set_style_border_width(row, 3, LV_PART_MAIN);
                     lv_obj_set_style_border_color(row, hl_color, LV_PART_MAIN);
                     lv_obj_set_style_border_side(row, LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                    lv_obj_set_style_bg_color(row, lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(row, lv_color_hex(0x142033), LV_PART_MAIN);
                   } else {
                     lv_obj_set_style_border_width(row, 0, LV_PART_MAIN);
-                    lv_obj_set_style_bg_color(row, lv_color_hex(0x162032), LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(row, lv_color_hex(0x101827), LV_PART_MAIN);
                   }
                 };
                 ble_set_focus(id(ble_row_scan), new_idx == 0);
@@ -4739,11 +4759,11 @@ sensor:
                       lv_obj_set_style_border_width(rows_k[i], 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(rows_k[i], hl_color, LV_PART_MAIN);
                       lv_obj_set_style_border_side(rows_k[i], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(rows_k[i], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(rows_k[i], lv_color_hex(0x142033), LV_PART_MAIN);
                     } else {
                       lv_obj_set_style_border_width(rows_k[i], 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(rows_k[i],
-                        i == 8 ? lv_color_hex(0x111827) : lv_color_hex(0x162032), LV_PART_MAIN);
+                        i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827), LV_PART_MAIN);
                     }
                   }
                   lv_obj_scroll_to_view(rows_k[new_idx], LV_ANIM_ON);
@@ -4765,11 +4785,11 @@ sensor:
                 lv_obj_set_style_border_width(id(dbg_row_recal), recal_focused ? 3 : 0, LV_PART_MAIN);
                 lv_obj_set_style_border_color(id(dbg_row_recal), hl_color, LV_PART_MAIN);
                 lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(dbg_row_recal), recal_focused ? lv_color_hex(0x1E2D42) : lv_color_hex(0x162032), LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(dbg_row_recal), recal_focused ? lv_color_hex(0x142033) : lv_color_hex(0x101827), LV_PART_MAIN);
                 lv_obj_set_style_border_width(id(dbg_row_back), back_focused ? 3 : 0, LV_PART_MAIN);
                 lv_obj_set_style_border_color(id(dbg_row_back), hl_color, LV_PART_MAIN);
                 lv_obj_set_style_border_side(id(dbg_row_back), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x1E2D42) : lv_color_hex(0x111827), LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x142033) : lv_color_hex(0x080D16), LV_PART_MAIN);
                 lv_obj_scroll_to_view(new_idx == 0 ? id(dbg_row_recal) : id(dbg_row_back), LV_ANIM_ON);
               }
               id(reset_idle_timer)->execute();
@@ -5497,7 +5517,7 @@ interval:
                   if (active >= 0) {
                     lv_obj_t** rows = settings_ui::rows();
                     lv_obj_t** bars = settings_ui::bars();
-                    if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x142033), LV_PART_MAIN);
                     if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
                     id(settings_active_idx) = -1;
                   }
@@ -5509,7 +5529,7 @@ interval:
                       id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
                       id(keymap_row_6), id(keymap_row_7)
                     };
-                    lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                    lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x142033), LV_PART_MAIN);
                   }
                   id(keymap_active_idx) = -1;
                 }
@@ -5723,7 +5743,9 @@ interval:
             bool mute_now = id(soft_mute);
             if (mute_now != last_mute) {
               last_mute = mute_now;
-              lv_label_set_text(id(lbl_mute), mute_now ? "静音" : "");
+              lv_obj_set_style_text_color(id(lbl_mute),
+                mute_now ? lv_color_hex(0xEF4444) : lv_color_hex(0x263244), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_mute), mute_now ? LV_OPA_COVER : LV_OPA_30, LV_PART_MAIN);
             }
           }
 
@@ -5734,7 +5756,8 @@ interval:
             if (wifi_ok != last_wifi) {
               last_wifi = wifi_ok;
               lv_obj_set_style_text_color(id(lbl_wifi),
-                wifi_ok ? _accent : lv_color_hex(0x333333), LV_PART_MAIN);
+                wifi_ok ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
             }
           }
 
@@ -5745,7 +5768,8 @@ interval:
             if (ble_ok != last_ble) {
               last_ble = ble_ok;
               lv_obj_set_style_text_color(id(lbl_ble),
-                ble_ok ? _accent : lv_color_hex(0x333333), LV_PART_MAIN);
+                ble_ok ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
             }
           }
 
@@ -5766,14 +5790,11 @@ interval:
                 }
                 // 初始化 BLE 遥控指示器: 有配对记录才显示(暗色等待), 否则隐藏
                 bool has_peer = !bda.empty() && bda != "\"\"" && bda.length() >= 17;
-                if (has_peer) {
-                  lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x555555), LV_PART_MAIN);
-                } else {
-                  lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_add_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
-                }
+                lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x263244), LV_PART_MAIN);
+                lv_obj_set_style_opa(id(lbl_ble_remote_indicator), has_peer ? LV_OPA_40 : LV_OPA_20, LV_PART_MAIN);
+                lv_obj_set_style_opa(id(ble_remote_batt_outline), has_peer ? LV_OPA_40 : LV_OPA_20, LV_PART_MAIN);
               }
             }
 
@@ -5837,15 +5858,16 @@ interval:
                 lv_label_set_text(id(lbl_ble_status_nav), connected ? "已连接" : "未连接");
                 // 更新 main_page BLE 遥控指示器颜色与显隐
                 bool has_peer = !id(ble_remote_peer_bda).empty() && id(ble_remote_peer_bda) != "\"\"";
-                if (connected || has_peer) {
-                  lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_set_style_text_color(id(lbl_ble_remote_indicator),
-                    connected ? _accent : lv_color_hex(0x555555), LV_PART_MAIN);
-                } else {
-                  lv_obj_add_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_add_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
-                }
+                lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_style_text_color(id(lbl_ble_remote_indicator),
+                  connected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                lv_obj_set_style_opa(id(lbl_ble_remote_indicator),
+                  connected ? LV_OPA_80 : (has_peer ? LV_OPA_40 : LV_OPA_20), LV_PART_MAIN);
+                lv_obj_set_style_border_color(id(ble_remote_batt_outline),
+                  connected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                lv_obj_set_style_opa(id(ble_remote_batt_outline),
+                  connected ? LV_OPA_80 : (has_peer ? LV_OPA_40 : LV_OPA_20), LV_PART_MAIN);
                 // 更新 ble_remote_page 返回按钮文字（断开留在本页，不返回设置）
                 lv_label_set_text(id(lbl_ble_back), connected ? "断开" : "返回设置");
               }
@@ -6226,9 +6248,9 @@ binary_sensor:
                       lv_obj_set_style_border_width(id(dbg_row_recal), 3, LV_PART_MAIN);
                       lv_obj_set_style_border_color(id(dbg_row_recal), hl, LV_PART_MAIN);
                       lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(id(dbg_row_recal), lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(id(dbg_row_recal), lv_color_hex(0x142033), LV_PART_MAIN);
                       lv_obj_set_style_border_width(id(dbg_row_back), 0, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(id(dbg_row_back), lv_color_hex(0x111827), LV_PART_MAIN);
+                      lv_obj_set_style_bg_color(id(dbg_row_back), lv_color_hex(0x080D16), LV_PART_MAIN);
                     }
                     id(last_display_interaction) = millis();
                     lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -6298,7 +6320,7 @@ binary_sensor:
                                   lv_obj_set_style_border_side(rows_k[i], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                                 }
                                 lv_obj_set_style_bg_color(rows_k[i],
-                                  i == 0 ? lv_color_hex(0x1E2D42) : (i == 8 ? lv_color_hex(0x111827) : lv_color_hex(0x162032)), LV_PART_MAIN);
+                                  i == 0 ? lv_color_hex(0x142033) : (i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827)), LV_PART_MAIN);
                               }
                               id(last_display_interaction) = millis();
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -6306,13 +6328,13 @@ binary_sensor:
                             }
                             if (idx == 13 || idx == 14) return;  // 只读项(固件版本/IP地址)不进调节
                             id(settings_active_idx) = idx;
-                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x25374F), LV_PART_MAIN);
+                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], 24);
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）
                             id(settings_active_idx) = -1;
-                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                            lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x142033), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::bar_base_heights[idx]);
                           }
@@ -6376,7 +6398,7 @@ binary_sensor:
                                             id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
                                             id(keymap_row_6), id(keymap_row_7)
                                           };
-                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x25374F), LV_PART_MAIN);
+                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                                         } else {
                                           // 调节→浏览：确认修改, 恢复背景
                                           id(keymap_active_idx) = -1;
@@ -6385,7 +6407,7 @@ binary_sensor:
                                             id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
                                             id(keymap_row_6), id(keymap_row_7)
                                           };
-                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                                          lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x142033), LV_PART_MAIN);
                                         }
                                       } else if (f == 8) {
                                         id(keymap_active_idx) = -1;
@@ -6442,13 +6464,13 @@ binary_sensor:
                                                         for (int i = 0; i < settings_ui::N; i++) {
                                                           lv_obj_set_style_border_width(rows[i], 0, LV_PART_MAIN);
                                                           lv_obj_set_style_bg_color(rows[i],
-                                                            (i < 8 || i == 10 || i == 11 || i == 12) ? lv_color_hex(0x162032) : lv_color_hex(0x111827), LV_PART_MAIN);
+                                                            (i < 8 || i == 10 || i == 11 || i == 12) ? lv_color_hex(0x101827) : lv_color_hex(0x080D16), LV_PART_MAIN);
                                                         }
                                                         lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
                                                         lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
                                                         lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
                                                         lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                                                        lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                                                        lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x142033), LV_PART_MAIN);
                                                         lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
                                                     - lvgl.page.show:
                                                         id: settings_page
@@ -6474,7 +6496,7 @@ binary_sensor:
                       if (active >= 0) {
                         lv_obj_t** rows = settings_ui::rows();
                         lv_obj_t** bars = settings_ui::bars();
-                        if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                        if (rows[active]) lv_obj_set_style_bg_color(rows[active], lv_color_hex(0x142033), LV_PART_MAIN);
                         if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
                       }
                       id(settings_active_idx) = -1;
@@ -6487,7 +6509,7 @@ binary_sensor:
                           id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
                           id(keymap_row_6), id(keymap_row_7)
                         };
-                        lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x1E2D42), LV_PART_MAIN);
+                        lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x142033), LV_PART_MAIN);
                       }
                       id(keymap_active_idx) = -1;
                     }
