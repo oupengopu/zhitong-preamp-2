@@ -3314,7 +3314,7 @@
         el.classList.toggle('focused', false);
         el.classList.toggle('adjusting', false);
         el.style.borderLeftColor = i === idx ? 'var(--accent)' : 'transparent';
-        el.style.background = i === idx ? '#1E2D42' : '#111827';
+        el.style.background = i === idx ? '#142033' : '#080D16';
       }
     });
   }
@@ -3531,7 +3531,7 @@
         else if (e.key === 'Enter') {
           state.keymapActive = -1;
           const row = document.querySelector('.keymap-row[data-krow="' + state.keymapFocus + '"]');
-          if (row) row.style.background = '#1E2D42';
+          if (row) row.style.background = '#142033';
         } else if (e.key === 'Escape') { state.keymapActive = -1; showPage(2); }
       } else {
         if (e.key === 'ArrowDown') {
@@ -3549,7 +3549,7 @@
           else {
             state.keymapActive = state.keymapFocus;
             const row = document.querySelector('.keymap-row[data-krow="' + state.keymapFocus + '"]');
-            if (row) row.style.background = '#25374F';
+            if (row) row.style.background = '#1B2A40';
           }
         } else if (e.key === 'Escape') { showPage(2); }
       }
@@ -3960,7 +3960,7 @@
       const r = parseInt(el.dataset.krow);
       if (act >= 0 && r === act) {
         el.classList.add('focused');
-        el.style.background = '#25374F';
+        el.style.background = '#1B2A40';
       } else {
         el.classList.toggle('focused', r === f && act < 0);
         if (r !== act) el.style.background = '';
@@ -4142,11 +4142,11 @@
     const backEl = document.getElementById('dbgBackRow');
     if (recalEl) {
       recalEl.style.borderLeft = (f === 0) ? '3px solid ' + hex : '3px solid transparent';
-      recalEl.style.background = (f === 0) ? '#1E2D42' : '#162032';
+      recalEl.style.background = (f === 0) ? '#142033' : '#101827';
     }
     if (backEl) {
       backEl.style.borderLeft = (f === 1) ? '3px solid ' + hex : '3px solid transparent';
-      backEl.style.background = (f === 1) ? '#1E2D42' : '#111827';
+      backEl.style.background = (f === 1) ? '#142033' : '#080D16';
     }
   }
 
@@ -4554,11 +4554,11 @@
           showPage(2);
         } else if (state.keymapActive < 0) {
           state.keymapActive = f;
-          document.querySelector('.keymap-row[data-krow="' + f + '"]').style.background = '#25374F';
+          document.querySelector('.keymap-row[data-krow="' + f + '"]').style.background = '#1B2A40';
           this.flashAction('调节 ' + KEYMAP_SOURCES[f]);
         } else {
           state.keymapActive = -1;
-          document.querySelector('.keymap-row[data-krow="' + f + '"]').style.background = '#1E2D42';
+          document.querySelector('.keymap-row[data-krow="' + f + '"]').style.background = '#142033';
           this.flashAction('确认');
         }
       }
@@ -4567,8 +4567,8 @@
 
     doubleClick() {
       if (state.standby) return;
-      // 与当前固件一致: 仅主页/频谱页有效
       if (state.currentPage > 1) return;
+      // 与当前固件一致: 仅主页/频谱页有效
       state.muted = !state.muted;
       document.getElementById('chkMute').checked = state.muted;
       const el = document.getElementById('muteIcon');
