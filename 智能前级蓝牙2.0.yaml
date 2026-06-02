@@ -4422,7 +4422,9 @@ sensor:
       mode:
         input: true
         pullup: true
-    resolution: 1
+    # EC11E18244A5: 36 detents / 18 pulses, so count half-cycles
+    # to get one firmware step per mechanical detent.
+    resolution: 2
     internal: true
     on_value:
       then:
