@@ -1599,7 +1599,7 @@ lvgl:
             bg_opa: 25%
 
         # ════════════════════════════════════════════
-        # 音量大数字 dB 值 (Montserrat 30 绿色)
+        # 音量大数字 dB 值 (白色基调, 音量变化时轻微主题色脉冲)
         # ════════════════════════════════════════════
         - label:
             id: lbl_vol_db
@@ -1613,7 +1613,7 @@ lvgl:
               char buf[16];
               snprintf(buf, sizeof(buf), "%.1fdB", db);
               return std::string(buf);
-            text_color: 0x10B981
+            text_color: 0xF8FAFC
             bg_opa: 0%
             text_align: CENTER
             text_font: montserrat_30
@@ -4081,8 +4081,8 @@ script:
             id(mini_spec_8), id(mini_spec_9), id(mini_spec_10), id(mini_spec_11)
           };
           for (auto *o : mini_specs) lv_obj_set_style_bg_color(o, accent, LV_PART_MAIN);
-          // dB 标签
-          lv_obj_set_style_text_color(id(lbl_vol_db), accent, LV_PART_MAIN);
+          // dB 标签保持白色基调, 音量变化时由 UI 刷新段做轻微主题色脉冲
+          lv_obj_set_style_text_color(id(lbl_vol_db), lv_color_hex(0xF8FAFC), LV_PART_MAIN);
           // 音量条指示器
           lv_obj_set_style_bg_color(id(bar_volume), accent, LV_PART_INDICATOR);
           // 温度计图标
@@ -5521,7 +5521,7 @@ interval:
           // ═══ 主题强调色 ═══
           lv_color_t _accent = get_theme_accent(id(theme));
 
-          // Subtle hardware-safe visual effects: only opacity changes, no extra objects.
+          // Subtle hardware-safe visual effects: opacity/color only, no extra objects.
           {
             uint32_t now_fx = millis();
             uint32_t v_dt = now_fx - id(last_v_change_ms);
@@ -5531,6 +5531,13 @@ interval:
               last_panel_opa = panel_opa;
               lv_obj_set_style_border_opa(id(main_volume_panel), panel_opa, LV_PART_MAIN);
             }
+
+            lv_color_t db_color = lv_color_hex(0xF8FAFC);
+            if (v_dt < 420) {
+              uint8_t mix = (uint8_t)(36 + ((420 - v_dt) * 72 / 420));
+              db_color = lv_color_mix(_accent, lv_color_hex(0xF8FAFC), mix);
+            }
+            lv_obj_set_style_text_color(id(lbl_vol_db), db_color, LV_PART_MAIN);
 
             int phase = (now_fx / 120) % 12;
             uint8_t pulse = (uint8_t)(150 + (phase <= 6 ? phase : 12 - phase) * 14);

@@ -581,11 +581,19 @@
     0% { background-position: -200% center; }
     100% { background-position: 200% center; }
   }
-  @keyframes scaleBounce {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.18); }
-    65% { transform: scale(0.92); }
-    100% { transform: scale(1); }
+  @keyframes dbPulse {
+    0% {
+      color: #FFFFFF;
+      text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 38%, transparent);
+    }
+    45% {
+      color: color-mix(in srgb, #F8FAFC 82%, var(--accent));
+      text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent);
+    }
+    100% {
+      color: #F8FAFC;
+      text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
   }
   @keyframes fadeInScale {
     0% { opacity: 0; transform: scale(0.7); }
@@ -599,7 +607,7 @@
     0% { transform: translateX(-40px); opacity: 0; }
     100% { transform: translateX(0); opacity: 1; }
   }
-  .db-label.bounce { animation: scaleBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .db-label.bounce { animation: dbPulse 0.42s ease-out; }
   .page.active.animate-in { animation: fadeInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .settings-slider-track { box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
   .settings-select { transition: border-color 0.3s, box-shadow 0.3s; }
