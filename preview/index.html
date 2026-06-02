@@ -137,7 +137,7 @@
     transition: color 0.2s;
   }
 
-  .separator { position: absolute; top: 50px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #EF4444, #F59E0B, #10B981, #3B82F6, #8B5CF6, transparent); opacity: 0.7; background-size: 300% 100%; animation: shimmer 30s ease-in-out infinite; }
+  .separator { position: absolute; top: 50px; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #EF4444, #F59E0B, #10B981, #7DD3FC, #8B5CF6, transparent); opacity: 0.7; background-size: 300% 100%; animation: shimmer 30s ease-in-out infinite; }
 
   .db-label {
     position: absolute; top: 76px; left: 0; right: 0; text-align: center;
@@ -3112,7 +3112,7 @@
     mainSpecInterval: null, mainSpecPhase: 0,
     mainSpecLevels: [8, 12, 18, 24, 20, 14, 9, 11, 16, 23, 27, 20, 13, 9, 12, 18, 22, 17, 12, 8, 6],
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
-    theme: 0,  // 0=翠绿, 1=赤红, 2=天蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
+    theme: 0,  // 0=翠绿, 1=赤红, 2=冰蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
     msgeqSignal: true,  // MSGEQ7 real spectrum signal; separate from MCP23017 input detect
     settingsFocus: 0,
     settingsActive: -1,
@@ -3143,15 +3143,15 @@
     pageIdleTimer: null
   };
 
-  const ACCENT_COLORS = ['#10B981', '#EF4444', '#3B82F6', '#8B5CF6', '#0071E3', '#CD9B4A', '#06B6D4', '#F97316'];
-  const THEMES = ['翠绿', '赤红', '天蓝', '紫色', '麦景图蓝', '金嗓子金', '柏林青', '南瓜橙'];
+  const ACCENT_COLORS = ['#10B981', '#EF4444', '#7DD3FC', '#8B5CF6', '#0071E3', '#CD9B4A', '#06B6D4', '#F97316'];
+  const THEMES = ['翠绿', '赤红', '冰蓝', '紫色', '麦景图蓝', '金嗓子金', '柏林青', '南瓜橙'];
   const PAGE_NAMES = ['控制屏', '立体声频谱', '设置屏', '蓝牙遥控', '诊断信息', '遥控器按键'];
   const KEYMAP_ACTIONS = ['禁用', '音量+', '音量-', '静音', '播放/暂停', '下一曲', '上一曲', '电源', '切换输入', '上划', '下划', '左划', '右划', '拍照', '切换镜头', '确定'];
   const KEYMAP_SOURCES = ['音量+', '音量-', '静音', '播放/暂停', '下一曲', '上一曲', '电源', '切换输入'];
   const SPEC_COLORS = [
     ['#064E3B','#065F46','#047857','#059669','#10B981','#34D399','#6EE7B7'], // 0 翠绿
     ['#4E0606','#5F0E0E','#781A1A','#962828','#B93A3A','#D36060','#E79494'], // 1 赤红
-    ['#0E1E4E','#16285F','#1E3478','#284296','#3A5AB9','#607AD3','#94AEE7'], // 2 天蓝
+    ['#0B2532','#12384A','#1C5269','#2C7490','#4AA3C7','#7DD3FC','#BAE6FD'], // 2 冰蓝
     ['#2E0E4E','#3E1A5F','#4E2878','#5E3A96','#7A52B9','#9A78D3','#C0A8E7'], // 3 紫色
     ['#002D5C','#003D7A','#004D99','#005EB8','#0071E3','#3B94F7','#7BB8FF'], // 4 麦景图蓝
     ['#4A3720','#6B4F2E','#8C683C','#AD804A','#CD9B4A','#DDB56A','#EED49A'], // 5 金嗓子金

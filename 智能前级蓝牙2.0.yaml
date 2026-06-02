@@ -1499,7 +1499,7 @@ lvgl:
               if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x3B82F6);
+                case 2: return lv_color_hex(0x7DD3FC);
                 case 3: return lv_color_hex(0x8B5CF6);
                 case 4: return lv_color_hex(0x0071E3);
                 case 5: return lv_color_hex(0xCD9B4A);
@@ -1520,7 +1520,7 @@ lvgl:
               if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x3B82F6);
+                case 2: return lv_color_hex(0x7DD3FC);
                 case 3: return lv_color_hex(0x8B5CF6);
                 case 4: return lv_color_hex(0x0071E3);
                 case 5: return lv_color_hex(0xCD9B4A);
@@ -1545,7 +1545,7 @@ lvgl:
                       if (batt > 50) {
                         switch (id(theme)) {
                           case 1: return lv_color_hex(0xEF4444);
-                          case 2: return lv_color_hex(0x3B82F6);
+                          case 2: return lv_color_hex(0x7DD3FC);
                           case 3: return lv_color_hex(0x8B5CF6);
                           case 4: return lv_color_hex(0x0071E3);
                           case 5: return lv_color_hex(0xCD9B4A);
@@ -1577,7 +1577,7 @@ lvgl:
               if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x263244);
               switch (id(theme)) {
                 case 1: return lv_color_hex(0xEF4444);
-                case 2: return lv_color_hex(0x3B82F6);
+                case 2: return lv_color_hex(0x7DD3FC);
                 case 3: return lv_color_hex(0x8B5CF6);
                 case 4: return lv_color_hex(0x0071E3);
                 case 5: return lv_color_hex(0xCD9B4A);
@@ -3214,14 +3214,14 @@ lvgl:
                   width: 14
                   height: 14
                   bg_color: !lambda |-
-                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                    lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
                     return colors[id(theme)];
                   radius: 10
                   border_width: 0
               - label:
                   id: val_theme
                   text: !lambda |-
-                    const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+                    const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
                     return names[id(theme)];
                   text_font: font_cn
                   text_color: 0xE2E8F0
@@ -4150,7 +4150,7 @@ script:
           lv_obj_set_style_bg_color(id(vu_meter_r), accent, LV_PART_INDICATOR);
           // 主题色点
           {
-            lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+            lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
             lv_obj_set_style_bg_color(id(theme_dot), colors[id(theme)], LV_PART_MAIN);
           }
           // 设置页图标 (rows 0-7 跟随主题, 10 输出模式跟随主题, 8-9 蓝牙/按键导航, 11-12 固定灰)
@@ -4188,14 +4188,14 @@ script:
                 spec_colors[5] = lv_color_hex(0xD36060);
                 spec_colors[6] = lv_color_hex(0xE79494);
                 break;
-              case 2: // 天蓝
-                spec_colors[0] = lv_color_hex(0x0E1E4E);
-                spec_colors[1] = lv_color_hex(0x16285F);
-                spec_colors[2] = lv_color_hex(0x1E3478);
-                spec_colors[3] = lv_color_hex(0x284296);
-                spec_colors[4] = lv_color_hex(0x3A5AB9);
-                spec_colors[5] = lv_color_hex(0x607AD3);
-                spec_colors[6] = lv_color_hex(0x94AEE7);
+              case 2: // 冰蓝
+                spec_colors[0] = lv_color_hex(0x0B2532);
+                spec_colors[1] = lv_color_hex(0x12384A);
+                spec_colors[2] = lv_color_hex(0x1C5269);
+                spec_colors[3] = lv_color_hex(0x2C7490);
+                spec_colors[4] = lv_color_hex(0x4AA3C7);
+                spec_colors[5] = lv_color_hex(0x7DD3FC);
+                spec_colors[6] = lv_color_hex(0xBAE6FD);
                 break;
               case 3: // 紫色
                 spec_colors[0] = lv_color_hex(0x2E0E4E);
@@ -4606,9 +4606,9 @@ sensor:
                     if (v < 0) v = 7; if (v > 7) v = 0;
                     id(theme) = v;
                     {
-                      const char* names[] = {"翠绿", "赤红", "天蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+                      const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
                       lv_label_set_text(id(val_theme), names[v]);
-                      lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                      lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
                       lv_obj_set_style_bg_color(id(theme_dot), colors[v], LV_PART_MAIN);
                     }
                     id(theme_number)->publish_state((float)v);
@@ -5733,7 +5733,7 @@ interval:
                 lv_label_set_text(id(lbl_temp_value), "保护!");
               } else {
                 // 恢复为主题 accent 色 (而非硬编码灰色)
-                lv_color_t accents[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                lv_color_t accents[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
                 lv_obj_set_style_text_color(id(lbl_temp_value), accents[id(theme)], LV_PART_MAIN);
               }
             }
@@ -6469,7 +6469,7 @@ binary_sensor:
                                                             (i < 8 || i == 10 || i == 11 || i == 12) ? lv_color_hex(0x101827) : lv_color_hex(0x080D16), LV_PART_MAIN);
                                                         }
                                                         lv_obj_set_style_border_width(rows[0], 3, LV_PART_MAIN);
-                                                        lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x3B82F6), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
+                                                        lv_color_t colors[] = {lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC), lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A), lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)};
                                                         lv_obj_set_style_border_color(rows[0], colors[id(theme)], LV_PART_MAIN);
                                                         lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                                                         lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x142033), LV_PART_MAIN);
