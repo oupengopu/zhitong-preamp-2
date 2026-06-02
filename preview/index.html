@@ -1291,6 +1291,74 @@
     display: none;
   }
 
+  #pageSpectrum.spec-style-spark {
+    background:
+      radial-gradient(circle at 16% 34%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 30%),
+      linear-gradient(180deg, #03060B 0%, #050A12 62%, #020409 100%);
+  }
+  #pageSpectrum.spec-style-spark .spec-area,
+  #pageSpectrum.spec-style-spark .vu-meter-row,
+  #pageSpectrum.spec-style-spark .freq-bar,
+  #pageSpectrum.spec-style-spark .ch-label {
+    display: none;
+  }
+  #pageSpectrum.spec-style-spark .spec-status {
+    background: none;
+    height: 32px;
+  }
+  #pageSpectrum.spec-style-spark .spec-status .input-name {
+    opacity: .38;
+  }
+  #pageSpectrum.spec-style-spark .spec-status .input-name .mdi {
+    color: var(--accent) !important;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 42%, transparent));
+  }
+  #pageSpectrum.spec-style-spark .spec-status .spec-temp {
+    color: rgba(148,163,184,.42) !important;
+  }
+  #pageSpectrum.spec-style-spark .spark-spectrum {
+    display: block;
+  }
+  .spark-spectrum {
+    display: none;
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    top: 40px;
+    bottom: 20px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .spark-spectrum::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3px;
+    height: 1px;
+    background: color-mix(in srgb, var(--accent) 28%, #0F172A);
+    opacity: .56;
+  }
+  .spark-bar {
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    min-height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 34%, transparent);
+    transition: height .07s linear, opacity .07s linear, background .12s linear;
+  }
+  .spark-dot {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(248,250,252,.92);
+    box-shadow: 0 0 6px rgba(248,250,252,.45);
+    transition: left .07s linear, top .07s linear, opacity .07s linear;
+  }
+
   /* Blue glass VU: inspired by classic high-end blue power meters */
   #pageSpectrum.spec-style-vu {
     background:
@@ -2772,6 +2840,11 @@
     </div>
 
     <!-- VU 电平条 (L/R 声道独立) -->
+    <div class="spark-spectrum" id="sparkSpectrum">
+      <div id="sparkBars"></div>
+      <div id="sparkDots"></div>
+    </div>
+
     <div class="vu-meter-row">
       <div class="vu-meter-wrap"><div class="vu-meter-fill" id="vuFillL" style="width:0%"></div></div>
       <div class="vu-meter-wrap"><div class="vu-meter-fill" id="vuFillR" style="width:0%"></div></div>
@@ -4025,6 +4098,7 @@
       // 静音时频谱冻结
       if (state.muted) return;
       let leftTotal = 0, rightTotal = 0;
+      const bandLevels = [];
       for (let i = 0; i < 7; i++) {
         let lh = lBases[i] + (Math.random() - 0.3) * 24;
         lh = Math.max(2, Math.min(98, lh));
@@ -4041,12 +4115,14 @@
         if (rh > rPeaks[i]) rPeaks[i] = rh;
         else rPeaks[i] -= 0.35;
         rightPeaks[i].style.top = Math.max(0, TOTAL_H - (rPeaks[i]/100*TOTAL_H) - 2) + 'px';
+        bandLevels[i] = (lh + rh) / 2;
       }
       // VU 电平条 (L/R 独立)
       const vuL = leftTotal / 7;
       const vuR = rightTotal / 7;
       document.getElementById('vuFillL').style.width = vuL + '%';
       document.getElementById('vuFillR').style.width = vuR + '%';
+      if (state.spectrumTheme === 5) updateSparkSpectrum(bandLevels);
 
       // LED 信号强度指示 (取 L/R 较大值)
       const vuMax = Math.max(vuL, vuR);
@@ -4762,8 +4838,8 @@
 
   const SPECTRUM_AUTO_SECONDS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
   const SPECTRUM_AUTO_LABELS = SPECTRUM_AUTO_SECONDS.map(v => v <= 0 ? '禁用' : `${v}秒`);
-  const SPECTRUM_STYLE_NAMES = ['经典柱状', '镜像频谱', 'LED点阵', '示波线', '蓝表VU'];
-  const SPECTRUM_STYLE_CLASSES = ['classic', 'mirror', 'led', 'scope', 'vu'];
+  const SPECTRUM_STYLE_NAMES = ['经典柱状', '镜像频谱', 'LED点阵', '示波线', '蓝表VU', '星点火线'];
+  const SPECTRUM_STYLE_CLASSES = ['classic', 'mirror', 'led', 'scope', 'vu', 'spark'];
   state.spectrumAutoIdx = 3;
   state.spectrumTheme = 2;
 
@@ -4790,9 +4866,64 @@
     if (counter && state.spectrumAutoIdx === 0 && state.currentPage <= 1) counter.textContent = '--';
   }
 
+  function ensureSparkSpectrum() {
+    const barsWrap = document.getElementById('sparkBars');
+    const dotsWrap = document.getElementById('sparkDots');
+    if (!barsWrap || !dotsWrap) return;
+    if (!barsWrap.children.length) {
+      for (let i = 0; i < 48; i++) {
+        const bar = document.createElement('span');
+        bar.className = 'spark-bar';
+        bar.style.left = `${i * 8}px`;
+        barsWrap.appendChild(bar);
+      }
+    }
+    if (!dotsWrap.children.length) {
+      for (let i = 0; i < 32; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'spark-dot';
+        dotsWrap.appendChild(dot);
+      }
+    }
+  }
+
+  function updateSparkSpectrum(levels) {
+    ensureSparkSpectrum();
+    const bars = document.querySelectorAll('#sparkBars .spark-bar');
+    const dots = document.querySelectorAll('#sparkDots .spark-dot');
+    const accent = getAccent();
+    const t = Date.now() / 90;
+    const vals = [];
+    bars.forEach((bar, i) => {
+      const pos = i * 6 / 47;
+      const band = Math.min(6, Math.floor(pos));
+      const next = Math.min(6, band + 1);
+      const frac = pos - band;
+      let v = (levels[band] || 0) * (1 - frac) + (levels[next] || 0) * frac;
+      v += Math.sin(t * 0.9 + i * 1.77) * 9 + Math.sin(t * 0.37 + i * 0.41) * 5;
+      v = Math.max(2, Math.min(98, v));
+      vals[i] = v;
+      bar.style.height = `${2 + v * 0.92}px`;
+      bar.style.opacity = `${Math.max(.28, Math.min(.94, .32 + v / 120))}`;
+      bar.style.background = v > 72
+        ? `color-mix(in srgb, ${accent} 58%, #F97316)`
+        : `color-mix(in srgb, ${accent} ${Math.round(54 + v * .38)}%, #111827)`;
+    });
+    dots.forEach((dot, i) => {
+      const idx = (i * 13 + Math.floor(t / 3)) % 48;
+      const v = vals[idx] || 0;
+      const x = idx * 8 + (i % 3) - 1;
+      const y = 96 - v * 0.72 + Math.sin(t + i * 2.1) * 5;
+      dot.style.left = `${x}px`;
+      dot.style.top = `${Math.max(6, Math.min(96, y))}px`;
+      dot.style.opacity = `${Math.max(.16, Math.min(.92, .18 + v / 105))}`;
+    });
+  }
+
   function applySpectrumStyle() {
     const page = document.getElementById('pageSpectrum');
     if (!page) return;
+    ensureSparkSpectrum();
     page.classList.remove(...SPECTRUM_STYLE_CLASSES.map(name => 'spec-style-' + name));
     page.classList.add('spec-style-' + SPECTRUM_STYLE_CLASSES[state.spectrumTheme]);
     let label = document.getElementById('specStyleLabel');
@@ -4802,7 +4933,7 @@
       label.className = 'spec-style-label';
       page.appendChild(label);
     }
-    label.textContent = state.spectrumTheme === 2 ? 'LED MATRIX ANALYZER' : (state.spectrumTheme === 4 ? 'BLUE GLASS POWER METERS' : (SPECTRUM_STYLE_NAMES[state.spectrumTheme] || SPECTRUM_STYLE_NAMES[0]).toUpperCase());
+    label.textContent = state.spectrumTheme === 2 ? 'LED MATRIX ANALYZER' : (state.spectrumTheme === 4 ? 'BLUE GLASS POWER METERS' : (state.spectrumTheme === 5 ? 'SPARKLINE SPECTRUM' : (SPECTRUM_STYLE_NAMES[state.spectrumTheme] || SPECTRUM_STYLE_NAMES[0]).toUpperCase()));
     document.querySelectorAll('.vu-meter-wrap').forEach(wrap => {
       let scale = wrap.querySelector('.vu-scale');
       if (state.spectrumTheme === 4) {
