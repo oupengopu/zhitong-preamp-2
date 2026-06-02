@@ -1298,7 +1298,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(current_input) == 0 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_cd)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_gamepad
             x: 75
@@ -1309,7 +1309,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(current_input) == 1 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_dac)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_laptop
             x: 29
@@ -1320,7 +1320,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(current_input) == 2 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_pc)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_music
             x: 75
@@ -1331,7 +1331,7 @@ lvgl:
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
-              return id(current_input) == 3 ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
+              return id(audio_aux)->state ? lv_color_hex(0x10B981) : lv_color_hex(0x444444);
         - label: { id: lbl_src_name_0, x: 48, y: 48, width: 16, height: 10, text: "CD", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
         - label: { id: lbl_src_name_1, x: 94, y: 48, width: 16, height: 10, text: "DAC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
         - label: { id: lbl_src_name_2, x: 48, y: 93, width: 16, height: 10, text: "PC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
@@ -5634,6 +5634,7 @@ interval:
           // ═══ 输入源 LED + 图标着色 + LED 呼吸灯 (共享 cur 变量) ═══
           {
             static int last_input = -1;
+            static int last_theme = -1;
             int cur = id(current_input);
             bool sigs[] = {id(audio_cd)->state, id(audio_dac)->state, id(audio_pc)->state, id(audio_aux)->state};
             static bool last_sigs[] = {false, false, false, false};
@@ -5644,19 +5645,28 @@ interval:
                 sig_changed = true;
               }
             }
-            if (cur != last_input || sig_changed) {
+            bool theme_changed = id(theme) != last_theme;
+            if (cur != last_input || sig_changed || theme_changed) {
               last_input = cur;
+              last_theme = id(theme);
               lv_obj_t* cards[] = {id(src_card_0), id(src_card_1), id(src_card_2), id(src_card_3)};
+              lv_obj_t* icons_lbl[] = {id(lbl_src_radio), id(lbl_src_gamepad), id(lbl_src_laptop), id(lbl_src_music)};
               lv_obj_t* names_lbl[] = {id(lbl_src_name_0), id(lbl_src_name_1), id(lbl_src_name_2), id(lbl_src_name_3)};
               lv_obj_t* states_lbl[] = {id(lbl_src_state_0), id(lbl_src_state_1), id(lbl_src_state_2), id(lbl_src_state_3)};
               const char* state_text[] = {"IDLE", "SIGNAL"};
               for (int i = 0; i < 4; i++) {
                 bool active = (i == cur);
+                bool has_mcp_signal = sigs[i];
                 lv_obj_set_style_bg_color(cards[i], active ? lv_color_hex(0x0B2A24) : lv_color_hex(0x08121E), LV_PART_MAIN);
                 lv_obj_set_style_border_color(cards[i], active ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
-                lv_obj_set_style_text_color(names_lbl[i], lv_color_hex(0xF8FAFC), LV_PART_MAIN);
-                lv_label_set_text(states_lbl[i], state_text[sigs[i] ? 1 : 0]);
-                lv_obj_set_style_text_color(states_lbl[i], sigs[i]
+                lv_obj_set_style_text_color(icons_lbl[i], has_mcp_signal
+                  ? (active ? _accent : lv_color_hex(0x5DAF95))
+                  : lv_color_hex(0x444444), LV_PART_MAIN);
+                lv_obj_set_style_text_color(names_lbl[i], has_mcp_signal
+                  ? lv_color_hex(0xF8FAFC)
+                  : lv_color_hex(0x64748B), LV_PART_MAIN);
+                lv_label_set_text(states_lbl[i], state_text[has_mcp_signal ? 1 : 0]);
+                lv_obj_set_style_text_color(states_lbl[i], has_mcp_signal
                   ? (active ? _accent : lv_color_hex(0x5DAF95))
                   : lv_color_hex(0x64748B), LV_PART_MAIN);
               }
@@ -5674,14 +5684,6 @@ interval:
                   lv_led_set_brightness(led, 0);
                 }
               }
-              lv_obj_set_style_text_color(id(lbl_src_radio),
-                cur == 0 ? _accent : (sigs[0] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
-              lv_obj_set_style_text_color(id(lbl_src_gamepad),
-                cur == 1 ? _accent : (sigs[1] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
-              lv_obj_set_style_text_color(id(lbl_src_laptop),
-                cur == 2 ? _accent : (sigs[2] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
-              lv_obj_set_style_text_color(id(lbl_src_music),
-                cur == 3 ? _accent : (sigs[3] ? lv_color_hex(0x5DAF95) : lv_color_hex(0x444444)), LV_PART_MAIN);
             }
             // ── LED 呼吸灯 + 信号强度指示 (嵌套在同作用域, 使用上方 cur) ──
             {
@@ -5694,8 +5696,8 @@ interval:
                 b = 255;
               else if (s_signal_avg > 5)                // 有信号 → 呼吸 (140~255)
                 b = 140 + (int)(breath * 115.0f);
-              else                                      // 无信号 → 微光
-                b = 30;
+              else                                      // 无 MSGEQ7 信号 → 熄灭
+                b = 0;
               lv_obj_t* leds[] = { id(led_src_0), id(led_src_1), id(led_src_2), id(led_src_3) };
               for (int i = 0; i < 4; i++) {
                 if (leds[i] && i == cur) {
