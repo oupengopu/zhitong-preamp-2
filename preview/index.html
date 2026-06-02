@@ -1013,11 +1013,6 @@
     color: var(--accent);
     filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 34%, transparent));
   }
-  .settings-row[data-row="11"] .icon,
-  .settings-row[data-row="12"] .icon {
-    color: #6B7280;
-    filter: none;
-  }
   .settings-row .val,
   .ble-row .rssi,
   .keymap-row .action {
@@ -2290,6 +2285,21 @@
   .page-settings .settings-row.adjusting .theme-dot {
     opacity: 1;
   }
+  .page-settings .settings-row[data-row="0"] .bar-wrap {
+    height: 8px;
+  }
+  .page-settings .settings-row.adjusting .bar-wrap {
+    height: 9px;
+  }
+  .page-settings .settings-row[data-row="0"].adjusting .bar-wrap {
+    height: 12px;
+  }
+  #pageSpectrum .spec-status .spec-temp,
+  #pageSpectrum.spec-style-led .spec-status .spec-temp,
+  #pageSpectrum.spec-style-vu .spec-status .spec-temp {
+    color: #5A7090 !important;
+    text-shadow: none !important;
+  }
 
   /* TFT coordinate lock: main page now maps to fixed 2x device pixels */
   .page-main-redesign .main-topline {
@@ -2616,15 +2626,15 @@
       <div class="settings-row focused" data-row="0">
         <span class="mdi mdi-volume-high icon"></span>
         <span class="label">最大音量</span>
-        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barMaxVol" style="width:63%"></div></div></div>
-        <span class="val" id="valMaxVol">160</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barMaxVol" style="width:100%"></div></div></div>
+        <span class="val" id="valMaxVol">255</span>
       </div>
       <!-- Row 1: 开机上限 -->
       <div class="settings-row" data-row="1">
         <span class="mdi mdi-restart icon"></span>
         <span class="label">开机上限</span>
-        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barPowerOn" style="width:43%"></div></div></div>
-        <span class="val" id="valPowerOn">110</span>
+        <div class="bar-wrap"><div class="settings-bar"><div class="settings-bar-fill" id="barPowerOn" style="width:75%"></div></div></div>
+        <span class="val" id="valPowerOn">192</span>
       </div>
       <!-- Row 2: 声道平衡 -->
       <div class="settings-row" data-row="2">
@@ -2690,7 +2700,7 @@
         <div class="no-bar"></div>
         <span class="val input-val" id="valOutputMode">变压器</span>
       </div>
-      <!-- Row 11: 固件版本 (read-only) -->
+      <!-- Row 11: 频谱跳转 -->
       <div class="settings-row" data-row="11">
         <span class="mdi mdi-monitor-dashboard icon"></span>
         <span class="label">频谱跳转</span>
@@ -2709,7 +2719,7 @@
         <div class="no-bar"></div>
         <span class="val" id="valFirmware">v2.1.0</span>
       </div>
-      <!-- Row 12: IP地址 (read-only) -->
+      <!-- Row 14: IP地址 (read-only) -->
       <div class="settings-row read-only" data-row="14">
         <span class="mdi mdi-ip-network icon"></span>
         <span class="label">IP地址</span>
@@ -2899,10 +2909,10 @@
     <input type="range" min="1" max="60" value="5" id="timeoutSlider" oninput="onUserAction('timeout',this.value)">
   </label>
   <label>开机音量
-    <input type="range" min="10" max="255" value="110" id="powerOnSlider" oninput="onUserAction('poweron',this.value)">
+    <input type="range" min="10" max="255" value="192" id="powerOnSlider" oninput="onUserAction('poweron',this.value)">
   </label>
   <label>最大音量
-    <input type="range" min="10" max="255" value="160" id="maxVolSlider" oninput="onUserAction('maxvol',this.value)">
+    <input type="range" min="10" max="255" value="255" id="maxVolSlider" oninput="onUserAction('maxvol',this.value)">
   </label>
   <div class="check-group">
     <label><input type="checkbox" id="chkWifi" checked onchange="onUserAction('wifi')"> WiFi</label>
@@ -2929,7 +2939,7 @@
   const state = {
     input: 0, volume: 60, temp: 32.5, balance: 0,
     wifi: true, ble: false, standby: false, muted: false,
-    maxVolume: 160, powerOnLimit: 110, brightness: 80, displayTimeout: 5,
+    maxVolume: 255, powerOnLimit: 192, brightness: 80, displayTimeout: 5,
     autoSwitch: true,
     outputMode: false,  // false=变压器输出, true=直通输出
     currentPage: 0,  // 0=main, 1=spectrum, 2=settings, 3=ble_remote
@@ -3445,10 +3455,10 @@
     state.temp = parseFloat(val);
     document.getElementById('tempVal').textContent = state.temp.toFixed(1);
     document.getElementById('specTemp').textContent = state.temp.toFixed(1) + '°C';
-    document.getElementById('specTemp').style.color = getAccent();
+    document.getElementById('specTemp').style.color = '#5A7090';
   }
 
-  // ── 第三屏设置页更新 (9行单列) ──
+  // ── 第三屏设置页更新 (15行单列) ──
   function updateSettings() {
     updateBarMaxVol();
     updateBarPowerOn();
@@ -4624,11 +4634,11 @@
     }
   };
 
-  const SPECTRUM_AUTO_SECONDS = [0, 15, 30, 60, 120];
-  const SPECTRUM_AUTO_LABELS = ['禁用', '15秒', '30秒', '60秒', '120秒'];
+  const SPECTRUM_AUTO_SECONDS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+  const SPECTRUM_AUTO_LABELS = SPECTRUM_AUTO_SECONDS.map(v => v <= 0 ? '禁用' : `${v}秒`);
   const SPECTRUM_STYLE_NAMES = ['经典柱状', '镜像频谱', 'LED点阵', '示波线', '蓝表VU'];
   const SPECTRUM_STYLE_CLASSES = ['classic', 'mirror', 'led', 'scope', 'vu'];
-  state.spectrumAutoIdx = 1;
+  state.spectrumAutoIdx = 3;
   state.spectrumTheme = 2;
 
   function modernizeSettingsRows() {
@@ -4641,7 +4651,7 @@
       const idx = Number(row.dataset.row);
       const label = row.querySelector('.label');
       if (label && labels[idx]) label.textContent = labels[idx];
-      row.classList.toggle('read-only', idx === 13 || idx === 14);
+      row.classList.toggle('read-only', idx === 8 || idx === 9 || idx === 13 || idx === 14);
     });
   }
 
@@ -4828,13 +4838,17 @@
         if (flash) encoder.flashAction(state.outputMode ? '直通输出' : '变压器输出');
         break;
       case 11: {
-        let v = state.spectrumAutoIdx + step;
-        if (v < 0) v = SPECTRUM_AUTO_LABELS.length - 1;
-        if (v >= SPECTRUM_AUTO_LABELS.length) v = 0;
-        state.spectrumAutoIdx = v;
+        let seconds = SPECTRUM_AUTO_SECONDS[state.spectrumAutoIdx] ?? 15;
+        if (seconds <= 0 && step > 0) seconds = 5;
+        else if (seconds <= 5 && step < 0) seconds = 0;
+        else seconds += step * 5;
+        if (seconds < 0) seconds = 0;
+        if (seconds > 60) seconds = 60;
+        state.spectrumAutoIdx = SPECTRUM_AUTO_SECONDS.indexOf(seconds);
+        if (state.spectrumAutoIdx < 0) state.spectrumAutoIdx = 3;
         updateSpectrumSettingRows();
         resetIdleTimer();
-        if (flash) encoder.flashAction('频谱跳转 ' + SPECTRUM_AUTO_LABELS[v]);
+        if (flash) encoder.flashAction('频谱跳转 ' + SPECTRUM_AUTO_LABELS[state.spectrumAutoIdx]);
         break;
       }
       case 12: {
