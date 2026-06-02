@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component  
+**框架:** ESPHome 2026.5.2 + LVGL v9.x managed component  
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
@@ -640,7 +640,7 @@ cd preview && py -3.11 -m http.server 8084
 
 ## 已知编译器问题
 
-### 1. ruamel.yaml font glyphs 合并 bug (ESPHome 2026.4.x ~ 2026.5.x)
+### 1. ruamel.yaml font glyphs 合并 bug (ESPHome 2026.4.x ~ 2026.5.x) — 2026.5.2 仍有此问题
 
 当 `font:` 段中部分字体有 `glyphs:` 而部分没有时，ruamel.yaml 会将所有字体的 glyphs 合并到第一个字体条目中。这会导致 `Failed config` 警告（cosmetic，不阻断编译）。
 

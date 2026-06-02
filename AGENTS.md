@@ -12,7 +12,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 **固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component  
+**框架:** ESPHome 2026.5.2 + LVGL v9.x managed component  
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
