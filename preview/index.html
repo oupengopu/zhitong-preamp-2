@@ -583,14 +583,17 @@
   }
   @keyframes dbPulse {
     0% {
+      transform: scale(1.04);
       color: #FFFFFF;
       text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 38%, transparent);
     }
     45% {
+      transform: scale(1.025);
       color: color-mix(in srgb, #F8FAFC 82%, var(--accent));
       text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent);
     }
     100% {
+      transform: scale(1);
       color: #F8FAFC;
       text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
     }

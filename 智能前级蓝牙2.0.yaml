@@ -1804,6 +1804,18 @@ lvgl:
         - label: { id: lbl_vu_db_r, x: 285, y: 82, width: 66, height: 10, text: "DECIBELS", text_font: montserrat_8, text_align: CENTER, text_color: 0x256DA6, hidden: true }
         - label: { id: lbl_vu_power_l, x: 58, y: 96, width: 104, height: 14, text: "POWER OUTPUT", text_font: montserrat_12, text_align: CENTER, text_color: 0x256DA6, hidden: true }
         - label: { id: lbl_vu_power_r, x: 266, y: 96, width: 104, height: 14, text: "POWER OUTPUT", text_font: montserrat_12, text_align: CENTER, text_color: 0x256DA6, hidden: true }
+        - obj: { id: vu_tick_l_0, x: 49, y: 73, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_l_1, x: 75, y: 67, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_l_2, x: 101, y: 64, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_l_3, x: 128, y: 64, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_l_4, x: 154, y: 67, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_l_5, x: 180, y: 74, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_0, x: 257, y: 73, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_1, x: 283, y: 67, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_2, x: 309, y: 64, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_3, x: 336, y: 64, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_4, x: 362, y: 67, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_tick_r_5, x: 388, y: 74, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_l, x: 108, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r, x: 316, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
@@ -5152,7 +5164,10 @@ interval:
               id(vu_panel_l), id(vu_panel_r), id(lbl_vu_l), id(lbl_vu_r),
               id(lbl_vu_watts_l), id(lbl_vu_watts_r), id(lbl_vu_scale_top_l), id(lbl_vu_scale_top_r),
               id(lbl_vu_scale_db_l), id(lbl_vu_scale_db_r), id(lbl_vu_db_l), id(lbl_vu_db_r),
-              id(lbl_vu_power_l), id(lbl_vu_power_r), id(vu_needle_l), id(vu_needle_r)
+              id(lbl_vu_power_l), id(lbl_vu_power_r),
+              id(vu_tick_l_0), id(vu_tick_l_1), id(vu_tick_l_2), id(vu_tick_l_3), id(vu_tick_l_4), id(vu_tick_l_5),
+              id(vu_tick_r_0), id(vu_tick_r_1), id(vu_tick_r_2), id(vu_tick_r_3), id(vu_tick_r_4), id(vu_tick_r_5),
+              id(vu_needle_l), id(vu_needle_r)
             };
             int style = id(spectrum_theme);
             if (style < 0 || style > 4) style = 2;
@@ -5193,6 +5208,17 @@ interval:
                 lv_obj_set_style_bg_opa(id(vu_panel_r), LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_border_opa(id(vu_panel_l), LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_border_opa(id(vu_panel_r), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_t* ticks[] = {
+                  id(vu_tick_l_0), id(vu_tick_l_1), id(vu_tick_l_2), id(vu_tick_l_3), id(vu_tick_l_4), id(vu_tick_l_5),
+                  id(vu_tick_r_0), id(vu_tick_r_1), id(vu_tick_r_2), id(vu_tick_r_3), id(vu_tick_r_4), id(vu_tick_r_5)
+                };
+                int tick_angles[] = {-300, -180, -80, 0, 100, 250, -300, -180, -80, 0, 100, 250};
+                for (int i = 0; i < 12; i++) {
+                  lv_obj_set_style_bg_opa(ticks[i], LV_OPA_80, LV_PART_MAIN);
+                  lv_obj_set_style_transform_angle(ticks[i], tick_angles[i], LV_PART_MAIN);
+                  lv_obj_set_style_transform_pivot_x(ticks[i], 6, LV_PART_MAIN);
+                  lv_obj_set_style_transform_pivot_y(ticks[i], 1, LV_PART_MAIN);
+                }
                 lv_obj_set_style_bg_opa(id(vu_needle_l), LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(id(vu_needle_r), LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_transform_pivot_x(id(vu_needle_l), 0, LV_PART_MAIN);
@@ -5533,11 +5559,20 @@ interval:
             }
 
             lv_color_t db_color = lv_color_hex(0xF8FAFC);
+            int32_t db_scale = 256;
+            static bool db_pivot_ready = false;
+            if (!db_pivot_ready) {
+              db_pivot_ready = true;
+              lv_obj_set_style_transform_pivot_x(id(lbl_vol_db), 91, LV_PART_MAIN);
+              lv_obj_set_style_transform_pivot_y(id(lbl_vol_db), 17, LV_PART_MAIN);
+            }
             if (v_dt < 420) {
               uint8_t mix = (uint8_t)(36 + ((420 - v_dt) * 72 / 420));
               db_color = lv_color_mix(_accent, lv_color_hex(0xF8FAFC), mix);
+              db_scale = 256 + (int32_t)((420 - v_dt) * 11 / 420);
             }
             lv_obj_set_style_text_color(id(lbl_vol_db), db_color, LV_PART_MAIN);
+            lv_obj_set_style_transform_scale(id(lbl_vol_db), db_scale, LV_PART_MAIN);
 
             int phase = (now_fx / 120) % 12;
             uint8_t pulse = (uint8_t)(150 + (phase <= 6 ? phase : 12 - phase) * 14);
