@@ -2463,9 +2463,6 @@
     grid-column: 2;
   }
 
-  #pageVolumeBig {
-    display: none !important;
-  }
 </style>
 </head>
 <body>
@@ -2474,7 +2471,7 @@
 <div class="info-badge">
     🎯 <strong>第一屏</strong> 控制展示 ｜ 信号稳定 15s → <strong>第二屏</strong> 立体声频谱 ｜ 编码器单击 → <strong>第三屏</strong> 设置
   <span style="display:block;font-size:11px;margin-top:4px;color:#4A6890;">
-    📟 编码器: 旋转=音量(大字浮层/导航) ｜ 单击=进入/确认/唤醒 ｜ 双击=静音 ｜ 长按=返回/待机/AP配网
+    📟 编码器: 旋转=音量/导航 ｜ 单击=进入/确认/唤醒 ｜ 双击=静音(主屏/频谱) ｜ 长按=返回/待机/AP配网
   </span>
   <span style="display:block;font-size:11px;margin-top:2px;color:#4A6890;">
     设置→蓝牙遥控→遥控器按键 ｜ 当前: <strong id="pageName">控制屏</strong> ｜ <span id="idleCountdown">15</span>s 后自动跳转频谱
@@ -2859,10 +2856,6 @@
     </div>
   </div>
 
-  <!-- ═══ 音量浮层 (透明覆盖, 2秒自动消失) ═══ -->
-  <div class="page" id="pageVolumeBig" style="z-index:20;background:transparent;pointer-events:none;display:flex;align-items:center;justify-content:center;">
-    <div id="volBigLabel" style="font-family:'Montserrat',sans-serif;font-size:42px;font-weight:600;color:var(--accent);text-shadow:0 0 30px var(--accent-shadow);letter-spacing:1px;">-32.0dB</div>
-  </div>
 </div>
 </div>
 
@@ -2878,11 +2871,11 @@
 
 <!-- 编码器旋钮模拟 -->
 <div class="encoder-wrap">
-  <div class="encoder-knob" id="encoderKnob" title="旋转=调音量/导航 | 单击=确认 | 双击=静音 | 长按=返回主页/待机">
+  <div class="encoder-knob" id="encoderKnob" title="旋转=调音量/导航 | 单击=确认 | 双击=静音(主屏/频谱) | 长按=返回主页/待机">
     <div class="knob-dot"></div>
   </div>
   <div class="encoder-action" id="encoderAction"></div>
-  <div class="encoder-hint">滚轮:旋转 点击:操作<br>双击:静音 长按:返回</div>
+  <div class="encoder-hint">滚轮:旋转 点击:操作<br>双击:静音(主/频谱) 长按:返回</div>
 </div>
 
 <!-- 控制面板 -->
@@ -2943,8 +2936,7 @@
     autoSwitch: true,
     outputMode: false,  // false=变压器输出, true=直通输出
     currentPage: 0,  // 0=main, 1=spectrum, 2=settings, 3=ble_remote
-    volBigVisible: false,  // 大字音量浮层是否可见
-    idleTimer: null, idleCount: 15, specInterval: null, volBigTimer: null,
+    idleTimer: null, idleCount: 15, specInterval: null,
     mainSpecInterval: null, mainSpecPhase: 0,
     mainSpecLevels: [8, 12, 18, 24, 20, 14, 9, 11, 16, 23, 27, 20, 13, 9, 12, 18, 22, 17, 12, 8, 6],
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
@@ -3034,14 +3026,6 @@
       el.classList.toggle('active', i === idx);
     });
     document.getElementById('pageName').textContent = PAGE_NAMES[idx] || '音量';
-
-    // 切页时关闭大字音量浮层
-    if (state.volBigVisible) {
-      const overlay = document.getElementById('pageVolumeBig');
-      if (overlay) overlay.classList.remove('active');
-      state.volBigVisible = false;
-      clearTimeout(state.volBigTimer);
-    }
 
     if (prev === 4) stopDebugRefresh();
     if (idx === 0) { stopSpec(); startMainMiniSpec(); }
@@ -3224,7 +3208,7 @@
           return;
         }
         if (idx === 13) {
-          // 固件版本 (Row 11)：三击进入诊断页
+          // 固件版本 (Row 13)：三击进入诊断页
           state.clickCount++;
           if (state.clickTimer) clearTimeout(state.clickTimer);
           if (state.clickCount >= 3) {
@@ -3430,25 +3414,6 @@
     const balVal = document.getElementById('balVal');
     if (bal === 0) balVal.textContent = '平衡';
     else balVal.textContent = (bal < 0 ? 'L' : 'R') + Math.abs(bal);
-  }
-
-  function showVolumeBig() {
-    const reg = state.volume / 100 * 255;
-    const db = reg < 1 ? -96 : (reg - 255) * 0.5;
-    document.getElementById('volBigLabel').textContent = db.toFixed(1) + 'dB';
-
-    const overlay = document.getElementById('pageVolumeBig');
-    overlay.classList.add('active');
-    overlay.style.animation = 'none';
-    void overlay.offsetWidth;
-    overlay.style.animation = 'fadeInScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    state.volBigVisible = true;
-    resetIdleTimer();
-    clearTimeout(state.volBigTimer);
-    state.volBigTimer = setTimeout(() => {
-      overlay.classList.remove('active');
-      state.volBigVisible = false;
-    }, 2000);
   }
 
   function setTemp(val) {
@@ -4185,22 +4150,6 @@
       // 屏幕休眠 → 不响应
       if (state.standby) return;
 
-      // 大字音量浮层可见时，旋转调音量（仅主页/频谱页）
-      if (state.volBigVisible && (page === 0 || page === 1)) {
-        let v = state.volume - diff;
-        if (v < 0) v = 0; if (v > 100) v = 100;
-        if (v !== state.volume) {
-          state.volume = v;
-          updateVolume();
-          updateLed(state.input);
-          showVolumeBig();
-          document.getElementById('volSlider').value = v;
-          this.flashAction((diff > 0 ? '▼ ' : '▲ ') + v);
-        }
-        resetIdleTimer();
-        return;
-      }
-
       if (page === 0 || page === 1) {
         // 主页 / 频谱页: 调节音量
         let v = state.volume - diff;
@@ -4209,7 +4158,6 @@
           state.volume = v;
           updateVolume();
           updateLed(state.input);
-          if (page === 0) showVolumeBig();
           document.getElementById('volSlider').value = v;
           this.flashAction((diff > 0 ? '▼ ' : '▲ ') + v);
         }
@@ -4361,16 +4309,6 @@
 
     singleClick() {
       if (state.standby) return;
-      // 大字音量浮层可见时，单击返回之前页面
-      if (state.volBigVisible) {
-        const overlay = document.getElementById('pageVolumeBig');
-        overlay.classList.remove('active');
-        state.volBigVisible = false;
-        clearTimeout(state.volBigTimer);
-        this.flashAction('返回');
-        resetIdleTimer();
-        return;
-      }
       const page = state.currentPage;
       this.flashAction('单击');
 
@@ -4463,7 +4401,7 @@
 
     doubleClick() {
       if (state.standby) return;
-      // 与当前固件一致: 主页/频谱页/大字音量浮层有效
+      // 与当前固件一致: 仅主页/频谱页有效
       if (state.currentPage > 1) return;
       state.muted = !state.muted;
       document.getElementById('chkMute').checked = state.muted;
@@ -4499,9 +4437,7 @@
   };
 
   // Modern preview overrides: the rebuilt main screen no longer uses the old
-  // status-bar icons or the large volume overlay.
-  const legacyShowVolumeBig = showVolumeBig;
-  showVolumeBig = function() {};
+  // status-bar icons.
 
   const legacySetInput = setInput;
   setInput = function(idx, skipReset) {
