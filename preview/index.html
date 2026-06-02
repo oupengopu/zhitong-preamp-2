@@ -5113,6 +5113,7 @@
         if (v < 0) v = SPECTRUM_STYLE_NAMES.length - 1;
         if (v >= SPECTRUM_STYLE_NAMES.length) v = 0;
         state.spectrumTheme = v;
+        updateSpectrumSettingRows();
         applySpectrumStyle();
         if (flash) encoder.flashAction('频谱 ' + SPECTRUM_STYLE_NAMES[v]);
         break;
@@ -5202,10 +5203,12 @@
       if (state.muted) return;
       const scope = state.spectrumTheme === 3;
       let leftTotal = 0, rightTotal = 0;
+      const bandLevels = [];
       for (let i = 0; i < 7; i++) {
         let lh = Math.max(2, Math.min(98, lBases[i] + (Math.random() - 0.3) * 24));
         let rh = Math.max(2, Math.min(98, rBases[i] + (Math.random() - 0.3) * 24));
         leftTotal += lh; rightTotal += rh;
+        bandLevels[i] = (lh + rh) / 2;
         if (scope) {
           leftBars[i].style.transform = `translateY(${(50 - lh) * 1.35}px)`;
           rightBars[i].style.transform = `translateY(${(50 - rh) * 1.35}px)`;
@@ -5253,6 +5256,7 @@
         vuFillL.style.width = vuL + '%';
         vuFillR.style.width = vuR + '%';
       }
+      if (state.spectrumTheme === 5) updateSparkSpectrum(bandLevels);
     }, 70);
   };
 
