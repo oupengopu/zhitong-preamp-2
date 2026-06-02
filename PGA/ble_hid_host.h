@@ -133,6 +133,7 @@ struct HidState {
 
     // 扫描
     bool            scan_active = false;
+    bool            scan_start_pending = false;
 
     // 电池电量
     int             battery_level = -1;     // -1 = unknown
@@ -165,6 +166,8 @@ inline HidState& S() {
 // ── 前向声明 ──
 static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
+static void _handle_disconnect_event(int reason, const char* source);
+static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reconnect_retries_save);
 
 // ── 辅助: 全零 BDA 常量 (替代 C99 复合字面量) ──
 static const uint8_t ZERO_BDA[6] = {0};
@@ -374,6 +377,71 @@ static void _queue_event_from_task(HidEventType type) {
     }
 }
 
+static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reconnect_retries_save) {
+    if (!auto_reconnect_save) return;
+
+    uint32_t delay_ms;
+    if (reconnect_retries_save < 3) {
+        delay_ms = 2000 + (reconnect_retries_save * 3000);
+    } else {
+        delay_ms = 60000;
+    }
+
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        S().reconnect_pending = true;
+        S().reconnect_next_ms = millis() + delay_ms;
+        S().reconnect_retries = reconnect_retries_save + 1;
+        // 防溢出: 如果重试次数异常高(如运行数月后累积)，限制在安全范围
+        if (S().reconnect_retries > 1000) S().reconnect_retries = 4;
+        xSemaphoreGive(S().mux);
+    }
+
+    ESP_LOGI("ble_hid", "将在 %d 秒后重试连接 (第 %d 次)...",
+             reconnect_retries_save < 3 ? 2 + reconnect_retries_save * 3 : 60,
+             reconnect_retries_save + 1);
+}
+
+static void _handle_disconnect_event(int reason, const char* source) {
+    bool should_emit = false;
+    bool auto_reconnect_save = false;
+    int reconnect_retries_save = 0;
+
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        should_emit = (S().state != BLE_IDLE) || (S().conn_id != 0) ||
+                      (S().report_count > 0) || S().cccd_ready ||
+                      (S().connected_name[0] != '\0');
+        auto_reconnect_save = S().auto_reconnect;
+        reconnect_retries_save = S().reconnect_retries;
+
+        if (should_emit) {
+            S().state = BLE_IDLE;
+            S().conn_id = 0;
+            S().hid_svc_start = 0;
+            S().hid_svc_end = 0;
+            memset(S().report_char_handles, 0, sizeof(S().report_char_handles));
+            memset(S().report_cccd_handles, 0, sizeof(S().report_cccd_handles));
+            S().report_count = 0;
+            S().report_cccds_written = 0;
+            S().cccd_ready = false;
+            S().auth_cmpl = false;
+            S().connected_name[0] = '\0';
+            S().battery_level = -1;
+            S().batt_svc_start = 0;
+            S().batt_svc_end = 0;
+            S().batt_char_handle = 0;
+            S().batt_cccd_handle = 0;
+        }
+
+        xSemaphoreGive(S().mux);
+    }
+
+    if (!should_emit) return;
+
+    ESP_LOGI("ble_hid", "已断开 (%s, reason=%d)", source, reason);
+    _queue_event_from_task(HID_EVT_DISCONNECTED);
+    _schedule_reconnect_from_snapshot(auto_reconnect_save, reconnect_retries_save);
+}
+
 // ═══════════════════════════════════════════════════
 // GAP 回调 — 扫描结果处理
 // ═══════════════════════════════════════════════════
@@ -382,11 +450,24 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
         case ESP_GAP_BLE_SCAN_RESULT_EVT: {
             if (param->scan_rst.search_evt != ESP_GAP_SEARCH_INQ_RES_EVT) break;
 
-            // Parse advertising data
+            // Parse advertising data and scan response. Many tiny HID remotes put
+            // the human-readable name in scan response instead of the primary AD.
             char name[BLE_HID_NAME_LEN] = {0};
+            char scan_name[BLE_HID_NAME_LEN] = {0};
             bool has_hid = false;
+            bool scan_has_hid = false;
             _parse_adv_data(param->scan_rst.ble_adv, param->scan_rst.adv_data_len,
                            name, sizeof(name), &has_hid);
+            if (param->scan_rst.scan_rsp_len > 0) {
+                _parse_adv_data(param->scan_rst.ble_adv + param->scan_rst.adv_data_len,
+                               param->scan_rst.scan_rsp_len,
+                               scan_name, sizeof(scan_name), &scan_has_hid);
+                if (name[0] == '\0' && scan_name[0] != '\0') {
+                    strncpy(name, scan_name, BLE_HID_NAME_LEN - 1);
+                    name[BLE_HID_NAME_LEN - 1] = '\0';
+                }
+                has_hid = has_hid || scan_has_hid;
+            }
 
             // Filter: accept HID devices, or devices with a name (scan response may contain HID UUID)
             if (!has_hid && name[0] == '\0') break;
@@ -453,17 +534,51 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
             break;
         }
 
-        case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
+        case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
+            bool pending = false;
             if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                S().scan_active = true;
-                S().state = BLE_SCANNING;
+                pending = S().scan_start_pending;
                 xSemaphoreGive(S().mux);
+            }
+            if (!pending) break;
+
+            esp_err_t ret = esp_ble_gap_start_scanning(BLE_HID_SCAN_DURATION);
+            if (ret != ESP_OK) {
+                ESP_LOGE("ble_hid", "启动扫描失败: %s", esp_err_to_name(ret));
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    S().scan_start_pending = false;
+                    S().scan_active = false;
+                    if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
+                    xSemaphoreGive(S().mux);
+                }
+            }
+            break;
+        }
+
+        case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
+            if (param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS) {
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    S().scan_start_pending = false;
+                    S().scan_active = true;
+                    S().state = BLE_SCANNING;
+                    xSemaphoreGive(S().mux);
+                }
+                ESP_LOGI("ble_hid", "开始扫描 (%ds)...", BLE_HID_SCAN_DURATION);
+            } else {
+                ESP_LOGW("ble_hid", "扫描启动失败 (status=%d)", param->scan_start_cmpl.status);
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    S().scan_start_pending = false;
+                    S().scan_active = false;
+                    if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
+                    xSemaphoreGive(S().mux);
+                }
             }
             break;
 
         case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
             if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                 S().scan_active = false;
+                S().scan_start_pending = false;
                 if (S().state == BLE_SCANNING) {
                     S().state = BLE_IDLE;
                     xSemaphoreGive(S().mux);
@@ -538,75 +653,13 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 esp_ble_gattc_search_service(gattc_if, S().conn_id, nullptr);
             } else {
                 ESP_LOGW("ble_hid", "连接失败 (status=%d)", param->open.status);
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    S().state = BLE_IDLE;
-                    xSemaphoreGive(S().mux);
-                }
-                _queue_event_from_task(HID_EVT_DISCONNECTED);
+                _handle_disconnect_event(param->open.status, "open");
             }
             break;
 
-        case ESP_GATTC_CLOSE_EVT: {
-            ESP_LOGI("ble_hid", "已断开 (reason=%d)", param->close.reason);
-            // Snapshot reconnect params before resetting
-            bool auto_reconnect_save = false;
-            int reconnect_retries_save = 0;
-            {
-                bool _ar = false;
-                int _rr = 0;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    _ar = S().auto_reconnect;
-                    _rr = S().reconnect_retries;
-                    xSemaphoreGive(S().mux);
-                }
-                auto_reconnect_save = _ar;
-                reconnect_retries_save = _rr;
-            }
-
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                S().state = BLE_IDLE;
-                S().conn_id = 0;
-                S().hid_svc_start = 0;
-                S().hid_svc_end = 0;
-                memset(S().report_char_handles, 0, sizeof(S().report_char_handles));
-                memset(S().report_cccd_handles, 0, sizeof(S().report_cccd_handles));
-                S().report_count = 0;
-                S().report_cccds_written = 0;
-                S().cccd_ready = false;
-                S().auth_cmpl = false;
-                S().connected_name[0] = '\0';
-                S().battery_level = -1;
-                S().batt_svc_start = 0;
-                S().batt_svc_end = 0;
-                S().batt_char_handle = 0;
-                S().batt_cccd_handle = 0;
-                xSemaphoreGive(S().mux);
-            }
-            _queue_event_from_task(HID_EVT_DISCONNECTED);
-
-            // Auto-reconnect (using pre-reset snapshot)
-            // 前3次快速重试 (2s/5s/8s), 之后每60s低频重试（应对遥控器临时离场/换电池）
-            if (auto_reconnect_save) {
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    S().reconnect_pending = true;
-                    uint32_t delay_ms;
-                    if (reconnect_retries_save < 3) {
-                        delay_ms = 2000 + (reconnect_retries_save * 3000);
-                    } else {
-                        delay_ms = 60000;
-                    }
-                    S().reconnect_next_ms = millis() + delay_ms;
-                    S().reconnect_retries = reconnect_retries_save + 1;
-                    // 防溢出: 如果重试次数异常高(如运行数月后累积)，限制在安全范围
-                    if (S().reconnect_retries > 1000) S().reconnect_retries = 4;
-                    xSemaphoreGive(S().mux);
-                }
-                ESP_LOGI("ble_hid", "将在 %d 秒后重试连接 (第 %d 次)...",
-                         reconnect_retries_save < 3 ? 2 + reconnect_retries_save * 3 : 60,
-                         reconnect_retries_save + 1);
-            }
+        case ESP_GATTC_CLOSE_EVT:
+            _handle_disconnect_event(param->close.reason, "close");
             break;
-        }
 
         case ESP_GATTC_SEARCH_RES_EVT: {
             // Check if this service is HID (0x1812) or Battery (0x180F)
@@ -1013,7 +1066,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             break;
 
         case ESP_GATTC_DISCONNECT_EVT:
-            // 使用 CLOSE_EVT 跟踪断开（携带 reason code）
+            _handle_disconnect_event(param->disconnect.reason, "disconnect");
             break;
 
         default:
@@ -1090,48 +1143,62 @@ static void start_scan() {
         return;
     }
 
+    bool was_active = false;
+    bool was_pending = false;
     if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-        bool was_active = S().scan_active;
-        xSemaphoreGive(S().mux);
-
-        // Stop any existing scan first
-        if (was_active) {
-            esp_ble_gap_stop_scanning();
+        was_active = S().scan_active;
+        was_pending = S().scan_start_pending;
+        if (was_active || was_pending) {
+            S().scan_active = false;
+            S().scan_start_pending = false;
+            S().state = BLE_IDLE;
         }
+        xSemaphoreGive(S().mux);
+    } else {
+        return;
+    }
+    if (was_active) esp_ble_gap_stop_scanning();
+    if (was_active || was_pending) return;
+
+    // Set scan params: active, reduced duty cycle (~25% for lower power)
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        S().state = BLE_SCANNING;
+        S().scan_active = false;
+        S().scan_start_pending = true;
+        S().discovered_count = 0;
+        xSemaphoreGive(S().mux);
     } else {
         return;
     }
 
-    // Set scan params: active, reduced duty cycle (~25% for lower power)
     esp_ble_scan_params_t scan_params = {};
     scan_params.scan_type          = BLE_SCAN_TYPE_ACTIVE;
     scan_params.own_addr_type      = BLE_ADDR_TYPE_PUBLIC;
     scan_params.scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL;
     scan_params.scan_interval      = 0x00C0;
     scan_params.scan_window        = 0x0030;
-    esp_ble_gap_set_scan_params(&scan_params);
-
-    // Start scanning
-    esp_err_t ret = esp_ble_gap_start_scanning(BLE_HID_SCAN_DURATION);
+    esp_err_t ret = esp_ble_gap_set_scan_params(&scan_params);
     if (ret != ESP_OK) {
-        ESP_LOGE("ble_hid", "启动扫描失败: %s", esp_err_to_name(ret));
+        ESP_LOGE("ble_hid", "设置扫描参数失败: %s", esp_err_to_name(ret));
+        if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            S().scan_start_pending = false;
+            S().scan_active = false;
+            if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
+            xSemaphoreGive(S().mux);
+        }
         return;
     }
 
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-        S().state = BLE_SCANNING;
-        S().scan_active = true;
-        S().discovered_count = 0;
-        xSemaphoreGive(S().mux);
-    }
-    ESP_LOGI("ble_hid", "开始扫描 (%ds)...", BLE_HID_SCAN_DURATION);
+    ESP_LOGI("ble_hid", "扫描参数已提交，等待控制器开始扫描...");
 }
 
 static void stop_scan() {
     if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
         bool was_active = S().scan_active;
-        if (was_active) {
+        bool was_pending = S().scan_start_pending;
+        if (was_active || was_pending) {
             S().scan_active = false;
+            S().scan_start_pending = false;
             S().state = BLE_IDLE;
         }
         xSemaphoreGive(S().mux);

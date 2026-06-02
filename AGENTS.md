@@ -1,3 +1,9 @@
+# AGENTS.md
+
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+---
+
 # 智能前级2.0 — 项目概览
 
 ## 项目简介
@@ -6,7 +12,8 @@
 
 **固件版本:** v2.1.0  
 **MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component
+**框架:** ESPHome 2026.5.0 + LVGL v9.x managed component  
+**仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
 
@@ -111,7 +118,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 │   ├── settings_ui.h      # 设置页 UI 控件指针数组管理
 │   └── remote_keys.h      # BLE 遥控器按键映射动作名查询
 ├── secrets.yaml           # WiFi/API/OTA 密钥
-├── CLAUDE.md              # 本文件
+├── AGENTS.md              # 本文件
 ├── CHANGELOG.txt          # 变更历史
 ├── fonts/                 # 字体文件
 │   ├── Montserrat-Regular.ttf
@@ -120,7 +127,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 ├── icons/                 # SVG 图标 (18 个)
 ├── preview/               # Web 预览模拟器
 │   ├── index.html         # 2x 缩放 TFT 模拟器 (HTML/CSS/JS)
-│   └── .claude/launch.json
+│   └── .Codex/launch.json
 ├── .esphome/              # ESPHome 编译缓存
 └── 资料/                  # 硬件文档 (PDF 数据手册等)
 ```
@@ -149,10 +156,10 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
    - extern "C" 声明所需 LVGL C API (label/bar/led 函数)
    - 非复合 widget 直接是 lv_obj_t* 全局变量, 无需 `->obj_`
 
-4. **ESPHome YAML** — 主配置 (~5800 行)
-   - 6 个 LVGL 主页面: splash_page, main_page, spectrum_page, volume_big(浮层), settings_page
+4. **ESPHome YAML** — 主配置 (~5700 行)
+   - 4 个核心 LVGL 页面: splash_page, main_page, spectrum_page, settings_page
    - 3 个子页面: ble_remote_page(蓝牙遥控), remote_keys_page(遥控器按键映射), debug_page(诊断信息)
-   - 4 个页面切换: 主页面/频谱/设置/大字音量
+   - 页面切换: 主页面/频谱/设置/蓝牙遥控/遥控器按键/诊断信息
    - 音频检测 (MCP23017 GPB0~GPB3, active-low + inverted, 100ms 确认 / 500ms 断连)
    - 输入自动切换 (CD > DAC > PC > AUX 优先级, 支持手动覆盖)
    - 编码器: 旋转→音量, 单击→页面循环, 长按→待机
@@ -163,14 +170,11 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 |------|------|------|
 | `volume_val` | int | 当前音量 (0~255) |
 | `current_input` | int | 当前输入 (0=CD, 1=DAC, 2=PC, 3=AUX) |
-| `active_input` | int | 当前实际已接通的输入, 用于切换时保存旧通道独立音量 |
 | `max_volume` | int | 最大音量限制 (10~255) |
 | `power_on_limit` | int | 开机音量上限 (10~255) |
 | `balance` | int | 平衡 (-20~20) |
 | `soft_mute` | bool | 软静音标志 |
 | `standby` | bool | 待机状态 |
-| `temp_protect` | bool | 温度保护状态 |
-| `temp_protect_forced_standby` | bool | 本次温保是否强制进入待机，用于降温后决定是否自动唤醒 |
 | `current_db` | float | 当前实际 dB |
 | `target_db` | float | 目标 dB (渐变更新的目标) |
 | `theme` | int | 颜色主题索引 (0~7) |
@@ -179,10 +183,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `last_manual_input_ms` | uint32_t | 手动选择输入的时间戳 (0=自动模式) |
 | `system_ready` | bool | 系统就绪标志 |
 | `switching_input` | bool | 正在切换输入 |
-| `switching_target_input` | int | 输入切换脚本锁定的目标通道快照 |
-| `auto_switch_pending` | bool | 自动输入切换 8 秒等待期闩锁，防止无效启动后延迟段误切换 |
 | `audio_cd/dac/pc/aux` | binary_sensor | 各输入音频检测状态 |
-| `settings_focus_idx` | int | 设置页焦点索引 (0~12) |
+| `settings_focus_idx` | int | 设置页焦点索引 (0~11) |
 | `settings_active_idx` | int | 设置页调节模式索引 (-1=浏览模式) |
 | `keymap_focus_idx` | int | 遥控器按键页焦点索引 (0-7=按键, 8=返回) |
 | `keymap_active_idx` | int | 遥控器按键页调节模式索引 (-1=浏览, ≥0=调节中) |
@@ -199,9 +201,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 ### 关键脚本
 | 脚本 | 说明 |
 |------|------|
-| `switch_input` | 切换输入: 保存当前实际通道音量→软静音→切继电器→恢复目标通道音量→取消静音 |
+| `switch_input` | 切换输入: 软静音→切继电器→取消静音 |
 | `apply_theme` | 应用主题色到 LVGL 控件（LED/分隔线/音量条/频谱条/设置页 bar/主题色点） |
-| `auto_switch_input` | 自动输入选择 (8s 等待 + pending 闩锁, 优先级 CD>DAC>PC>AUX, 无信号则保持) |
+| `auto_switch_input` | 自动输入选择 (8s 等待, 优先级 CD>DAC>PC>AUX, 无信号则保持) |
 | `display_idle_timer` | 显示超时管理 (可配置分钟数, 调低亮度而非关屏) |
 | `exit_standby` | 退出待机: 渐变亮度 (800ms) → 应用主题 → 恢复音量 → 自动切换 |
 | `factory_reset` | 恢复出厂: 重置全局变量 → 显示提示 → 清除 WiFi → 重启 (编码器按住 10s 触发) |
@@ -236,7 +238,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - **主页面 → 频谱页**: MSGEQ7 信号存在且稳定 ≥15 秒后自动跳转
 - **频谱页 → 主页面**: 信号消失 ≥10 秒后自动返回
 - 静音/待机/系统未就绪时不自动跳转
-- 设置页/大字音量页不受影响
+- 设置页/子页面不受影响
 - 编码器单击手动切换不受影响（频谱→主页、主页→设置）
 
 ### 音量渐变 (50ms interval)
@@ -254,24 +256,16 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 手动选择后: 保持当前输入直到信号丢失, 然后恢复自动切换
 - 待机恢复/重启后: 自动启动
 
-### 各输入独立音量记忆
-- `current_input` 表示用户或自动切换逻辑请求的目标输入。
-- `active_input` 表示继电器当前实际已接通的输入。
-- `switch_input` 开始时先按 `active_input` 保存旧通道音量，再按 `current_input` 锁定 `switching_target_input` 并执行继电器切换。
-- 切换完成后从目标通道的 `input_vol_0~3` 恢复音量，并将 `active_input` 更新为目标通道。
-- 这样可避免“先改 current_input 再执行 switch_input”时把旧通道音量写入新通道槽位。
-
 ### LVGL 页面结构
 | 页面 | 内容 |
 |------|------|
 | splash_page | 开机闪屏: "Zhitong Audio" 品牌标识 (montserrat_36, 翠绿) + "智能前级2.0" 副标题 + 版本号, 文字 500ms 渐显 |
 | main_page | 状态栏(输入/自动切换/温度/音量/图标) + 大音量 + 输入选择 + 音量条 + 平衡/静音指示 + BLE遥控电池条 |
 | spectrum_page | 左右声道 7 段频谱条 + 峰值保持线 + VU 电平条 + 频率标签 + 输入/温度 |
-| volume_big | 大字音量 (编码器旋转时临时显示) |
 | ble_remote_page | 蓝牙遥控管理: 扫描/设备列表/连接/断开/电池电量/HID调试 |
 | remote_keys_page | 遥控器按键映射: 8 个标准源按键 + 返回，浏览/调节双模式，单击循环切换映射目标(0-15) |
-| settings_page | 单列可滚动列表，13 项：最大音量/开机上限/.../蓝牙遥控/遥控器按键(导航)/输出模式/固件版本(只读)/IP地址(只读) |
-| debug_page | 诊断信息: CPU占用率、内部堆(320KB)/PSRAM(8MB)实时监控、低水位标记、运行时间、MSGEQ7 重校准 |
+| settings_page | 单列可滚动列表，15 项：最大音量/开机上限/.../频谱跳转/频谱样式/固件版本(只读)/IP地址(只读) |
+| debug_page | 诊断信息: CPU占用率、内部堆(320KB)/PSRAM(8MB)实时监控、低水位标记、运行时间 |
 
 ---
 
@@ -280,7 +274,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 ### 编码器旋转
 | 当前页面 | 效果 |
 |---------|------|
-| 主页 / 大字音量页 | 调节音量（屏幕休眠时自动恢复亮度） |
+| 主页 | 调节音量（屏幕休眠时自动恢复亮度，不再弹出大字音量浮层） |
 | 频谱页 | 调音量 + 自动返回主页 |
 | 设置页（浏览模式） | 移动焦点切换设置项（无限循环） |
 | 设置页（调节模式） | 调整当前设置项的值（bar/数值实时更新） |
@@ -303,9 +297,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 遥控器按键页（返回行） | → 返回设置页 |
 
 ### 编码器按键（双击）
-| 当前状态 | 效果 |
+| 当前页面 | 效果 |
 |---------|------|
-| 主页 / 频谱页 / 大字音量页 | 切换静音 |
+| 主页 / 频谱页 | 切换静音 |
 | 设置页 / 蓝牙遥控页 / 遥控器按键页 / 诊断页 | 无动作 |
 
 ### 编码器按键（长按 1.5s）
@@ -317,8 +311,6 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 诊断页 | 返回主页面 |
 | 主页面/频谱页（工作状态）| 进入待机 |
 | 待机状态 | 唤醒（800ms 渐变亮度）|
-
-> 从设置页或遥控器按键页长按返回主页时，会同时退出调节模式并恢复行背景/bar 高度，防止再次进入页面时残留调节状态。
 
 ### 编码器按键（超长按 10s — 恢复出厂设置）
 | 条件 | 效果 |
@@ -349,9 +341,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 旋转编码器或单击恢复用户设定亮度
 - 设置项名称为"息屏超时"，实际为调低亮度而非关屏
 
-### 大字音量
-- 主页旋转编码器时弹出大字体音量浮层（含 dB 值）
-- **2 秒无操作自动返回**当前页面
+### 音量调节
+- 主页旋转编码器直接调节音量，不再弹出大字音量浮层
+- 频谱页旋转编码器调节音量后自动返回主页
 
 ### 自动输入切换
 - 优先级：**CD > DAC > PC > AUX**
@@ -365,8 +357,6 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 ### 温度保护
 - ≥72°C 强制待机，屏幕显示红色 **"保护!"**
 - <55°C 退出保护，恢复正常显示
-- 保护期间禁止 HA、BLE、编码器等路径唤醒，`send_volume_to_pga` 始终输出静音。
-- 只有本次温保从运行状态强制进入待机时，降温后才自动唤醒；如果用户本来就在待机，不会被温保解除误唤醒。
 
 ### 待机
 - 彻底关屏 + 静音 + 暂停 LVGL，WiFi 保持连接
@@ -379,9 +369,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 若 WiFi 10 秒内未连接，自动超时切到主页面（不卡死）
 - splash_page 仅开机显示一次，过渡后不再使用
 
-### 设置页交互（单列列表，图标化，13 项）
+### 设置页交互（单列列表，图标化，15 项）
 - **布局**：单列可滚动列表，每行 ~90px，含 24px MDI 图标 + 18px 标签 + 进度条(bar) + 16px 数值
-- **图标**：每行左侧 24px 彩色 MDI 图标，rows 0-10 跟随主题色，rows 11-12 固定灰色 `0x6B7280`
+- **图标**：每行左侧 24px 彩色 MDI 图标，rows 0-12 跟随主题色，rows 13-14 固定灰色 `0x6B7280`
 - **焦点指示**：左边界 3px 主题色竖条 + 背景色 `0x1E2D42`
 - **只读行(固件版本/IP地址)**：无焦点条，背景 `0x111827`，图标灰色
 - **导航行(蓝牙遥控/遥控器按键)**：背景 `0x111827`，支持焦点高亮 + 点击跳转对应子页面
@@ -390,16 +380,15 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 **浏览模式**（`settings_active_idx = -1`）：
 - 旋转编码器 → 移动焦点（无限循环）
 - 自动滚动（`lv_obj_scroll_to_view`）确保焦点项可见
-- 单击可调项(0-7,10) → 进入调节模式
+- 单击可调项(0-7、10-12) → 进入调节模式；导航项(8-9) → 跳转子页面
 
 **调节模式**（`settings_active_idx = idx`）：
 - 选中行 bar 高度 12px (row 0 为 16px) → 24px，背景 `0x25374F`
 - 旋转编码器 → 调值，bar/数值实时更新，立即生效
 - 单击 → 退回浏览模式（bar 恢复 base 高度：row 0=16px, rows 1-5=12px）
-- 只读项(11,12) 单击无反应
-- 10 秒无操作或长按返回主页时，会自动清理调节状态与行高/背景状态。
+- 只读项(13,14) 单击无反应
 
-**设置项一览**（13 项）：
+**设置项一览**（15 项）：
 | # | 名称 | 图标 | 控件 | 范围 | 说明 |
 |---|------|------|------|------|------|
 | 0 | 最大音量 | mdi-volume-high | bar | 10~255 | 音量上限，保护扬声器 |
@@ -412,9 +401,11 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 7 | 主题色彩 | mdi-palette | label+色点 | 8 种主题色 | 循环切换，实时生效 |
 | 8 | 蓝牙遥控 | mdi-bluetooth | label | 已连接/未连接 | 导航到蓝牙遥控页 |
 | 9 | 遥控器按键 | mdi-keyboard-settings | label | 已映射 | 导航到遥控器按键映射页 |
-| 10 | 输出模式 | mdi-swap-horizontal-circle | label | 变压器/直通 | 切换输出继电器模式 |
-| 11 | 固件版本 | mdi-information-outline | label (只读) | — | 显示当前固件版本，三击进入诊断页 |
-| 12 | IP地址 | mdi-ip-network | label (只读) | — | 显示设备 IP |
+| 10 | 输出模式 | mdi-swap-vertical-bold | label | 变压器/直通 | 切换输出模式 |
+| 11 | 频谱跳转 | mdi-chart-timeline-variant | label | 禁用/5~60秒 | 主屏自动跳转频谱屏时间 |
+| 12 | 频谱样式 | mdi-chart-bar | label+色点 | 5 种样式 | 经典柱状/镜像频谱/LED点阵/示波线/蓝表VU |
+| 13 | 固件版本 | mdi-information-outline | label (只读) | — | 显示当前固件版本，三击进入诊断页 |
+| 14 | IP地址 | mdi-ip-network | label (只读) | — | 显示设备 IP |
 
 ### 蓝牙遥控 (BLE HID Host)
 - 图标 mdi-bluetooth，标签 "蓝牙遥控"，右侧状态 "已连接"/"未连接"
@@ -428,13 +419,6 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - **交互**：旋转选行 → 单击进入调节 → 旋转循环 16 个映射目标 → 单击确认
 - **映射目标**：禁用/音量+/音量-/静音/播放暂停/下一曲/上一曲/电源/切换输入/上划/下划/左划/右划/拍照/切换镜头/确定
 - 映射值 NVS 持久化，工厂重置恢复恒等
-- 进入页面、10 秒无操作回主页或长按返回主页时，会重置调节态，避免下次进入后旋转直接改映射。
-
-### 诊断页
-- 从设置页固件版本行快速三击进入。
-- 焦点 0 为 MSGEQ7 重校准，单击后停留在诊断页并显示"校准完成/校准失败"。
-- 焦点 1 为返回设置，单击返回 settings_page。
-- 30 秒无操作自动返回主页。
 
 ### BLE 遥控页
 | 行 | 内容 | 说明 |
@@ -458,9 +442,6 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - FreeRTOS 队列桥接 BLE 回调线程 → ESPHome 主循环
 - BDA 持久化到 NVS（`ble_remote_peer_bda`，`restore_value=true`）
 - 断开自动重试 3 次，间隔逐次增大
-- 扫描遵循 Bluedroid 异步时序：`set_scan_params` 完成后再 `start_scanning`
-- 同时处理连接失败、远端断开 `DISCONNECT_EVT` 与本地关闭 `CLOSE_EVT`，避免状态卡在已连接
-- 扫描结果合并 Advertising Data 与 Scan Response，兼容把名称/UUID 放在 Scan Response 的小遥控器
 - 待机时 BLE 连接保持，遥控器电源键可唤醒
 
 ### BLE 遥控器配对流程
@@ -537,6 +518,11 @@ HA 滑条   → volume_number.set_action → volume_val 转换 → send_volume_t
 
 ## 编译和运行
 
+### 配置验证（先验证再编译）
+```bash
+esphome config 智能前级蓝牙2.0.yaml
+```
+
 ### 编译
 ```bash
 esphome compile 智能前级蓝牙2.0.yaml
@@ -554,7 +540,7 @@ cd preview && py -3.11 -m http.server 8084
 然后在浏览器打开 `http://localhost:8084`，显示 2x 缩放 (856×284) 的 TFT 模拟。
 
 ### 预览服务器配置
-`.claude/launch.json` 中配置了 preview-server，可通过 `preview_start` 工具启动。
+`.Codex/launch.json` 中配置了 preview-server，可通过 `preview_start` 工具启动。
 
 ---
 
@@ -580,8 +566,6 @@ cd preview && py -3.11 -m http.server 8084
 
 3. **MCP23017 中断配置**: 配置为 Open-Drain + Active-Low (`open_drain_interrupt: true`)，ESP32-S3 端用内部上拉，防电平冲突。**音频检测输入端建议加硬件 RC 低通滤波**——音频信号临界点的高频抖动会引发中断风暴。若测试中遇到"某路输入突然不检测"的现象，疑似 MCP23017 中断锁死（INT 保持低电平不复位），需 I2C 读取 GPIO/INTCAP 寄存器手动清除。
 
-   音频检测 binary_sensor 使用 `use_interrupt: false` 是为了避免 ESPHome 对 MCP 扩展 IO 尝试挂 ESP32 原生 GPIO ISR 并输出误导性 polling warning；MCP23017 Hub 仍通过 `interrupt_pin: GPIO12` + 各 GPB 输入 `interrupt: CHANGE` 中断唤醒并刷新缓存。
-
 4. **ESP32-S3 NTC 校准**: 使用 `ADC_ATTEN_DB_6` + `curve_fitting` 校准方案。6dB 衰减虽量程较小 (0~2.5V) 但线性远优于 12dB, 对室内前级足够。
 
 5. **MSGEQ7 时序**: 3.3V 供电时输出建立需 36-40μs (vs 5V 的 18μs), STROBE 低脉冲和 RESET 脉冲均已放宽到 40-100μs。
@@ -600,15 +584,19 @@ cd preview && py -3.11 -m http.server 8084
 
 12. **font_cn_small 字体覆盖**: 作为 `default_font`，任何新增 UI 文字（尤其是 BLE 页状态文本）必须确保字符已加入 glyphs 列表（当前约 90 字）。缺字导致 LVGL 渲染空白框。此字体与 font_cn (18px) 独立维护，需分别添加。
 
-13. **输入切换音量记忆约定**: 修改输入切换逻辑时，必须区分 `active_input`（实际接通通道）和 `current_input`（目标通道）。保存旧音量只能使用 `active_input`，否则会把旧通道音量写入目标通道的 `input_vol_*`。
+13. **YAML 嵌套 if/then/else 缩进陷阱**: ESPHome YAML 中 `- if:` 的 `condition:`/`then:`/`else:` 必须同缩进层级（比 `- if:` 多 4 空格）。`else:` 比 `condition:` 少 2 空格会导致解析器将 `else:` 和后续 `- if:` 误识别为同一 action 条目的两个 key，报错 "Cannot have two actions in one item. Key 'if' overrides 'else'!"。修复时注意 `else:` 本身 + 其下方整个子块的缩进联动。
 
-14. **页面调节状态清理**: settings_page 和 remote_keys_page 离开页面时需要清理 `settings_active_idx` / `keymap_active_idx` 以及对应行背景/bar 高度。新增返回路径、自动回页路径或长按路径时必须同步处理。
+14. **`remote_keys::get_action_name()` 返回类型**: 必须返回 `std::string` 而非 `const char*`。ESPHome 的 `text: !lambda` 代码生成器会在返回值上自动调用 `.c_str()`，对 `const char*` 再调 `.c_str()` 无效（编译报错 "request for member 'c_str' in ... which is of non-class type 'const char*'"）。直接传给 `lv_label_set_text()` 时需要手动 `.c_str()`。
 
-15. **ESPHome lambda guard 约定**: YAML action 列表中，`lambda` 内的 `return` 只退出当前 lambda，不会阻止后续 `script.execute` / `switch.*` action 执行。带 guard 的服务、number、select、BLE 命令入口，必须把后续副作用放进同一个 lambda 的 guard 之后，或用外层 `if:` 包裹。
+15. **pga2311.h 与 msgeq7.h 变量风格统一**: 两者均使用 `inline` 变量（C++17 ODR 安全），禁止使用 `static`。`static` 会在多翻译单元场景下产生独立副本，导致 `_last_r/_last_l` 去重失效和 SPI 设备重复初始化。
 
-16. **温度保护唤醒约定**: 所有唤醒路径应通过 `standby_switch->turn_on()` 或显式检查 `!temp_protect`。保护期间不得直接执行 `exit_standby`，解除保护时只根据 `temp_protect_forced_standby` 决定是否自动恢复。
+16. **MSGEQ7 零漂校准前提假设**: 校准在上电时执行，假设此时无音频输入。如果用户先开音响再开前级，校准值会被污染导致频谱幅度偏低。无运行时恢复机制（代码注释已承认）。未来可加 HA 服务或设置页按钮触发重新校准。
 
-17. **自动输入切换延迟闩锁**: `auto_switch_input` 使用 `auto_switch_pending` 标记真正进入 8 秒等待期。新增音频检测触发路径时，不要绕过该脚本直接延迟切换，避免上一次无效启动留下的延迟段误切输入。
+17. **send_volume_to_pga 并发边缘场景**: BLE 遥控器和编码器同时触发时，`mode: restart` 丢弃首次调用，音量响应可能延迟约 300ms。当前可接受，属已知限制。
+
+18. **BLE reconnect_retries 溢出保护**: 已加 `if (> 1000) = 4` 防溢出帽。正常运行不超过 3，长期断线才累积。
+
+19. **lvgl_compat.h extern "C" 版本脆弱性**: ESPHome 大版本升级（如 2026→2027）时 LVGL API 签名变化会导致链接期而非编译期崩溃。建议大版本升级后逐一核对 `extern "C"` 块中的函数签名与 ESPHome 内置 LVGL 头文件一致。
 
 ---
 
