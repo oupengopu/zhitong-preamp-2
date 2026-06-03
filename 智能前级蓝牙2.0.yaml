@@ -1792,6 +1792,7 @@ lvgl:
         - obj: { id: vu_needle_r, x: 316, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
         # ── Sparkline spectrum overlay (hidden unless spectrum_theme == 5) ──
+        # 真机版控制对象数量，避免 LVGL 运行堆压力过高导致启动期重启。
         - obj: { id: spark_bar_0, x: 18, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_1, x: 26, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_2, x: 34, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
@@ -1816,30 +1817,6 @@ lvgl:
         - obj: { id: spark_bar_21, x: 186, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_22, x: 194, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_23, x: 202, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_24, x: 210, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_25, x: 218, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_26, x: 226, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_27, x: 234, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_28, x: 242, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_29, x: 250, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_30, x: 258, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_31, x: 266, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_32, x: 274, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_33, x: 282, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_34, x: 290, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_35, x: 298, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_36, x: 306, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_37, x: 314, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_38, x: 322, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_39, x: 330, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_40, x: 338, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_41, x: 346, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_42, x: 354, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_43, x: 362, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_44, x: 370, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_45, x: 378, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_46, x: 386, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_bar_47, x: 394, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_0, x: 18, y: 42, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_1, x: 106, y: 59, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_2, x: 194, y: 76, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
@@ -1852,26 +1829,6 @@ lvgl:
         - obj: { id: spark_dot_9, x: 42, y: 87, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_10, x: 130, y: 50, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_11, x: 218, y: 67, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_12, x: 306, y: 84, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_13, x: 394, y: 47, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_14, x: 98, y: 64, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_15, x: 186, y: 81, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_16, x: 274, y: 44, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_17, x: 362, y: 61, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_18, x: 66, y: 78, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_19, x: 154, y: 95, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_20, x: 242, y: 58, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_21, x: 330, y: 75, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_22, x: 34, y: 92, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_23, x: 122, y: 55, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_24, x: 210, y: 72, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_25, x: 298, y: 89, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_26, x: 386, y: 52, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_27, x: 90, y: 69, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_28, x: 178, y: 86, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_29, x: 266, y: 49, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_30, x: 354, y: 66, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
-        - obj: { id: spark_dot_31, x: 58, y: 83, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
         # ═══ 左声道 7 段频谱 (w=27, gap=2) ═══
         - bar:
@@ -5243,10 +5200,14 @@ interval:
               id(vu_needle_l), id(vu_needle_r)
             };
             lv_obj_t* spark_bars[] = {
-              id(spark_bar_0), id(spark_bar_1), id(spark_bar_2), id(spark_bar_3), id(spark_bar_4), id(spark_bar_5), id(spark_bar_6), id(spark_bar_7), id(spark_bar_8), id(spark_bar_9), id(spark_bar_10), id(spark_bar_11), id(spark_bar_12), id(spark_bar_13), id(spark_bar_14), id(spark_bar_15), id(spark_bar_16), id(spark_bar_17), id(spark_bar_18), id(spark_bar_19), id(spark_bar_20), id(spark_bar_21), id(spark_bar_22), id(spark_bar_23), id(spark_bar_24), id(spark_bar_25), id(spark_bar_26), id(spark_bar_27), id(spark_bar_28), id(spark_bar_29), id(spark_bar_30), id(spark_bar_31), id(spark_bar_32), id(spark_bar_33), id(spark_bar_34), id(spark_bar_35), id(spark_bar_36), id(spark_bar_37), id(spark_bar_38), id(spark_bar_39), id(spark_bar_40), id(spark_bar_41), id(spark_bar_42), id(spark_bar_43), id(spark_bar_44), id(spark_bar_45), id(spark_bar_46), id(spark_bar_47)
+              id(spark_bar_0), id(spark_bar_1), id(spark_bar_2), id(spark_bar_3), id(spark_bar_4), id(spark_bar_5),
+              id(spark_bar_6), id(spark_bar_7), id(spark_bar_8), id(spark_bar_9), id(spark_bar_10), id(spark_bar_11),
+              id(spark_bar_12), id(spark_bar_13), id(spark_bar_14), id(spark_bar_15), id(spark_bar_16), id(spark_bar_17),
+              id(spark_bar_18), id(spark_bar_19), id(spark_bar_20), id(spark_bar_21), id(spark_bar_22), id(spark_bar_23)
             };
             lv_obj_t* spark_dots[] = {
-              id(spark_dot_0), id(spark_dot_1), id(spark_dot_2), id(spark_dot_3), id(spark_dot_4), id(spark_dot_5), id(spark_dot_6), id(spark_dot_7), id(spark_dot_8), id(spark_dot_9), id(spark_dot_10), id(spark_dot_11), id(spark_dot_12), id(spark_dot_13), id(spark_dot_14), id(spark_dot_15), id(spark_dot_16), id(spark_dot_17), id(spark_dot_18), id(spark_dot_19), id(spark_dot_20), id(spark_dot_21), id(spark_dot_22), id(spark_dot_23), id(spark_dot_24), id(spark_dot_25), id(spark_dot_26), id(spark_dot_27), id(spark_dot_28), id(spark_dot_29), id(spark_dot_30), id(spark_dot_31)
+              id(spark_dot_0), id(spark_dot_1), id(spark_dot_2), id(spark_dot_3), id(spark_dot_4), id(spark_dot_5),
+              id(spark_dot_6), id(spark_dot_7), id(spark_dot_8), id(spark_dot_9), id(spark_dot_10), id(spark_dot_11)
             };
             int style = id(spectrum_theme);
             if (style < 0 || style > 5) style = 2;
@@ -5267,6 +5228,9 @@ interval:
               for (auto *o : spark_dots) {
                 if (sparkline) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
                 else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+              }
+              if (sparkline) {
+                for (int i = 0; i < 24; i++) lv_obj_set_x(spark_bars[i], 18 + i * 16);
               }
               for (int i = 0; i < 7; i++) {
                 if (retro_vu || sparkline) {
@@ -5396,32 +5360,22 @@ interval:
             // ═══ VU 电平条 (L/R 声道独立) ═══
             {
               if (style == 5) {
-                static int last_spark_h[48] = {
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                static int last_spark_h[24] = {
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
                 };
-                static int last_spark_y[48] = {
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                static int last_spark_y[24] = {
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
                 };
-                static int last_dot_x[32] = {
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-                };
-                static int last_dot_y[32] = {
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-                };
+                static int last_dot_x[12] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+                static int last_dot_y[12] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
                 uint32_t t = millis() / 50;
                 lv_color_t accent_now = get_theme_accent(id(theme));
                 lv_color_t warm_peak = lv_color_mix(lv_color_hex(0xF97316), accent_now, 96);
-                int spark_vals[48];
-                for (int i = 0; i < 48; i++) {
-                  int pos_q8 = i * 6 * 256 / 47;
+                int spark_vals[24];
+                for (int i = 0; i < 24; i++) {
+                  int pos_q8 = i * 6 * 256 / 23;
                   int band = pos_q8 >> 8;
                   if (band > 6) band = 6;
                   int next = band < 6 ? band + 1 : band;
@@ -5443,10 +5397,10 @@ interval:
                   lv_obj_set_style_bg_color(spark_bars[i], v > 178 ? warm_peak : accent_now, LV_PART_MAIN);
                   lv_obj_set_style_bg_opa(spark_bars[i], (lv_opa_t)std::max(55, std::min(220, 70 + v * 150 / 255)), LV_PART_MAIN);
                 }
-                for (int i = 0; i < 32; i++) {
-                  int bar_idx = (i * 13 + (int)(t / 3)) % 48;
+                for (int i = 0; i < 12; i++) {
+                  int bar_idx = (i * 7 + (int)(t / 3)) % 24;
                   int v = spark_vals[bar_idx];
-                  int x = 18 + bar_idx * 8 + (i % 3) - 1;
+                  int x = 18 + bar_idx * 16 + (i % 3) - 1;
                   int y = 34 + (255 - v) * 70 / 255 + ((i * 7 + (int)t) % 9) - 4;
                   if (y < 30) y = 30;
                   if (y > 112) y = 112;
