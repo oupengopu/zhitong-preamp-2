@@ -26,20 +26,24 @@ esphome:
     - priority: 200
       then:
         - lambda: |-
+            ESP_LOGI("BOOT_DIAG", "boot start: reset_reason=%d heap=%u", (int)esp_reset_reason(), (unsigned)esp_get_free_heap_size());
             ESP_LOGD("PGA2311", "Initializing SPI3 and PGA2311 at priority 200");
             pga2311::setup();
             pga2311::set_volume(0, 0);
             msgeq7::setup();
+            ESP_LOGI("BOOT_DIAG", "hardware init done: heap=%u", (unsigned)esp_get_free_heap_size());
 
     - priority: 150
       then:
         - lambda: |-
             ESP_LOGD("BLE_HID", "Initializing BLE HID Host at priority 150");
             ble_hid_host::setup();
+            ESP_LOGI("BOOT_DIAG", "ble hid init done: heap=%u", (unsigned)esp_get_free_heap_size());
 
     - priority: -100
       then:
         - lambda: |-
+            ESP_LOGI("BOOT_DIAG", "state restore start: heap=%u", (unsigned)esp_get_free_heap_size());
             // v2.1.0+ 迁移: 旧固件 volume_val 是 max_volume 百分比, 新固件直接映射 PGA 寄存器
             // 换算公式: reg = old_val / old_max * 255
             //
@@ -117,9 +121,13 @@ esphome:
                   condition:
                     lambda: 'return !id(switch_input)->is_running();'
                   timeout: 5000ms
+              - lambda: |-
+                  ESP_LOGI("BOOT_DIAG", "switch_input complete: heap=%u", (unsigned)esp_get_free_heap_size());
               - script.execute: display_idle_timer
               - script.execute: apply_theme    # ★ 上电后应用保存的主题色
-              - lambda: 'id(system_ready) = true;'
+              - lambda: |-
+                  id(system_ready) = true;
+                  ESP_LOGI("BOOT_DIAG", "system_ready=true: heap=%u", (unsigned)esp_get_free_heap_size());
 
         - if:
             condition:
@@ -131,6 +139,13 @@ esphome:
                   id(current_db) = -96.0f;
                   id(target_db)  = -96.0f;
               - switch.turn_off: mute_switch
+
+    - priority: -200
+      then:
+        - delay: 20s
+        - safe_mode.mark_successful:
+        - lambda: |-
+            ESP_LOGI("BOOT_DIAG", "safe_mode marked successful: heap=%u", (unsigned)esp_get_free_heap_size());
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -406,6 +421,7 @@ esp32_ble_server:
                   id(ble_notify_char)->notify();
 
 logger:
+  level: DEBUG
 
 api:
   encryption:
@@ -480,6 +496,11 @@ ota:
       - lambda: 'id(ota_active) = false;'
     on_error:
       - lambda: 'id(ota_active) = false;'
+
+safe_mode:
+  boot_is_good_after: 20s
+  num_attempts: 10
+  reboot_timeout: 5min
 
 wifi:
   ssid: ${wifi_ssid}
@@ -5544,7 +5565,9 @@ interval:
                 bool wifi_ok = wifi::global_wifi_component->is_connected();
                 if (wifi_ok || now >= 10000) {
                   splash_done = true;
+                  ESP_LOGI("BOOT_DIAG", "splash -> main begin: wifi=%d now=%u heap=%u", wifi_ok ? 1 : 0, (unsigned)now, (unsigned)esp_get_free_heap_size());
                   lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+                  ESP_LOGI("BOOT_DIAG", "splash -> main requested: heap=%u", (unsigned)esp_get_free_heap_size());
                 }
               }
             } else if (!splash_done) {
