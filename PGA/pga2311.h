@@ -40,6 +40,10 @@ static float _to_db(int v) {
 }
 
 static void setup() {
+  if (_initialized && _spi_dev != nullptr) {
+    return;
+  }
+
   gpio_config_t cs_conf = {};
   cs_conf.pin_bit_mask = (1ULL << PGA2311_CS_PIN);
   cs_conf.mode = GPIO_MODE_OUTPUT;
