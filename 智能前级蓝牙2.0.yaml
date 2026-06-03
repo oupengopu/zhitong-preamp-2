@@ -422,6 +422,7 @@ esp32_ble_server:
 
 logger:
   level: DEBUG
+  hardware_uart: UART0
 
 api:
   encryption:
