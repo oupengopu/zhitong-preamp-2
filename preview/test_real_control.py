@@ -143,7 +143,22 @@ class RealControlPreviewTest(unittest.TestCase):
         yaml_file = next(p for p in ROOT.parent.glob("*.yaml") if "2.0" in p.name)
         yaml = yaml_file.read_text(encoding="utf-8")
         self.assertIn("call.set_brightness(0.50f);", yaml)
-        self.assertIn("selected ? LV_OPA_80 : LV_OPA_40", yaml)
+        self.assertIn("selected ? LV_OPA_90 : LV_OPA_70", yaml)
+
+    def test_secondary_pages_match_compact_preview_density(self):
+        compat = (ROOT.parent / "PGA" / "lvgl_compat.h").read_text(encoding="utf-8")
+        settings = (ROOT.parent / "PGA" / "settings_ui.h").read_text(encoding="utf-8")
+        yaml_file = next(p for p in ROOT.parent.glob("*.yaml") if "2.0" in p.name)
+        yaml = yaml_file.read_text(encoding="utf-8")
+        self.assertIn("constexpr int ROW_H = 36;", compat)
+        self.assertIn("constexpr int TITLE_H = 38;", compat)
+        self.assertIn("constexpr int DEBUG_H = 32;", compat)
+        self.assertIn("focused ? LV_OPA_40", compat)
+        self.assertIn("focused || active ? LV_OPA_60", compat)
+        self.assertIn("constexpr int BAR_ACTIVE_H = 9;", settings)
+        self.assertIn("5,   // 0 max volume", settings)
+        self.assertIn("size: 18\n    glyphs:", yaml)
+        self.assertIn("active ? settings_ui::BAR_ACTIVE_H", yaml)
 
 
 if __name__ == "__main__":

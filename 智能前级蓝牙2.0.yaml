@@ -1,4 +1,4 @@
-substitutions:
+﻿substitutions:
   device_name: zhitong-preamp-2
   friendly_name: "智能前级2.0"
   wifi_ssid: !secret wifi_ssid
@@ -684,7 +684,7 @@ font:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
-    size: 24
+    size: 18
     glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏", "\U000F0581"]
   - file:
       type: web
@@ -2340,10 +2340,10 @@ lvgl:
                   text: "\U000F00AF"  # mdi-bluetooth
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "蓝牙遥控"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
@@ -2388,11 +2388,11 @@ lvgl:
                   text: "\U000F0709"  # mdi-restart (重新扫描)
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: !lambda |-
                     return id(ble_remote_scanning) ? std::string("停止扫描") : std::string("开始扫描");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
@@ -2509,12 +2509,12 @@ lvgl:
                   text: "\U000F057D"  # mdi-swap-horizontal
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   id: lbl_ble_back
                   text: !lambda |-
                     return id(ble_remote_connected) ? std::string("断开") : std::string("返回设置");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
@@ -2544,10 +2544,10 @@ lvgl:
                   text: "\U000F0F9D"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "遥控器按键"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 140
 
@@ -2569,7 +2569,7 @@ lvgl:
                   text: "\U000F057E"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "音量+"
                   text_font: font_cn_small
@@ -2601,7 +2601,7 @@ lvgl:
                   text: "\U000F057E"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "音量-"
                   text_font: font_cn_small
@@ -2633,7 +2633,7 @@ lvgl:
                   text: "\U000F0581"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "静音"
                   text_font: font_cn_small
@@ -2665,7 +2665,7 @@ lvgl:
                   text: "\U000F040A"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "播放/暂停"
                   text_font: font_cn_small
@@ -2697,7 +2697,7 @@ lvgl:
                   text: "\U000F04D0"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "下一曲"
                   text_font: font_cn_small
@@ -2729,7 +2729,7 @@ lvgl:
                   text: "\U000F04CF"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "上一曲"
                   text_font: font_cn_small
@@ -2761,7 +2761,7 @@ lvgl:
                   text: "\U000F037C"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "电源"
                   text_font: font_cn_small
@@ -2793,7 +2793,7 @@ lvgl:
                   text: "\U000F0BCD"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 26
+                  width: 24
               - label:
                   text: "切换输入"
                   text_font: font_cn_small
@@ -2826,10 +2826,10 @@ lvgl:
                   text: "\U000F057D"
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "返回设置"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
@@ -2857,10 +2857,10 @@ lvgl:
                   text: "\U000F0611"  # mdi-chip
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "诊断信息"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
@@ -2972,7 +2972,7 @@ lvgl:
                   text: "\U000F0415"  # mdi-refresh
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   id: lbl_dbg_recal
                   text: "MSGEQ7 重校准 (单击执行)"
@@ -2998,10 +2998,10 @@ lvgl:
                   text: "\U000F057D"  # mdi-swap-horizontal
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "返回设置"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
@@ -3033,10 +3033,10 @@ lvgl:
                   text: "\U000F057E"  # mdi-volume-high
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "最大音量"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - bar:
@@ -3055,7 +3055,7 @@ lvgl:
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%d", id(max_volume));
                     return buf;
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
@@ -3078,10 +3078,10 @@ lvgl:
                   text: "\U000F0709"  # mdi-restart
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "开机上限"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - bar:
@@ -3100,7 +3100,7 @@ lvgl:
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%d", id(power_on_limit));
                     return buf;
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
@@ -3123,10 +3123,10 @@ lvgl:
                   text: "\U000F066A"  # mdi-tune-vertical
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "声道平衡"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - bar:
@@ -3170,10 +3170,10 @@ lvgl:
                   text: "\U000F0BCD"  # mdi-swap-horizontal-bold
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "输入选择"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
@@ -3181,7 +3181,7 @@ lvgl:
                   text: !lambda |-
                     const char* names[] = {"CD", "DAC", "PC", "AUX"};
                     return names[id(current_input)];
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 50
@@ -3205,17 +3205,17 @@ lvgl:
                   text: "\U000F057D"  # mdi-swap-horizontal
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "输入自动切换"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 110
               - label:
                   id: val_auto_switch
                   text: !lambda |-
                     return id(auto_input) ? std::string("自动") : std::string("手动");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 50
@@ -3239,10 +3239,10 @@ lvgl:
                   text: "\U000F00DF"  # mdi-brightness-6
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "屏幕亮度"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - bar:
@@ -3261,7 +3261,7 @@ lvgl:
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%d%%", id(display_brightness));
                     return buf;
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
@@ -3284,10 +3284,10 @@ lvgl:
                   text: "\U000F051B"  # mdi-timer-outline
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "息屏超时"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - bar:
@@ -3329,10 +3329,10 @@ lvgl:
                   text: "\U000F03D8"  # mdi-palette
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "主题色彩"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - obj:
@@ -3347,7 +3347,7 @@ lvgl:
                   id: val_theme
                   text: !lambda |-
                     return std::string(get_theme_name(id(theme)));
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 120
@@ -3371,17 +3371,17 @@ lvgl:
                   text: "\U000F00AF"  # mdi-bluetooth
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "蓝牙遥控"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: lbl_ble_status_nav
                   text: !lambda |-
                     return id(ble_remote_connected) ? std::string("已连接") : std::string("未连接");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0x8E9FB8
                   text_align: RIGHT
                   width: 72
@@ -3405,17 +3405,17 @@ lvgl:
                   text: "\U000F0F9D"  # mdi-keyboard-settings
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "遥控器按键"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 104
               - label:
                   id: val_keymap_status
                   text: !lambda |-
                     return std::string("已映射");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0x8E9FB8
                   text_align: RIGHT
                   width: 72
@@ -3439,17 +3439,17 @@ lvgl:
                   text: "\U000F028F"  # mdi-swap-vertical-bold
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "输出模式"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: val_output_mode
                   text: !lambda |-
                     return std::string(id(output_mode) ? "直通" : "变压器");
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 72
@@ -3473,10 +3473,10 @@ lvgl:
                   text: "\U000F057D"  # mdi-swap-horizontal
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "频谱跳转"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
@@ -3486,7 +3486,7 @@ lvgl:
                     char buf[12];
                     snprintf(buf, sizeof(buf), "%d秒", id(spectrum_auto_seconds));
                     return std::string(buf);
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 70
@@ -3510,10 +3510,10 @@ lvgl:
                   text: "\U000F066A"  # mdi-tune-vertical
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
-                  width: 30
+                  width: 24
               - label:
                   text: "频谱样式"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
@@ -3523,7 +3523,7 @@ lvgl:
                     int v = id(spectrum_theme);
                     if (v < 0 || v > 5) v = 2;
                     return std::string(names[v]);
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 90
@@ -3544,10 +3544,10 @@ lvgl:
                   text: "\U000F02FD"  # mdi-information-outline
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "固件版本"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
@@ -3556,7 +3556,7 @@ lvgl:
                     static char buf[48];
                     snprintf(buf, sizeof(buf), "%s", "${firmware_version}");
                     return buf;
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
@@ -3576,10 +3576,10 @@ lvgl:
                   text: "\U000F0A60"  # mdi-ip-network
                   text_font: mdi_settings_icons_24
                   text_color: 0x6B7280
-                  width: 30
+                  width: 24
               - label:
                   text: "IP地址"
-                  text_font: font_cn
+                  text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
@@ -3588,7 +3588,7 @@ lvgl:
                   text: !lambda |-
                     if (id(device_ip)->state.empty()) return std::string("---.---.---.---");
                     return id(device_ip)->state;
-                  text_font: montserrat_16
+                  text_font: montserrat_12
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
@@ -3929,7 +3929,7 @@ script:
             bool dim = (i == 8 || i == 9 || i == 13 || i == 14);
             secondary_ui::row(setting_rows[i], accent, focused, dim, active);
             if (setting_bars[i]) {
-              lv_obj_set_height(setting_bars[i], active ? 24 : settings_ui::bar_base_heights[i]);
+              lv_obj_set_height(setting_bars[i], active ? settings_ui::BAR_ACTIVE_H : settings_ui::bar_base_heights[i]);
             }
           }
 
@@ -3999,7 +3999,7 @@ script:
               }
               if (idx == 13 || idx == 14) return;
               id(settings_active_idx) = idx;
-              if (bars[idx]) lv_obj_set_height(bars[idx], 24);
+              if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::BAR_ACTIVE_H);
             } else {
               int active = id(settings_active_idx);
               id(settings_active_idx) = -1;
@@ -4613,7 +4613,7 @@ script:
                 selected ? lv_color_hex(0x0B1420) : lv_color_hex(0x08121E), LV_PART_MAIN);
               lv_obj_set_style_bg_opa(cards[i], selected ? LV_OPA_50 : LV_OPA_20, LV_PART_MAIN);
               lv_obj_set_style_border_color(cards[i], selected ? accent : lv_color_hex(0x263244), LV_PART_MAIN);
-              lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_80 : LV_OPA_40, LV_PART_MAIN);
+              lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_90 : LV_OPA_70, LV_PART_MAIN);
 
               lv_color_t icon_color = mcp_signal ? accent : lv_color_hex(0x334155);
               lv_color_t name_color = lv_color_hex(0xF8FAFC);
@@ -6420,7 +6420,7 @@ interval:
                   selected ? lv_color_hex(0x0B1420) : lv_color_hex(0x08121E), LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(cards[i], selected ? LV_OPA_50 : LV_OPA_20, LV_PART_MAIN);
                 lv_obj_set_style_border_color(cards[i], selected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
-                lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_80 : LV_OPA_40, LV_PART_MAIN);
+                lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_90 : LV_OPA_70, LV_PART_MAIN);
 
                 lv_color_t icon_color = mcp_signal ? _accent : lv_color_hex(0x334155);
                 lv_color_t name_color = lv_color_hex(0xF8FAFC);
@@ -7124,7 +7124,7 @@ binary_sensor:
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
-                            if (bars[idx]) lv_obj_set_height(bars[idx], 24);
+                            if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::BAR_ACTIVE_H);
                             id(style_secondary_pages)->execute();
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）

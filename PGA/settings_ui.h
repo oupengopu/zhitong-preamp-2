@@ -5,15 +5,16 @@
 namespace settings_ui {
 
 constexpr int N = 15;
+constexpr int BAR_ACTIVE_H = 9;
 
 constexpr int bar_base_heights[N] = {
-  16,  // 0 max volume
-  12,  // 1 power-on limit
-  12,  // 2 balance
+  5,   // 0 max volume
+  5,   // 1 power-on limit
+  5,   // 2 balance
   0,   // 3 input select
   0,   // 4 auto input
-  12,  // 5 brightness
-  12,  // 6 display timeout
+  5,   // 5 brightness
+  5,   // 6 display timeout
   0,   // 7 theme
   0,   // 8 BLE remote
   0,   // 9 remote key map

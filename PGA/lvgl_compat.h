@@ -94,16 +94,16 @@ inline const char* get_theme_name(int theme) {
 namespace secondary_ui {
 
 constexpr int ROW_W = 414;
-constexpr int ROW_H = 40;
-constexpr int TITLE_H = 42;
-constexpr int DEBUG_H = 34;
+constexpr int ROW_H = 36;
+constexpr int TITLE_H = 38;
+constexpr int DEBUG_H = 32;
 
 inline void page(lv_obj_t* obj) {
   if (!obj) return;
   lv_obj_set_style_bg_color(obj, lv_color_hex(0x050A12), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
-  lv_obj_set_style_pad_all(obj, 7, LV_PART_MAIN);
-  lv_obj_set_style_pad_row(obj, 5, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(obj, 6, LV_PART_MAIN);
+  lv_obj_set_style_pad_row(obj, 4, LV_PART_MAIN);
   lv_obj_set_style_pad_column(obj, 0, LV_PART_MAIN);
 }
 
@@ -112,15 +112,15 @@ inline void row(lv_obj_t* obj, lv_color_t accent, bool focused, bool dim = false
   lv_obj_set_width(obj, ROW_W);
   lv_obj_set_height(obj, height);
   lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
-  lv_obj_set_style_pad_all(obj, 5, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(obj, 3, LV_PART_MAIN);
   lv_obj_set_style_bg_color(obj, active ? lv_color_hex(0x142033) :
                                 focused ? lv_color_hex(0x101827) :
                                 dim ? lv_color_hex(0x060C16) : lv_color_hex(0x08121E), LV_PART_MAIN);
-  lv_obj_set_style_bg_opa(obj, focused || active ? LV_OPA_60 : (dim ? LV_OPA_40 : LV_OPA_50), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(obj, active ? LV_OPA_50 : (focused ? LV_OPA_40 : (dim ? LV_OPA_20 : LV_OPA_30)), LV_PART_MAIN);
   lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_FULL, LV_PART_MAIN);
   lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN);
   lv_obj_set_style_border_color(obj, focused || active ? accent : lv_color_hex(0x263244), LV_PART_MAIN);
-  lv_obj_set_style_border_opa(obj, focused || active ? LV_OPA_50 : LV_OPA_20, LV_PART_MAIN);
+  lv_obj_set_style_border_opa(obj, focused || active ? LV_OPA_60 : LV_OPA_20, LV_PART_MAIN);
 }
 
 inline void title(lv_obj_t* obj, lv_color_t accent) {
