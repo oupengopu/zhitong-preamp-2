@@ -91,7 +91,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | GPA1 | 继电器2 (DAC输入) | |
 | GPA2 | 继电器3 (PC输入) | |
 | GPA3 | 继电器4 (AUX输入) | |
-| GPA6 | 硬件静音 | |
+| GPA6 | 硬件静音 | **高电平=开声, 低电平=静音** |
 | GPB0 | 音频检测 CD | GPB0=CD, GPB1=DAC, GPB2=PC, GPB3=AUX |
 | GPB1 | 音频检测 DAC | |
 | GPB2 | 音频检测 PC | |
@@ -338,14 +338,17 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 优先级: 温度保护 > 工厂重置(5s+) > 待机 > 闪屏渐亮 > 未连WiFi > 静音 > 正常
 
 ### 显示超时
-- 无操作后（默认 5 分钟，设置页可调 1~60 分钟）背光调至 10% 微光
+- 无操作后（默认 5 分钟，设置页可调 1~60 分钟）背光调至 50% 微光
 - **不熄屏** — 保持显示内容可见，维持高级音响质感
 - 旋转编码器或单击恢复用户设定亮度
 - 设置项名称为"息屏超时"，实际为调低亮度而非关屏
+- 代码位置: `display_idle_timer` 中 `call.set_brightness(0.50f)`。不要改回 10%/3%，实机机箱内太暗看不清
 
 ### 音量调节
 - 主页旋转编码器直接调节音量，不再弹出大字音量浮层
 - 频谱页旋转编码器调节音量后自动返回主页
+- 四路输入使用独立音量槽 `input_vol_0~3`。调音量时保存当前输入；切换输入时先保存 `active_input`，再加载目标输入音量
+- `send_volume_to_pga` 内的安全保存必须避开 `switching_input`，否则切输入淡出阶段会把旧输入音量写入新输入槽，表现为"每个输入独立音量失效"
 
 ### 自动输入切换
 - 优先级：**CD > DAC > PC > AUX**
@@ -495,6 +498,13 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 
 防抖 30ms，全零释放帧忽略，长按时反复触发。新增事件 SWIPE_UP(9)~OK(15) 默认仅日志记录 + HA 推送，可通过遥控器按键页映射为音量/静音等有效动作。
 
+#### 实测蓝牙遥控器特殊报文
+- `[40 00]` = 音量加
+- `[80 00]` 是二义性报文: 短按/单发按静音处理，连续重复/长按按音量减处理
+- `[80 00]` 后面的 `[00 00]` 释放帧**不能立即判定为静音**，否则长按音量减会被误触发成连续静音
+- 现有逻辑: `pending_ambig80_mute` 等待约 800ms；如果 900ms 内再次收到 `[80 00]`，转为 `HID_EVT_VOLUME_DOWN`
+- 长按音量加/减结束时遥控器可能发出 0x0027 的伪电源包，需用 `suppress_power_until_ms` 屏蔽，避免误待机
+
 ### 三路同步机制
 编码器旋钮、BLE 遥控器、HA 三路都汇聚到同一个 `volume_val` + `send_volume_to_pga`：
 
@@ -584,21 +594,31 @@ cd preview && py -3.11 -m http.server 8084
 
 11. **standby_switch 命名约定**: HA 实体名"待机模式"，但 ON=设备运行中，OFF=待机模式。`turn_off_action` → 进入待机，`turn_on_action` → 退出待机。新增待机相关逻辑时严格遵守此约定。
 
-12. **font_cn_small 字体覆盖**: 作为 `default_font`，任何新增 UI 文字（尤其是 BLE 页状态文本）必须确保字符已加入 glyphs 列表（当前约 90 字）。缺字导致 LVGL 渲染空白框。此字体与 font_cn (18px) 独立维护，需分别添加。
+12. **硬件静音 GPA6 极性**: 必须牢记硬件是 **高电平=开声, 低电平=静音**。固件里的 `mute_switch` 使用 `inverted: true`，让 HA 的"静音-HW"开关语义变成 ON=输出低电平=静音，OFF=输出高电平=开声。以后修改静音逻辑时不要把 `switch.turn_on` 当成开声。
 
-13. **YAML 嵌套 if/then/else 缩进陷阱**: ESPHome YAML 中 `- if:` 的 `condition:`/`then:`/`else:` 必须同缩进层级（比 `- if:` 多 4 空格）。`else:` 比 `condition:` 少 2 空格会导致解析器将 `else:` 和后续 `- if:` 误识别为同一 action 条目的两个 key，报错 "Cannot have two actions in one item. Key 'if' overrides 'else'!"。修复时注意 `else:` 本身 + 其下方整个子块的缩进联动。
+13. **font_cn_small 字体覆盖**: 作为 `default_font`，任何新增 UI 文字（尤其是 BLE 页状态文本）必须确保字符已加入 glyphs 列表（当前约 90 字）。缺字导致 LVGL 渲染空白框。此字体与 font_cn (18px) 独立维护，需分别添加。
 
-14. **`remote_keys::get_action_name()` 返回类型**: 必须返回 `std::string` 而非 `const char*`。ESPHome 的 `text: !lambda` 代码生成器会在返回值上自动调用 `.c_str()`，对 `const char*` 再调 `.c_str()` 无效（编译报错 "request for member 'c_str' in ... which is of non-class type 'const char*'"）。直接传给 `lv_label_set_text()` 时需要手动 `.c_str()`。
+14. **YAML 嵌套 if/then/else 缩进陷阱**: ESPHome YAML 中 `- if:` 的 `condition:`/`then:`/`else:` 必须同缩进层级（比 `- if:` 多 4 空格）。`else:` 比 `condition:` 少 2 空格会导致解析器将 `else:` 和后续 `- if:` 误识别为同一 action 条目的两个 key，报错 "Cannot have two actions in one item. Key 'if' overrides 'else'!"。修复时注意 `else:` 本身 + 其下方整个子块的缩进联动。
 
-15. **pga2311.h 与 msgeq7.h 变量风格统一**: 两者均使用 `inline` 变量（C++17 ODR 安全），禁止使用 `static`。`static` 会在多翻译单元场景下产生独立副本，导致 `_last_r/_last_l` 去重失效和 SPI 设备重复初始化。
+15. **`remote_keys::get_action_name()` 返回类型**: 必须返回 `std::string` 而非 `const char*`。ESPHome 的 `text: !lambda` 代码生成器会在返回值上自动调用 `.c_str()`，对 `const char*` 再调 `.c_str()` 无效（编译报错 "request for member 'c_str' in ... which is of non-class type 'const char*'"）。直接传给 `lv_label_set_text()` 时需要手动 `.c_str()`。
 
-16. **MSGEQ7 零漂校准前提假设**: 校准在上电时执行，假设此时无音频输入。如果用户先开音响再开前级，校准值会被污染导致频谱幅度偏低。无运行时恢复机制（代码注释已承认）。未来可加 HA 服务或设置页按钮触发重新校准。
+16. **pga2311.h 与 msgeq7.h 变量风格统一**: 两者均使用 `inline` 变量（C++17 ODR 安全），禁止使用 `static`。`static` 会在多翻译单元场景下产生独立副本，导致 `_last_r/_last_l` 去重失效和 SPI 设备重复初始化。
 
-17. **send_volume_to_pga 并发边缘场景**: BLE 遥控器和编码器同时触发时，`mode: restart` 丢弃首次调用，音量响应可能延迟约 300ms。当前可接受，属已知限制。
+17. **MSGEQ7 零漂校准前提假设**: 校准在上电时执行，假设此时无音频输入。如果用户先开音响再开前级，校准值会被污染导致频谱幅度偏低。无运行时恢复机制（代码注释已承认）。未来可加 HA 服务或设置页按钮触发重新校准。
 
-18. **BLE reconnect_retries 溢出保护**: 已加 `if (> 1000) = 4` 防溢出帽。正常运行不超过 3，长期断线才累积。
+18. **send_volume_to_pga 并发边缘场景**: BLE 遥控器和编码器同时触发时，`mode: restart` 丢弃首次调用，音量响应可能延迟约 300ms。当前可接受，属已知限制。
 
-19. **lvgl_compat.h extern "C" 版本脆弱性**: ESPHome 大版本升级（如 2026→2027）时 LVGL API 签名变化会导致链接期而非编译期崩溃。建议大版本升级后逐一核对 `extern "C"` 块中的函数签名与 ESPHome 内置 LVGL 头文件一致。
+19. **BLE reconnect_retries 溢出保护**: 已加 `if (> 1000) = 4` 防溢出帽。正常运行不超过 3，长期断线才累积。
+
+20. **lvgl_compat.h extern "C" 版本脆弱性**: ESPHome 大版本升级（如 2026→2027）时 LVGL API 签名变化会导致链接期而非编译期崩溃。建议大版本升级后逐一核对 `extern "C"` 块中的函数签名与 ESPHome 内置 LVGL 头文件一致。
+
+21. **主页输入卡片显示职责分离**: `current_input` 只控制输入卡片外框和选中背景；未选中卡片也必须保留灰色外框（当前约 `LV_OPA_40`），不能完全透明。MCP23017 音频检测只控制图标、名称、`SIGNAL/IDLE` 明暗；MSGEQ7 真实频谱只控制当前卡片里的小 LED/条和呼吸搜索信号。不要因为当前输入被选中就点亮图标或 `SIGNAL`。
+
+22. **独立输入音量保存边界**: 四路输入独立音量槽为 `input_vol_0~3`，运行态跟踪当前实际输出通道用 `active_input`。切输入流程中，调用方会先把 `current_input` 改成目标输入，所以 `switch_input` 必须用 `active_input` 保存旧输入音量，再用 `switching_target_input` 加载目标输入音量。`send_volume_to_pga` 内部的安全保存必须包含 `!id(switching_input)` 条件，避免切换过程把旧输入音量写进新输入槽。
+
+23. **BLE `[80 00]` 二义性遥控码**: 实测遥控器短按 `[80 00]` 是静音，但长按音量减也会连续发 `[80 00]` + `[00 00]`。释放帧不能立即触发静音；必须保留 `pending_ambig80_mute` 延迟判定逻辑：单发等待超时后静音，快速重复则转音量减。否则会出现"长按减音量变静音"。
+
+24. **暗屏亮度固定 50%**: `display_idle_timer` 的暗屏亮度应保持 `call.set_brightness(0.50f)`。早期 3%/10% 在实机机箱里不可读，后续不要再按旧变更记录改低。
 
 ---
 

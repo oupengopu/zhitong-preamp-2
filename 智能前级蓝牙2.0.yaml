@@ -12,6 +12,12 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  platformio_options:
+    build_flags:
+      - -DUSE_ESP32_BLE_CLIENT
+      - -DESPHOME_ESP32_BLE_GAP_EVENT_HANDLER_COUNT=1
+      - -DESPHOME_ESP32_BLE_GAP_SCAN_EVENT_HANDLER_COUNT=1
+      - -DESPHOME_ESP32_BLE_GATTC_EVENT_HANDLER_COUNT=1
   includes:
     - PGA/pga2311.h
     - PGA/msgeq7.h
@@ -37,7 +43,7 @@ esphome:
       then:
         - lambda: |-
             ESP_LOGD("BLE_HID", "Initializing BLE HID Host at priority 150");
-            ble_hid_host::setup();
+            ble_hid_host::setup(id(ble_hub));
             ESP_LOGI("BOOT_DIAG", "ble hid init done: heap=%u", (unsigned)esp_get_free_heap_size());
 
     - priority: -100
@@ -108,6 +114,9 @@ esphome:
             else
               id(relay_out)->turn_off();
 
+            id(system_ready) = true;
+            ESP_LOGI("BOOT_DIAG", "system_ready=true before boot input switch: heap=%u", (unsigned)esp_get_free_heap_size());
+
         - if:
             condition:
               lambda: 'return !id(standby);'
@@ -128,6 +137,15 @@ esphome:
               - lambda: |-
                   id(system_ready) = true;
                   ESP_LOGI("BOOT_DIAG", "system_ready=true: heap=%u", (unsigned)esp_get_free_heap_size());
+              - lvgl.resume:
+              - lvgl.page.show: splash_page
+              - lambda: |-
+                  lv_obj_invalidate(lv_scr_act());
+                  lv_refr_now(NULL);
+                  auto call = id(display_backlight)->turn_on();
+                  call.set_brightness(id(display_brightness) / 100.0f);
+                  call.perform();
+                  ESP_LOGI("BOOT_DIAG", "boot splash shown via lvgl action: heap=%u", (unsigned)esp_get_free_heap_size());
 
         - if:
             condition:
@@ -138,7 +156,7 @@ esphome:
                   pga2311::set_volume(0, 0);
                   id(current_db) = -96.0f;
                   id(target_db)  = -96.0f;
-              - switch.turn_off: mute_switch
+              - switch.turn_on: mute_switch
 
     - priority: -200
       then:
@@ -177,7 +195,13 @@ psram:
   mode: octal
   speed: 80MHz
 
+esp32_ble:
+  id: ble_hub
+  io_capability: none
+  max_connections: 3
+
 esp32_ble_server:
+  ble_id: ble_hub
   manufacturer: "Zhitong Audio"
   model: "PreAmp 2.0"
   on_connect:
@@ -258,6 +282,7 @@ esp32_ble_server:
                       float pct = (float)vol * 100.0f / (float)id(max_volume);
                       if (pct > 100.0f) pct = 100.0f;
                       id(volume_number)->publish_state(pct);
+                      id(save_current_input_volume)->execute(id(current_input), id(volume_val));
                       id(send_volume_to_pga)->execute();
                       id(reset_idle_timer)->execute();
                       break;
@@ -421,7 +446,7 @@ esp32_ble_server:
                   id(ble_notify_char)->notify();
 
 logger:
-  level: DEBUG
+  level: INFO
   hardware_uart: UART0
 
 api:
@@ -443,6 +468,7 @@ api:
             if (v > id(max_volume)) v = id(max_volume);
             id(volume_val) = v;
             id(last_v_change_ms) = now;
+            id(save_current_input_volume)->execute(id(current_input), id(volume_val));
             id(send_volume_to_pga)->execute();
             id(reset_idle_timer)->execute();
 
@@ -453,8 +479,8 @@ api:
         - lambda: |-
             if (!id(system_ready)) return;
             id(soft_mute) = muted;
-            if (muted) id(mute_switch)->turn_off();
-            else       id(mute_switch)->turn_on();
+            if (muted) id(mute_switch)->turn_on();
+            else       id(mute_switch)->turn_off();
             id(send_volume_to_pga)->execute();
             id(reset_idle_timer)->execute();
 
@@ -550,16 +576,16 @@ mcp23017:
 # 字体 — Roboto + Montserrat + MDI 图标
 # ═══════════════════════════════════════════════════════════════
 font:
-  - file: "gfonts://Roboto"
+  - file: "fonts/Roboto-Regular.ttf"
     id: font_small
     size: 12
-  - file: "gfonts://Roboto"
+  - file: "fonts/Roboto-Regular.ttf"
     id: font_medium
     size: 16
-  - file: "gfonts://Roboto"
+  - file: "fonts/Roboto-Regular.ttf"
     id: font_large
     size: 24
-  - file: "gfonts://Roboto"
+  - file: "fonts/Roboto-Regular.ttf"
     id: font_xlarge
     size: 36
 
@@ -569,11 +595,17 @@ font:
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn_small
     size: 14
+    glyphs:
+      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址，。；：！？（）休眠唤醒保护厂恢复"
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn
     size: 18
+    glyphs:
+      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址，。；：！？（）休眠唤醒保护厂恢复"
 
   # ── Montserrat 字族 (web, 完整字体) ──
   - file:
@@ -635,7 +667,13 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_16
     size: 16
-    glyphs: ["󰔏", "󰕽", "󰘬", "󰑃", "\U000F00D6"]
+    glyphs: ["󰔏", "󰕽", "󰘬", "󰑃", "\U000F0581"]
+  - file:
+      type: web
+      url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_status_icons_16
+    size: 16
+    glyphs: ["\U000F050F", "\U000F0581", "\U000F00AF", "\U000F05A9"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -647,7 +685,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
     size: 24
-    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏"]
+    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏", "\U000F0581"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -739,6 +777,8 @@ light:
 # ═══════════════════════════════════════════════════════════════
 switch:
   # 硬件静音 — MCP23017 GPA6
+  # 重点: 硬件高电平=开声, 低电平=静音。
+  # 这里使用 inverted，让 HA 的“静音-HW”开关 ON=输出低电平=静音，OFF=输出高电平=开声。
   - platform: gpio
     id: mute_switch
     name: "静音-HW"
@@ -746,9 +786,10 @@ switch:
     pin:
       mcp23xxx: mcp23017_hub
       number: 6
+      inverted: true
       mode:
         output: true
-    restore_mode: ALWAYS_OFF
+    restore_mode: ALWAYS_ON
 
   - platform: template
     name: "静音-SW"
@@ -759,7 +800,7 @@ switch:
     turn_on_action:
       - globals.set: {id: soft_mute, value: 'true'}
       - script.execute: send_volume_to_pga
-      - switch.turn_off: mute_switch
+      - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
       - if:
@@ -769,11 +810,11 @@ switch:
             - lambda: |-
                 id(soft_mute) = true;
                 id(soft_mute_switch)->publish_state(true);
-                id(mute_switch)->turn_off();
+                id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
           else:
             - globals.set: {id: soft_mute, value: 'false'}
-            - switch.turn_on: mute_switch
+            - switch.turn_off: mute_switch
             - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
 
@@ -863,12 +904,12 @@ switch:
     restore_mode: RESTORE_DEFAULT_ON
     turn_on_action:
       - globals.set: {id: auto_input, value: 'true'}
-      - lambda: |-
-          if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), "自动");
+      - script.execute: sync_settings_ui
+      - script.execute: reset_idle_timer
     turn_off_action:
       - globals.set: {id: auto_input, value: 'false'}
-      - lambda: |-
-          if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), "手动");
+      - script.execute: sync_settings_ui
+      - script.execute: reset_idle_timer
 
 # ═══════════════════════════════════════════════════════════════
 # NV3007 2.79" TFT 显示 — ESPHome 官方 mipi_spi 驱动 (CUSTOM 模式)
@@ -881,10 +922,11 @@ display:
     dc_pin: GPIO6
     reset_pin: GPIO15
     dimensions:
-      width: 428
-      height: 142
-      offset_width: 0
+      width: 142
+      height: 428
+      offset_width: 12
       offset_height: 0
+    color_order: RGB
     color_depth: 16
     pixel_mode: 16bit
     invert_colors: false
@@ -1021,8 +1063,7 @@ display:
       # ── 退出解锁 ──
       - [0xFF, 0x00]
       # ── PIXFMT (0x3A) 由 ESPHome 2026.4+ 自动设置, 不再手动写 ──
-      # ── MADCTL: 横屏旋转 (MV=1, 交换行列) ──
-      - [0x36, 0x20]
+      # ── MADCTL/rotation 交给 LVGL + mipi_spi 驱动设置，避免覆盖硬件旋转 ──
       # ── Sleep Out ──
       - [0x11]
       - delay 220ms
@@ -1037,6 +1078,7 @@ display:
 lvgl:
   displays:
     - tft_display
+  rotation: 270
   encoders:
     - sensor: volume_encoder
       enter_button: encoder_button
@@ -1112,30 +1154,30 @@ lvgl:
         # Modern fixed-coordinate instrument layout (428x142 TFT)
         - label:
             id: lbl_brand_title
-            x: 24
-            y: 12
-            width: 100
-            height: 12
+            x: 8
+            y: 8
+            width: 168
+            height: 18
             text: "ZHITONG AUDIO"
             text_font: montserrat_12
             text_align: LEFT
             text_color: 0xF8FAFC
         - label:
             id: lbl_brand_sub
-            x: 24
+            x: 8
             y: 24
-            width: 120
-            height: 9
+            width: 172
+            height: 12
             text: "REFERENCE PREAMP 2.0"
             text_font: montserrat_8
             text_align: LEFT
             text_color: 0x64748B
         - obj:
             id: main_status_pill
-            x: 286
-            y: 11
-            width: 120
-            height: 20
+            x: 250
+            y: 8
+            width: 150
+            height: 24
             bg_color: 0x060C16
             bg_opa: 34%
             border_width: 1
@@ -1144,12 +1186,12 @@ lvgl:
             radius: 0
         - obj:
             id: src_card_0
-            x: 24
-            y: 36
-            width: 41
-            height: 41
+            x: 10
+            y: 34
+            width: 64
+            height: 42
             bg_color: 0x08121E
-            bg_opa: 55%
+            bg_opa: 46%
             border_width: 1
             border_color: !lambda |-
               return get_theme_accent(id(theme));
@@ -1157,46 +1199,46 @@ lvgl:
             radius: 0
         - obj:
             id: src_card_1
-            x: 70
-            y: 36
-            width: 41
-            height: 41
+            x: 76
+            y: 34
+            width: 64
+            height: 42
             bg_color: 0x08121E
             bg_opa: 38%
             border_width: 1
             border_color: 0x263244
-            border_opa: 28%
+            border_opa: 18%
             radius: 0
         - obj:
             id: src_card_2
-            x: 24
-            y: 81
-            width: 41
-            height: 41
+            x: 10
+            y: 79
+            width: 64
+            height: 42
             bg_color: 0x08121E
             bg_opa: 38%
             border_width: 1
             border_color: 0x263244
-            border_opa: 28%
+            border_opa: 18%
             radius: 0
         - obj:
             id: src_card_3
-            x: 70
-            y: 81
-            width: 41
-            height: 41
+            x: 76
+            y: 79
+            width: 64
+            height: 42
             bg_color: 0x08121E
             bg_opa: 38%
             border_width: 1
             border_color: 0x263244
-            border_opa: 28%
+            border_opa: 18%
             radius: 0
         - obj:
             id: main_volume_panel
-            x: 123
+            x: 140
             y: 38
-            width: 182
-            height: 79
+            width: 168
+            height: 83
             bg_color: 0x0B1220
             bg_opa: 56%
             border_width: 1
@@ -1205,15 +1247,15 @@ lvgl:
             radius: 0
         - obj:
             id: main_volume_highlight
-            x: 137
+            x: 152
             y: 38
-            width: 154
+            width: 144
             height: 1
             bg_color: 0xFFFFFF
             bg_opa: 8%
         - label:
             id: lbl_main_input_prefix
-            x: 137
+            x: 152
             y: 50
             width: 26
             height: 9
@@ -1223,7 +1265,7 @@ lvgl:
             text_color: 0x64748B
         - label:
             id: lbl_main_active_input
-            x: 164
+            x: 179
             y: 50
             width: 26
             height: 9
@@ -1234,19 +1276,19 @@ lvgl:
               return get_theme_accent(id(theme));
         - label:
             id: lbl_main_volume_driver
-            x: 214
+            x: 194
             y: 50
-            width: 78
-            height: 9
+            width: 102
+            height: 10
             text: "PGA2311 DIGITAL VOLUME"
             text_font: montserrat_8
             text_align: RIGHT
             text_color: 0x64748B
         - obj:
             id: main_output_tile
-            x: 318
+            x: 304
             y: 38
-            width: 86
+            width: 100
             height: 40
             bg_color: 0x060C16
             bg_opa: 42%
@@ -1256,9 +1298,9 @@ lvgl:
             radius: 0
         - obj:
             id: main_auto_tile
-            x: 318
+            x: 304
             y: 78
-            width: 86
+            width: 100
             height: 39
             bg_color: 0x060C16
             bg_opa: 42%
@@ -1268,9 +1310,9 @@ lvgl:
             radius: 0
         - label:
             id: lbl_main_output_caption
-            x: 326
+            x: 310
             y: 47
-            width: 70
+            width: 90
             height: 9
             text: "OUTPUT"
             text_font: montserrat_8
@@ -1278,21 +1320,21 @@ lvgl:
             text_color: 0x64748B
         - label:
             id: lbl_main_output_value
-            x: 326
-            y: 61
-            width: 70
+            x: 310
+            y: 62
+            width: 92
             height: 16
             text: !lambda |-
               return std::string(id(output_mode) ? "DIRECT" : "TRANSFORMER");
-            text_font: montserrat_16
+            text_font: montserrat_12
             text_align: LEFT
             text_color: !lambda |-
               return get_theme_accent(id(theme));
         - label:
             id: lbl_main_auto_caption
-            x: 326
+            x: 310
             y: 87
-            width: 70
+            width: 90
             height: 9
             text: "INPUT MODE"
             text_font: montserrat_8
@@ -1300,10 +1342,10 @@ lvgl:
             text_color: 0x64748B
         - label:
             id: lbl_main_auto_value
-            x: 326
+            x: 310
             y: 101
-            width: 70
-            height: 16
+            width: 90
+            height: 18
             text: !lambda |-
               return std::string(id(auto_input) ? "AUTO" : "MANUAL");
             text_font: montserrat_16
@@ -1317,10 +1359,10 @@ lvgl:
         # ── MDI 输入源图标 (4个) ──
         - label:
             id: lbl_src_radio
-            x: 29
-            y: 47
-            width: 17
-            height: 18
+            x: 14
+            y: 39
+            width: 24
+            height: 26
             text: "\U000F0960"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1328,10 +1370,10 @@ lvgl:
               return id(audio_cd)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_gamepad
-            x: 75
-            y: 47
-            width: 17
-            height: 18
+            x: 80
+            y: 39
+            width: 24
+            height: 26
             text: "\U000F061A"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1339,10 +1381,10 @@ lvgl:
               return id(audio_dac)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_laptop
-            x: 29
-            y: 92
-            width: 17
-            height: 18
+            x: 14
+            y: 84
+            width: 24
+            height: 26
             text: "\U000F0322"
             text_font: mdi_icons_22
             text_align: CENTER
@@ -1350,28 +1392,28 @@ lvgl:
               return id(audio_pc)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
         - label:
             id: lbl_src_music
-            x: 75
-            y: 92
-            width: 17
-            height: 18
+            x: 80
+            y: 84
+            width: 24
+            height: 26
             text: "\U000F186C"
             text_font: mdi_icons_22
             text_align: CENTER
             text_color: !lambda |-
               return id(audio_aux)->state ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
-        - label: { id: lbl_src_name_0, x: 48, y: 48, width: 16, height: 10, text: "CD", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
-        - label: { id: lbl_src_name_1, x: 94, y: 48, width: 16, height: 10, text: "DAC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
-        - label: { id: lbl_src_name_2, x: 48, y: 93, width: 16, height: 10, text: "PC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
-        - label: { id: lbl_src_name_3, x: 94, y: 93, width: 16, height: 10, text: "AUX", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
-        - label: { id: lbl_src_state_0, x: 48, y: 62, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
-        - label: { id: lbl_src_state_1, x: 94, y: 62, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
-        - label: { id: lbl_src_state_2, x: 48, y: 107, width: 20, height: 8, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
-        - label: { id: lbl_src_state_3, x: 94, y: 107, width: 20, height: 8, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
+        - label: { id: lbl_src_name_0, x: 39, y: 45, width: 28, height: 14, text: "CD", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_1, x: 105, y: 45, width: 34, height: 14, text: "DAC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_2, x: 39, y: 90, width: 28, height: 14, text: "PC", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_name_3, x: 105, y: 90, width: 34, height: 14, text: "AUX", text_font: montserrat_12, text_align: LEFT, text_color: 0xF8FAFC }
+        - label: { id: lbl_src_state_0, x: 39, y: 61, width: 35, height: 11, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
+        - label: { id: lbl_src_state_1, x: 105, y: 61, width: 35, height: 11, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
+        - label: { id: lbl_src_state_2, x: 39, y: 106, width: 35, height: 11, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
+        - label: { id: lbl_src_state_3, x: 105, y: 106, width: 35, height: 11, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
 
         # ── 4颗 LED 指示灯 (输入源) ──
         - led:
             id: led_src_0
-            x: 31
+            x: 20
             y: 68
             width: 12
             height: 3
@@ -1380,7 +1422,7 @@ lvgl:
             radius: 9999
         - led:
             id: led_src_1
-            x: 77
+            x: 86
             y: 68
             width: 12
             height: 3
@@ -1389,7 +1431,7 @@ lvgl:
             radius: 9999
         - led:
             id: led_src_2
-            x: 31
+            x: 20
             y: 113
             width: 12
             height: 3
@@ -1398,7 +1440,7 @@ lvgl:
             radius: 9999
         - led:
             id: led_src_3
-            x: 77
+            x: 86
             y: 113
             width: 12
             height: 3
@@ -1451,21 +1493,21 @@ lvgl:
         # ── 温度计图标 + 温度值 ──
         - label:
             id: lbl_thermo_icon
-            x: 294
-            y: 13
-            width: 14
-            height: 14
+            x: 253
+            y: 11
+            width: 18
+            height: 20
             text: "\U000F050F"
-            text_font: mdi_icons_16
+            text_font: mdi_status_icons_16
             text_align: CENTER
             text_color: !lambda |-
               return get_theme_accent(id(theme));
         - label:
             id: lbl_temp_value
-            x: 310
+            x: 272
             y: 14
-            width: 28
-            height: 14
+            width: 30
+            height: 15
             text: !lambda |-
               static char buf[8];
               if (id(ntc_temp)->has_state())
@@ -1478,10 +1520,10 @@ lvgl:
             text_font: montserrat_12
         - label:
             id: lbl_temp_unit
-            x: 336
+            x: 300
             y: 16
-            width: 14
-            height: 10
+            width: 16
+            height: 11
             text: "°C"
             text_color: 0x8E9FB8
             text_align: LEFT
@@ -1490,53 +1532,53 @@ lvgl:
         # ── 静音指示 ──
         - label:
             id: lbl_mute
-            x: 352
-            y: 13
-            width: 13
-            height: 14
-            text: "\U000F00D6"
-            text_font: mdi_icons_16
+            x: 318
+            y: 11
+            width: 18
+            height: 20
+            text: "\U000F0581"
+            text_font: mdi_status_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              return id(soft_mute) ? lv_color_hex(0xEF4444) : lv_color_hex(0x263244);
+              return id(soft_mute) ? lv_color_hex(0xEF4444) : lv_color_hex(0x6B7280);
 
         # ── BLE 图标 ──
         - label:
             id: lbl_ble
-            x: 365
-            y: 13
-            width: 13
-            height: 18
+            x: 335
+            y: 11
+            width: 18
+            height: 20
             text: "\U000F00AF"
-            text_font: mdi_icons_16
+            text_font: mdi_status_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              if (!id(ble_connected)) return lv_color_hex(0x263244);
+              if (!id(ble_connected)) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
         # ── BLE Remote 指示（蓝牙遥控器连接 + 耳机电量条） ──
         - label:
             id: lbl_ble_remote_indicator
-            x: 378
-            y: 16
-            width: 10
-            height: 14
+            x: 352
+            y: 14
+            width: 12
+            height: 16
             text: "\U000F00AF"
             text_font: mdi_icons_12
             text_align: CENTER
             text_color: !lambda |-
-              if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
+              if (!id(ble_remote_connected)) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
         # ── BLE Remote 电池条（耳机电量风格） ──
         - obj:
             id: ble_remote_batt_outline
-            x: 389
+            x: 365
             y: 17
             width: 11
             height: 6
             bg_opa: 0
             border_width: 1
             border_color: !lambda |-
-              if (!id(ble_remote_connected)) return lv_color_hex(0x263244);
+              if (!id(ble_remote_connected)) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
             border_opa: !lambda |-
               return id(ble_remote_connected) ? LV_OPA_COVER : LV_OPA_30;
@@ -1565,15 +1607,15 @@ lvgl:
         # ── WiFi 图标 ──
         - label:
             id: lbl_wifi
-            x: 400
-            y: 13
-            width: 14
-            height: 18
+            x: 381
+            y: 11
+            width: 18
+            height: 20
             text: "\U000F05A9"
-            text_font: mdi_icons_16
+            text_font: mdi_status_icons_16
             text_align: CENTER
             text_color: !lambda |-
-              if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x263244);
+              if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
 
         # ════════════════════════════════════════════
@@ -1594,10 +1636,10 @@ lvgl:
         # ════════════════════════════════════════════
         - label:
             id: lbl_vol_db
-            x: 123
+            x: 140
             y: 61
-            width: 182
-            height: 34
+            width: 168
+            height: 38
             text: !lambda |-
               float reg_f = (float)id(volume_val);
               float db = (reg_f < 1.0f) ? -96.0f : (reg_f - 192.0f) * 0.5f;
@@ -1610,27 +1652,27 @@ lvgl:
             text_font: montserrat_30
 
         # Small decorative spectrum inside the floating volume panel
-        - obj: { id: mini_spec_0, x: 137, y: 88, width: 8, height: 8, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_1, x: 148, y: 85, width: 8, height: 11, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_2, x: 159, y: 84, width: 8, height: 12, bg_color: 0x10B981, bg_opa: 55%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_3, x: 170, y: 87, width: 8, height: 9, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_4, x: 181, y: 89, width: 8, height: 7, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_5, x: 192, y: 86, width: 8, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_6, x: 203, y: 82, width: 8, height: 14, bg_color: 0x10B981, bg_opa: 70%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_7, x: 214, y: 83, width: 8, height: 13, bg_color: 0x10B981, bg_opa: 58%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_8, x: 225, y: 87, width: 8, height: 9, bg_color: 0x10B981, bg_opa: 40%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_9, x: 236, y: 90, width: 8, height: 6, bg_color: 0x10B981, bg_opa: 32%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_10, x: 247, y: 86, width: 8, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
-        - obj: { id: mini_spec_11, x: 258, y: 84, width: 8, height: 12, bg_color: 0x10B981, bg_opa: 62%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_0, x: 148, y: 96, width: 9, height: 8, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_1, x: 160, y: 93, width: 9, height: 11, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_2, x: 172, y: 92, width: 9, height: 12, bg_color: 0x10B981, bg_opa: 55%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_3, x: 184, y: 95, width: 9, height: 9, bg_color: 0x10B981, bg_opa: 42%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_4, x: 196, y: 97, width: 9, height: 7, bg_color: 0x10B981, bg_opa: 35%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_5, x: 208, y: 94, width: 9, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_6, x: 220, y: 90, width: 9, height: 14, bg_color: 0x10B981, bg_opa: 70%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_7, x: 232, y: 91, width: 9, height: 13, bg_color: 0x10B981, bg_opa: 58%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_8, x: 244, y: 95, width: 9, height: 9, bg_color: 0x10B981, bg_opa: 40%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_9, x: 256, y: 98, width: 9, height: 6, bg_color: 0x10B981, bg_opa: 32%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_10, x: 268, y: 94, width: 9, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
+        - obj: { id: mini_spec_11, x: 280, y: 92, width: 9, height: 12, bg_color: 0x10B981, bg_opa: 62%, border_width: 0, radius: 1 }
 
         # ════════════════════════════════════════════
         # 水平音量条 (绿色, 满宽)
         # ════════════════════════════════════════════
         - bar:
             id: bar_volume
-            x: 142
-            y: 96
-            width: 125
+            x: 148
+            y: 104
+            width: 145
             height: 5
             value: !lambda return (float)id(volume_val) * 100.0f / (float)id(max_volume);
             min_value: 0
@@ -1647,7 +1689,7 @@ lvgl:
         # 平衡条: L ─────●────── R
         - label:
             id: lbl_bal_L
-            x: 38
+            x: 10
             y: 126
             width: 12
             height: 14
@@ -1657,7 +1699,7 @@ lvgl:
             text_color: 0x8E9FB8
         - label:
             id: lbl_bal_R
-            x: 386
+            x: 406
             y: 126
             width: 12
             height: 14
@@ -1667,27 +1709,43 @@ lvgl:
             text_color: 0x8E9FB8
         - obj:
             id: balance_track
-            x: 54
+            x: 28
             y: 130
-            width: 319
+            width: 370
             height: 2
             bg_color: 0x444444
             bg_opa: 100%
         - obj:
             id: balance_dot
-            x: 210
+            x: 207
             y: 126
-            width: 7
-            height: 7
+            width: 13
+            height: 12
             bg_color: !lambda |-
               return get_theme_accent(id(theme));
-            bg_opa: cover
-            radius: 3
+            bg_opa: 18%
+            border_width: 2
+            border_color: !lambda |-
+              return get_theme_accent(id(theme));
+            border_opa: cover
+            radius: 1
+            widgets:
+              - obj:
+                  id: balance_dot_stem
+                  x: 5
+                  y: 0
+                  width: 3
+                  height: 12
+                  bg_color: !lambda |-
+                    return get_theme_accent(id(theme));
+                  bg_opa: cover
+                  border_width: 0
+                  radius: 0
         - label:
             id: lbl_balance_val
-            x: 54
+            x: 28
             y: 134
-            width: 319
+            width: 370
             height: 12
             text: !lambda |-
               int b = id(balance);
@@ -2270,6 +2328,7 @@ lvgl:
         # ── Row 0: 标题 ──
         - obj:
             id: ble_row_title
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2291,6 +2350,7 @@ lvgl:
         # ── Row 1: 连接状态 ──
         - obj:
             id: ble_row_status
+            width: 420
             height: 40
             layout:
               type: flex
@@ -2312,6 +2372,7 @@ lvgl:
         # ── Row 2: 扫描按钮 ──
         - obj:
             id: ble_row_scan
+            width: 420
             height: 42
             layout:
               type: flex
@@ -2338,6 +2399,7 @@ lvgl:
         # ── Row 3-5: 设备槽 (3 个, 默认隐藏) ──
         - obj:
             id: ble_row_dev0
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2365,6 +2427,7 @@ lvgl:
 
         - obj:
             id: ble_row_dev1
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2392,6 +2455,7 @@ lvgl:
 
         - obj:
             id: ble_row_dev2
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2429,6 +2493,7 @@ lvgl:
         # ── Row 6: 返回按钮 ──
         - obj:
             id: ble_row_back
+            width: 420
             height: 42
             layout:
               type: flex
@@ -2467,6 +2532,7 @@ lvgl:
         # Row 0: 标题
         - obj:
             id: keymap_row_title
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2488,6 +2554,7 @@ lvgl:
         # 0: 音量+
         - obj:
             id: keymap_row_0
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2519,6 +2586,7 @@ lvgl:
         # 1: 音量-
         - obj:
             id: keymap_row_1
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2550,6 +2618,7 @@ lvgl:
         # 2: 静音
         - obj:
             id: keymap_row_2
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2561,7 +2630,7 @@ lvgl:
             border_color: 0x10B981
             widgets:
               - label:
-                  text: "\U000F00D6"
+                  text: "\U000F0581"
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
                   width: 26
@@ -2581,6 +2650,7 @@ lvgl:
         # 3: 播放/暂停
         - obj:
             id: keymap_row_3
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2612,6 +2682,7 @@ lvgl:
         # 4: 下一曲
         - obj:
             id: keymap_row_4
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2643,6 +2714,7 @@ lvgl:
         # 5: 上一曲
         - obj:
             id: keymap_row_5
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2674,6 +2746,7 @@ lvgl:
         # 6: 电源
         - obj:
             id: keymap_row_6
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2705,6 +2778,7 @@ lvgl:
         # 7: 切换输入
         - obj:
             id: keymap_row_7
+            width: 420
             height: 38
             layout:
               type: flex
@@ -2737,6 +2811,7 @@ lvgl:
         # Row 8: 返回
         - obj:
             id: keymap_row_back
+            width: 420
             height: 42
             layout:
               type: flex
@@ -2770,6 +2845,7 @@ lvgl:
         # ── Row 0: 标题 ──
         - obj:
             id: dbg_row_title
+            width: 420
             height: 36
             layout:
               type: flex
@@ -2791,6 +2867,7 @@ lvgl:
         # ── Row 1: Free Internal Heap ──
         - obj:
             id: dbg_row_heap
+            width: 420
             height: 32
             layout:
               type: flex
@@ -2808,6 +2885,7 @@ lvgl:
         # ── Row 2: Min Free Heap ──
         - obj:
             id: dbg_row_minheap
+            width: 420
             height: 32
             layout:
               type: flex
@@ -2825,6 +2903,7 @@ lvgl:
         # ── Row 3: Free PSRAM ──
         - obj:
             id: dbg_row_psram
+            width: 420
             height: 32
             layout:
               type: flex
@@ -2842,6 +2921,7 @@ lvgl:
         # ── Row 4: Min Free PSRAM ──
         - obj:
             id: dbg_row_minpsram
+            width: 420
             height: 32
             layout:
               type: flex
@@ -2859,6 +2939,7 @@ lvgl:
         # ── Row 5: 运行时间 ──
         - obj:
             id: dbg_row_uptime
+            width: 420
             height: 32
             layout:
               type: flex
@@ -2876,6 +2957,7 @@ lvgl:
         # ── Row 6: MSGEQ7 重校准 ──
         - obj:
             id: dbg_row_recal
+            width: 420
             height: 42
             layout:
               type: flex
@@ -2901,6 +2983,7 @@ lvgl:
         # ── Row 7: 返回按钮 ──
         - obj:
             id: dbg_row_back
+            width: 420
             height: 42
             layout:
               type: flex
@@ -2934,7 +3017,8 @@ lvgl:
         # ── Row 0: 最大音量 ──
         - obj:
             id: row_max_vol
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -2978,7 +3062,8 @@ lvgl:
         # ── Row 1: 开机上限 ──
         - obj:
             id: row_power_on
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3022,7 +3107,8 @@ lvgl:
         # ── Row 2: 声道平衡 ──
         - obj:
             id: row_balance
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3054,21 +3140,22 @@ lvgl:
                     bg_color: color_accent
               - label:
                   id: val_balance
-                  width: 50
+                  width: 58
                   text: !lambda |-
                     int b = id(balance);
                     if (b == 0) return std::string("平衡");
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", b < 0 ? -b : b);
                     return std::string(buf);
-                  text_font: montserrat_16
+                  text_font: font_cn_small
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
         # ── Row 3: 输入选择 ──
         - obj:
             id: row_input
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3102,7 +3189,8 @@ lvgl:
         # ── Row 4: 输入自动切换 ──
         - obj:
             id: row_auto_switch
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3135,7 +3223,8 @@ lvgl:
         # ── Row 5: 屏幕亮度 ──
         - obj:
             id: row_brightness
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3179,7 +3268,8 @@ lvgl:
         # ── Row 6: 息屏超时 ──
         - obj:
             id: row_timeout
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3211,19 +3301,20 @@ lvgl:
                     bg_color: color_accent
               - label:
                   id: val_timeout
-                  width: 50
+                  width: 70
                   text: !lambda |-
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%d分钟", id(display_timeout_min));
                     return buf;
-                  text_font: montserrat_16
+                  text_font: font_cn_small
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
         # ── Row 7: 主题色彩 ──
         - obj:
             id: row_theme
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3255,8 +3346,7 @@ lvgl:
               - label:
                   id: val_theme
                   text: !lambda |-
-                    const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
-                    return names[id(theme)];
+                    return std::string(get_theme_name(id(theme)));
                   text_font: font_cn
                   text_color: 0xE2E8F0
                   text_align: RIGHT
@@ -3265,7 +3355,8 @@ lvgl:
         # ── Row 8: 蓝牙遥控 (导航项) ──
         - obj:
             id: row_ble_remote
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3293,12 +3384,13 @@ lvgl:
                   text_font: font_cn
                   text_color: 0x8E9FB8
                   text_align: RIGHT
-                  width: 50
+                  width: 72
 
         # ── Row 9: 遥控器按键 (导航项) ──
         - obj:
             id: row_keymap
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3318,7 +3410,7 @@ lvgl:
                   text: "遥控器按键"
                   text_font: font_cn
                   text_color: color_gray
-                  width: 90
+                  width: 104
               - label:
                   id: val_keymap_status
                   text: !lambda |-
@@ -3326,12 +3418,13 @@ lvgl:
                   text_font: font_cn
                   text_color: 0x8E9FB8
                   text_align: RIGHT
-                  width: 50
+                  width: 72
 
         # ── Row 10: 输出模式 ──
         - obj:
             id: row_output_mode
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3359,12 +3452,13 @@ lvgl:
                   text_font: font_cn
                   text_color: 0xE2E8F0
                   text_align: RIGHT
-                  width: 50
+                  width: 72
 
         # ── Row 11: 频谱跳转 ──
         - obj:
             id: row_spectrum_auto
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3400,7 +3494,8 @@ lvgl:
         # ── Row 12: 频谱样式 ──
         - obj:
             id: row_spectrum_theme
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3436,7 +3531,8 @@ lvgl:
         # ── Row 13: 固件版本 (read-only) ──
         - obj:
             id: row_firmware
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3467,7 +3563,8 @@ lvgl:
         # ── Row 14: IP地址 (read-only) ──
         - obj:
             id: row_ip
-            height: 90
+            width: 420
+            height: 38
             layout:
               type: flex
               flex_flow: row
@@ -3611,6 +3708,10 @@ globals:
     initial_value: '0'
   - id: last_manual_input_ms
     type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: virtual_encoder_pos
+    type: int
     restore_value: false
     initial_value: '0'
 
@@ -3793,6 +3894,305 @@ globals:
 # 脚本
 # ═══════════════════════════════════════════════════════════════
 script:
+  - id: style_secondary_pages
+    mode: restart
+    then:
+      - lambda: |-
+          lv_color_t accent = get_theme_accent(id(theme));
+
+          secondary_ui::page(id(settings_page)->obj);
+          secondary_ui::page(id(ble_remote_page)->obj);
+          secondary_ui::page(id(remote_keys_page)->obj);
+          secondary_ui::page(id(debug_page)->obj);
+
+          settings_ui::init(
+            (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
+            (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
+            (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
+            (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
+            (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+            (lv_obj_t*)id(row_output_mode),
+            (lv_obj_t*)id(row_spectrum_auto), (lv_obj_t*)id(row_spectrum_theme),
+            (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
+            (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
+            (lv_obj_t*)id(bar_balance),
+            (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
+          );
+
+          lv_obj_t** setting_rows = settings_ui::rows();
+          lv_obj_t** setting_bars = settings_ui::bars();
+          int setting_focus = id(settings_focus_idx);
+          int setting_active = id(settings_active_idx);
+          for (int i = 0; i < settings_ui::N; i++) {
+            bool focused = (setting_active < 0 && i == setting_focus);
+            bool active = (setting_active == i);
+            bool dim = (i == 8 || i == 9 || i == 13 || i == 14);
+            secondary_ui::row(setting_rows[i], accent, focused, dim, active);
+            if (setting_bars[i]) {
+              lv_obj_set_height(setting_bars[i], active ? 24 : settings_ui::bar_base_heights[i]);
+            }
+          }
+
+          secondary_ui::title(id(ble_row_title), accent);
+          secondary_ui::row(id(ble_row_status), accent, false, true, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(ble_row_scan), accent, id(ble_remote_focus_idx) == 0);
+          secondary_ui::row(id(ble_row_dev0), accent, id(ble_remote_focus_idx) == 1);
+          secondary_ui::row(id(ble_row_dev1), accent, id(ble_remote_focus_idx) == 2);
+          secondary_ui::row(id(ble_row_dev2), accent, id(ble_remote_focus_idx) == 3);
+          secondary_ui::row(id(ble_row_back), accent, id(ble_remote_focus_idx) == 4, true);
+
+          secondary_ui::title(id(keymap_row_title), accent);
+          lv_obj_t* key_rows[] = {
+            id(keymap_row_0), id(keymap_row_1), id(keymap_row_2), id(keymap_row_3),
+            id(keymap_row_4), id(keymap_row_5), id(keymap_row_6), id(keymap_row_7),
+            id(keymap_row_back)
+          };
+          for (int i = 0; i <= 8; i++) {
+            bool focused = (id(keymap_active_idx) < 0 && id(keymap_focus_idx) == i);
+            bool active = (id(keymap_active_idx) == i);
+            secondary_ui::row(key_rows[i], accent, focused, i == 8, active);
+          }
+
+          secondary_ui::title(id(dbg_row_title), accent);
+          secondary_ui::row(id(dbg_row_heap), accent, false, false, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(dbg_row_minheap), accent, false, false, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(dbg_row_psram), accent, false, false, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(dbg_row_minpsram), accent, false, false, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(dbg_row_uptime), accent, false, false, false, secondary_ui::DEBUG_H);
+          secondary_ui::row(id(dbg_row_recal), accent, id(debug_focus_idx) == 0);
+          secondary_ui::row(id(dbg_row_back), accent, id(debug_focus_idx) == 1, true);
+
+  - id: virtual_encoder_click_action
+    mode: restart
+    then:
+      - lambda: |-
+          if (id(display_is_off)) {
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          lv_obj_t* active_page = lv_scr_act();
+          if (active_page == id(settings_page)->obj) {
+            lv_obj_t** rows = settings_ui::rows();
+            lv_obj_t** bars = settings_ui::bars();
+            int idx = id(settings_focus_idx);
+            if (id(settings_active_idx) < 0) {
+              if (idx == 8) {
+                id(ble_remote_focus_idx) = 0;
+                id(ble_remote_device_count) = 0;
+                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "已连接: " + ble_hid_host::get_connected_name() : "未连接";
+                id(ble_remote_connected) = ble_hid_host::is_connected();
+                id(style_secondary_pages)->execute();
+                id(last_display_interaction) = millis();
+                lv_scr_load_anim(id(ble_remote_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                id(reset_idle_timer)->execute();
+                return;
+              }
+              if (idx == 9) {
+                id(keymap_focus_idx) = 0;
+                id(keymap_active_idx) = -1;
+                id(style_secondary_pages)->execute();
+                id(last_display_interaction) = millis();
+                lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                id(reset_idle_timer)->execute();
+                return;
+              }
+              if (idx == 13 || idx == 14) return;
+              id(settings_active_idx) = idx;
+              if (bars[idx]) lv_obj_set_height(bars[idx], 24);
+            } else {
+              int active = id(settings_active_idx);
+              id(settings_active_idx) = -1;
+              if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
+            }
+            id(style_secondary_pages)->execute();
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (active_page == id(ble_remote_page)->obj) {
+            int f = id(ble_remote_focus_idx);
+            if (f == 0) {
+              if (id(ble_remote_scanning)) {
+                ble_hid_host::stop_scan();
+                id(ble_remote_scanning) = false;
+                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "已连接: " + ble_hid_host::get_connected_name() : "未连接";
+              } else {
+                ble_hid_host::start_scan();
+                id(ble_remote_scanning) = true;
+                id(ble_remote_device_count) = 0;
+                id(ble_remote_scan_status) = "扫描中...";
+              }
+            } else if (f >= 1 && f <= 3) {
+              int dev_idx = f - 1;
+              int count = id(ble_remote_device_count);
+              if (dev_idx < count) {
+                id(ble_remote_scan_status) = "正在连接...";
+                ble_hid_host::connect(dev_idx);
+              }
+            } else if (f == 4) {
+              if (ble_hid_host::is_connected()) {
+                ble_hid_host::disconnect();
+                id(ble_remote_peer_bda) = "\"\"";
+                id(ble_remote_battery) = -1;
+                id(ble_remote_connected) = false;
+                id(ble_remote_scan_status) = "未连接";
+              } else {
+                lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+              }
+            }
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (active_page == id(remote_keys_page)->obj) {
+            int f = id(keymap_focus_idx);
+            int act = id(keymap_active_idx);
+            if (f >= 0 && f <= 7) {
+              id(keymap_active_idx) = (act < 0) ? f : -1;
+              id(style_secondary_pages)->execute();
+            } else if (f == 8) {
+              id(keymap_active_idx) = -1;
+              lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+            }
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (active_page == id(debug_page)->obj) {
+            if (id(debug_focus_idx) == 0) {
+              bool ok = msgeq7::recalibrate();
+              lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+            } else {
+              lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+            }
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (active_page == id(spectrum_page)->obj) {
+            lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (active_page == id(main_page)->obj) {
+            id(settings_focus_idx) = 0;
+            id(settings_active_idx) = -1;
+            settings_ui::init(
+              (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
+              (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
+              (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
+              (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
+              (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+              (lv_obj_t*)id(row_output_mode),
+              (lv_obj_t*)id(row_spectrum_auto), (lv_obj_t*)id(row_spectrum_theme),
+              (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
+              (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
+              (lv_obj_t*)id(bar_balance),
+              (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
+            );
+            id(style_secondary_pages)->execute();
+            lv_obj_scroll_to_view(settings_ui::rows()[0], LV_ANIM_OFF);
+            lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+          }
+          id(reset_idle_timer)->execute();
+
+  - id: virtual_encoder_double_action
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t* active_page = lv_scr_act();
+          if (active_page == id(main_page)->obj || active_page == id(spectrum_page)->obj) {
+            if (id(soft_mute)) id(soft_mute_switch)->turn_off();
+            else id(soft_mute_switch)->turn_on();
+            id(reset_idle_timer)->execute();
+          }
+
+  - id: virtual_encoder_long_action
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t* active_page = lv_scr_act();
+          bool secondary = active_page == id(settings_page)->obj ||
+                           active_page == id(ble_remote_page)->obj ||
+                           active_page == id(debug_page)->obj ||
+                           active_page == id(remote_keys_page)->obj;
+          if (secondary) {
+            if (active_page == id(settings_page)->obj) {
+              int active = id(settings_active_idx);
+              if (active >= 0) {
+                lv_obj_t** bars = settings_ui::bars();
+                if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
+              }
+              id(settings_active_idx) = -1;
+            }
+            if (active_page == id(remote_keys_page)->obj) {
+              id(keymap_active_idx) = -1;
+            }
+            id(style_secondary_pages)->execute();
+            lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+            id(reset_idle_timer)->execute();
+            return;
+          }
+
+          if (id(standby)) {
+            if (!id(temp_protect)) id(exit_standby)->execute();
+          } else if (id(system_ready)) {
+            id(enter_standby)->execute();
+          } else {
+            id(start_wifi_ap)->execute();
+          }
+
+  - id: show_splash_boot
+    mode: restart
+    then:
+      - lvgl.resume:
+      - lvgl.page.show:
+          id: splash_page
+          animation: LV_SCREEN_LOAD_ANIM_NONE
+          time: 50ms
+      - lambda: |-
+          lv_obj_set_style_opa(id(lbl_splash_title), (lv_opa_t)15, LV_PART_MAIN);
+          lv_obj_set_style_opa(id(lbl_splash_sub), (lv_opa_t)15, LV_PART_MAIN);
+          lv_obj_set_style_opa(id(lbl_splash_ver), (lv_opa_t)180, LV_PART_MAIN);
+          lv_obj_invalidate(lv_scr_act());
+          lv_refr_now(NULL);
+          auto call = id(display_backlight)->turn_on();
+          call.set_brightness(id(display_brightness) / 100.0f);
+          call.perform();
+          ESP_LOGI("BOOT_DIAG", "show_splash_boot action: heap=%u", (unsigned)esp_get_free_heap_size());
+
+  - id: show_main_boot
+    mode: restart
+    then:
+      - lvgl.resume:
+      - lvgl.page.show:
+          id: main_page
+          animation: LV_SCREEN_LOAD_ANIM_NONE
+          time: 50ms
+      - lambda: |-
+          lv_obj_invalidate(lv_scr_act());
+          lv_refr_now(NULL);
+          auto call = id(display_backlight)->turn_on();
+          call.set_brightness(id(display_brightness) / 100.0f);
+          call.perform();
+          if (!id(system_ready)) {
+            id(system_ready) = true;
+            ESP_LOGW("BOOT_DIAG", "system_ready recovered by show_main_boot: heap=%u", (unsigned)esp_get_free_heap_size());
+          }
+          if (id(switching_input) && millis() > 8000) {
+            id(switching_input) = false;
+            id(active_input) = id(current_input);
+            ESP_LOGW("BOOT_DIAG", "stale boot input switch cleared by show_main_boot");
+          }
+          if (!id(standby)) {
+            id(display_idle_timer)->execute();
+            id(apply_theme)->execute();
+            id(send_volume_to_pga)->execute();
+          }
+          ESP_LOGI("BOOT_DIAG", "show_main_boot action: heap=%u", (unsigned)esp_get_free_heap_size());
+
   - id: media_reset
     mode: restart
     then:
@@ -3873,7 +4273,7 @@ script:
           id(saved_soft_mute) = id(soft_mute);
           id(soft_mute)       = true;
           id(target_db)       = -96.0f;
-          id(mute_switch)->turn_off();
+          id(mute_switch)->turn_on();
           id(display_backlight)->turn_off();
           pga2311::set_volume(0, 0);
           id(current_db)      = -96.0f;
@@ -3947,10 +4347,33 @@ script:
                 uint32_t timeout_ms = id(display_timeout_min) * 60000u;
                 if (!id(display_is_off) && elapsed >= timeout_ms) {
                   auto call = id(display_backlight)->turn_on();
-                  call.set_brightness(0.10f);
+                  call.set_brightness(0.50f);
                   call.perform();
                   id(display_is_off) = true;
                 }
+
+  - id: save_current_input_volume
+    mode: restart
+    parameters:
+      input: int
+      volume: int
+    then:
+      - lambda: |-
+          if (!id(system_ready) || id(switching_input) || id(soft_mute)) return;
+          int cur = input;
+          int vol = volume;
+          if (cur < 0 || cur > 3) return;
+          if (vol < 0) vol = 0;
+          if (vol > id(max_volume)) vol = id(max_volume);
+          switch (cur) {
+            case 0: id(input_vol_0) = vol; id(last_saved_vol_0) = vol; break;
+            case 1: id(input_vol_1) = vol; id(last_saved_vol_1) = vol; break;
+            case 2: id(input_vol_2) = vol; id(last_saved_vol_2) = vol; break;
+            case 3: id(input_vol_3) = vol; id(last_saved_vol_3) = vol; break;
+          }
+          id(last_save_ms) = millis();
+          ESP_LOGI("input_vol", "save input=%d vol=%d slots=%d/%d/%d/%d",
+                   cur, vol, id(input_vol_0), id(input_vol_1), id(input_vol_2), id(input_vol_3));
 
   # ══════════════════════════════════════════════════════════════
   # ★ V17 巅峰内核：双区间速度渐变 + 软锁释放
@@ -4095,7 +4518,7 @@ script:
           bool diff_large  = abs(vol - last) >= 2 && (now - id(last_save_ms) > 1500);
           bool stop_detect = abs(vol - last) > 0  && (now - id(last_v_change_ms) > 2000);
 
-          if (!id(soft_mute) && (diff_large || stop_detect)) {
+          if (!id(switching_input) && !id(soft_mute) && (diff_large || stop_detect)) {
             id(last_save_ms) = now;
             switch (cur) {
               case 0: id(last_saved_vol_0) = vol; id(input_vol_0) = vol; break;
@@ -4151,28 +4574,56 @@ script:
           if (wifi::global_wifi_component->is_connected())
             lv_obj_set_style_text_color(id(lbl_wifi), accent, LV_PART_MAIN);
           {
-            lv_color_t dim = lv_color_hex(0x263244);
+            lv_color_t dim = lv_color_hex(0x64748B);
             bool wifi_ok = wifi::global_wifi_component->is_connected();
-            bool ble_ok = id(ble_connected);
+            bool ble_ok = id(ble_connected) && !id(ble_remote_connected);
             bool remote_ok = id(ble_remote_connected);
             bool mute_ok = id(soft_mute);
             lv_obj_set_style_opa(id(lbl_thermo_icon), LV_OPA_70, LV_PART_MAIN);
             lv_obj_set_style_opa(id(lbl_temp_value), LV_OPA_80, LV_PART_MAIN);
             lv_obj_set_style_opa(id(lbl_temp_unit), LV_OPA_60, LV_PART_MAIN);
-            lv_obj_set_style_text_color(id(lbl_mute), mute_ok ? lv_color_hex(0xEF4444) : dim, LV_PART_MAIN);
-            lv_obj_set_style_opa(id(lbl_mute), mute_ok ? LV_OPA_COVER : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(lbl_mute), mute_ok ? lv_color_hex(0xEF4444) : lv_color_hex(0x6B7280), LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_mute), mute_ok ? LV_OPA_COVER : LV_OPA_70, LV_PART_MAIN);
             lv_obj_set_style_text_color(id(lbl_wifi), wifi_ok ? accent : dim, LV_PART_MAIN);
-            lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_90 : LV_OPA_60, LV_PART_MAIN);
             lv_obj_set_style_text_color(id(lbl_ble), ble_ok ? accent : dim, LV_PART_MAIN);
-            lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_90 : LV_OPA_60, LV_PART_MAIN);
             lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), remote_ok ? accent : dim, LV_PART_MAIN);
-            lv_obj_set_style_opa(id(lbl_ble_remote_indicator), remote_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(lbl_ble_remote_indicator), remote_ok ? LV_OPA_90 : LV_OPA_60, LV_PART_MAIN);
             lv_obj_set_style_border_color(id(ble_remote_batt_outline), remote_ok ? accent : dim, LV_PART_MAIN);
-            lv_obj_set_style_opa(id(ble_remote_batt_outline), remote_ok ? LV_OPA_80 : LV_OPA_20, LV_PART_MAIN);
+            lv_obj_set_style_opa(id(ble_remote_batt_outline), remote_ok ? LV_OPA_90 : LV_OPA_50, LV_PART_MAIN);
           }
           lv_obj_set_style_text_color(id(lbl_main_active_input), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_main_output_value), lv_color_mix(accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_main_auto_value), lv_color_mix(accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
+          {
+            int cur = id(current_input);
+            if (cur < 0 || cur > 3) cur = 0;
+            bool sigs[] = {id(audio_cd)->state, id(audio_dac)->state, id(audio_pc)->state, id(audio_aux)->state};
+            lv_obj_t* cards[] = {id(src_card_0), id(src_card_1), id(src_card_2), id(src_card_3)};
+            lv_obj_t* icons_lbl[] = {id(lbl_src_radio), id(lbl_src_gamepad), id(lbl_src_laptop), id(lbl_src_music)};
+            lv_obj_t* names_lbl[] = {id(lbl_src_name_0), id(lbl_src_name_1), id(lbl_src_name_2), id(lbl_src_name_3)};
+            lv_obj_t* states_lbl[] = {id(lbl_src_state_0), id(lbl_src_state_1), id(lbl_src_state_2), id(lbl_src_state_3)};
+            const char* state_text[] = {"IDLE", "SIGNAL"};
+            for (int i = 0; i < 4; i++) {
+              bool selected = (i == cur);
+              bool mcp_signal = sigs[i];
+
+              lv_obj_set_style_bg_color(cards[i],
+                selected ? lv_color_hex(0x0B1420) : lv_color_hex(0x08121E), LV_PART_MAIN);
+              lv_obj_set_style_bg_opa(cards[i], selected ? LV_OPA_50 : LV_OPA_20, LV_PART_MAIN);
+              lv_obj_set_style_border_color(cards[i], selected ? accent : lv_color_hex(0x263244), LV_PART_MAIN);
+              lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_80 : LV_OPA_40, LV_PART_MAIN);
+
+              lv_color_t icon_color = mcp_signal ? accent : lv_color_hex(0x334155);
+              lv_color_t name_color = lv_color_hex(0xF8FAFC);
+              lv_color_t state_color = mcp_signal ? accent : lv_color_hex(0x475569);
+              lv_obj_set_style_text_color(icons_lbl[i], icon_color, LV_PART_MAIN);
+              lv_obj_set_style_text_color(names_lbl[i], name_color, LV_PART_MAIN);
+              lv_label_set_text(states_lbl[i], state_text[mcp_signal ? 1 : 0]);
+              lv_obj_set_style_text_color(states_lbl[i], state_color, LV_PART_MAIN);
+            }
+          }
           // 设置页进度条指示器
           lv_obj_set_style_bg_color(id(bar_max_vol), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_power_on_limit), accent, LV_PART_INDICATOR);
@@ -4202,6 +4653,8 @@ script:
           lv_obj_set_style_text_color(id(icon_ip), accent, LV_PART_MAIN);
           // 平衡指示点
           lv_obj_set_style_bg_color(id(balance_dot), accent, LV_PART_MAIN);
+          lv_obj_set_style_border_color(id(balance_dot), accent, LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(balance_dot_stem), accent, LV_PART_MAIN);
           // 频谱页输入源图标
           lv_obj_set_style_text_color(id(lbl_spec_input_icon), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_spec_input), accent, LV_PART_MAIN);
@@ -4293,6 +4746,85 @@ script:
               lv_obj_set_style_bg_color(spec_bars[i], spec_colors[i % 7], LV_PART_INDICATOR);
             }
           }
+      - script.execute: style_secondary_pages
+
+  # ══════════════════════════════════════════════════════════════
+  # 设置页状态同步：HA/编码器/BLE 修改全局变量后，统一刷新 LVGL 行值
+  # ══════════════════════════════════════════════════════════════
+  - id: sync_settings_ui
+    mode: restart
+    then:
+      - lambda: |-
+          lv_bar_set_value(id(bar_max_vol), id(max_volume), LV_ANIM_OFF);
+          lv_label_set_text(id(val_max_vol), std::to_string(id(max_volume)).c_str());
+
+          lv_bar_set_value(id(bar_power_on_limit), id(power_on_limit), LV_ANIM_OFF);
+          lv_label_set_text(id(val_power_on), std::to_string(id(power_on_limit)).c_str());
+
+          int bal = id(balance);
+          if (bal < -20) bal = -20;
+          if (bal > 20) bal = 20;
+          lv_bar_set_value(id(bar_balance), bal + 20, LV_ANIM_OFF);
+          {
+            char buf[8];
+            if (bal == 0) {
+              lv_label_set_text(id(val_balance), "平衡");
+            } else {
+              snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", abs(bal));
+              lv_label_set_text(id(val_balance), buf);
+            }
+          }
+
+          {
+            const char* names[] = {"CD", "DAC", "PC", "AUX"};
+            int cur = id(current_input);
+            if (cur < 0 || cur > 3) cur = 0;
+            lv_label_set_text(id(val_input), names[cur]);
+          }
+
+          lv_label_set_text(id(val_auto_switch), id(auto_input) ? "自动" : "手动");
+
+          lv_bar_set_value(id(bar_brightness), id(display_brightness), LV_ANIM_OFF);
+          {
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%d%%", id(display_brightness));
+            lv_label_set_text(id(val_brightness), buf);
+          }
+
+          lv_bar_set_value(id(bar_display_timeout), id(display_timeout_min), LV_ANIM_OFF);
+          {
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%d分钟", id(display_timeout_min));
+            lv_label_set_text(id(val_timeout), buf);
+          }
+
+          {
+            int th = id(theme);
+            if (th < 0 || th > 7) th = 0;
+            lv_label_set_text(id(val_theme), get_theme_name(th));
+            lv_obj_set_style_bg_color(id(theme_dot), get_theme_accent(th), LV_PART_MAIN);
+          }
+
+          lv_label_set_text(id(val_output_mode), id(output_mode) ? "直通" : "变压器");
+          lv_label_set_text(id(lbl_main_output_value), id(output_mode) ? "DIRECT" : "TRANSFORMER");
+          lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
+
+          if (id(spectrum_auto_seconds) <= 0) {
+            lv_label_set_text(id(val_spectrum_auto), "禁用");
+          } else {
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%d秒", id(spectrum_auto_seconds));
+            lv_label_set_text(id(val_spectrum_auto), buf);
+          }
+
+          {
+            const char* names[] = {"经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU", "星点火线"};
+            int st = id(spectrum_theme);
+            if (st < 0 || st > 5) st = 2;
+            lv_label_set_text(id(val_spectrum_theme), names[st]);
+          }
+      - script.execute: style_secondary_pages
 
   - id: switch_input
     mode: queued
@@ -4303,6 +4835,9 @@ script:
           if (id(active_input) < 0 || id(active_input) > 3) id(active_input) = id(current_input);
           id(switching_input) = true;
           id(switching_target_input) = id(current_input);
+          ESP_LOGI("input_vol", "switch save active=%d target=%d vol=%d slots=%d/%d/%d/%d",
+                   id(active_input), id(switching_target_input), id(volume_val),
+                   id(input_vol_0), id(input_vol_1), id(input_vol_2), id(input_vol_3));
           switch (id(active_input)) {
             case 0: id(input_vol_0) = id(volume_val); id(last_saved_vol_0) = id(volume_val); break;
             case 1: id(input_vol_1) = id(volume_val); id(last_saved_vol_1) = id(volume_val); break;
@@ -4322,7 +4857,7 @@ script:
                 timeout: 1200ms
 
       - lambda: 'pga2311::set_volume(0, 0);'
-      - switch.turn_off: mute_switch
+      - switch.turn_on: mute_switch
       - delay: 30ms
 
       - lambda: |-
@@ -4348,7 +4883,7 @@ script:
           condition:
             lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active);'
           then:
-            - switch.turn_on: mute_switch
+            - switch.turn_off: mute_switch
       - delay: 20ms
 
       - lambda: |-
@@ -4362,6 +4897,9 @@ script:
           if (new_vol > id(max_volume)) new_vol = id(max_volume);
           id(volume_val) = new_vol;
           id(last_v_change_ms) = millis();
+          ESP_LOGI("input_vol", "switch load target=%d vol=%d slots=%d/%d/%d/%d",
+                   id(switching_target_input), id(volume_val),
+                   id(input_vol_0), id(input_vol_1), id(input_vol_2), id(input_vol_3));
 
           float vol_pct = roundf((float)id(volume_val) * 100.0f / (float)id(max_volume));
           if (vol_pct > 100.0f) vol_pct = 100.0f;
@@ -4459,6 +4997,56 @@ script:
 # ═══════════════════════════════════════════════════════════════
 # 传感器
 # ═══════════════════════════════════════════════════════════════
+button:
+  - platform: template
+    name: "Virtual Encoder CW"
+    id: virtual_encoder_cw
+    icon: mdi:rotate-right
+    entity_category: diagnostic
+    disabled_by_default: true
+    on_press:
+      - lambda: |-
+          id(virtual_encoder_pos) += 1;
+          id(volume_encoder).publish_state((float)id(virtual_encoder_pos));
+
+  - platform: template
+    name: "Virtual Encoder CCW"
+    id: virtual_encoder_ccw
+    icon: mdi:rotate-left
+    entity_category: diagnostic
+    disabled_by_default: true
+    on_press:
+      - lambda: |-
+          id(virtual_encoder_pos) -= 1;
+          id(volume_encoder).publish_state((float)id(virtual_encoder_pos));
+
+  - platform: template
+    name: "Virtual Encoder Click"
+    id: virtual_encoder_click
+    icon: mdi:gesture-tap
+    entity_category: diagnostic
+    disabled_by_default: true
+    on_press:
+      - script.execute: virtual_encoder_click_action
+
+  - platform: template
+    name: "Virtual Encoder Double"
+    id: virtual_encoder_double
+    icon: mdi:gesture-double-tap
+    entity_category: diagnostic
+    disabled_by_default: true
+    on_press:
+      - script.execute: virtual_encoder_double_action
+
+  - platform: template
+    name: "Virtual Encoder Long"
+    id: virtual_encoder_long
+    icon: mdi:gesture-tap-hold
+    entity_category: diagnostic
+    disabled_by_default: true
+    on_press:
+      - script.execute: virtual_encoder_long_action
+
 sensor:
   - platform: rotary_encoder
     name: "音量编码器"
@@ -4535,6 +5123,7 @@ sensor:
                 if (new_idx != idx) {
                   id(settings_focus_idx) = new_idx;
                   set_focus(new_idx);
+                  id(style_secondary_pages)->execute();
                   lv_obj_scroll_to_view(rows[new_idx], LV_ANIM_ON);
                 }
               } else {
@@ -4549,6 +5138,7 @@ sensor:
                     lv_label_set_text(id(val_max_vol), (std::to_string(v)).c_str());
                     id(max_volume_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
+                    id(save_current_input_volume)->execute(id(current_input), id(volume_val));
                     id(send_volume_to_pga)->execute();
                     break;
                   }
@@ -4560,6 +5150,7 @@ sensor:
                     lv_label_set_text(id(val_power_on), (std::to_string(v)).c_str());
                     id(power_on_limit_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
+                    id(save_current_input_volume)->execute(id(current_input), id(volume_val));
                     id(send_volume_to_pga)->execute();
                     break;
                   }
@@ -4637,8 +5228,7 @@ sensor:
                     if (v < 0) v = 7; if (v > 7) v = 0;
                     id(theme) = v;
                     {
-                      const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
-                      lv_label_set_text(id(val_theme), names[v]);
+                      lv_label_set_text(id(val_theme), get_theme_name(v));
                       lv_obj_set_style_bg_color(id(theme_dot), get_theme_accent(v), LV_PART_MAIN);
                     }
                     id(theme_number)->publish_state((float)v);
@@ -4650,13 +5240,8 @@ sensor:
                     id(output_mode) = v;
                     lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
                     lv_label_set_text(id(lbl_main_output_value), v ? "DIRECT" : "TRANSFORMER");
-                    if (v) {
-                      lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
-                      lv_obj_remove_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
-                    } else {
-                      lv_obj_remove_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
-                      lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
-                    }
+                    lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
                     if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
                     break;
                   }
@@ -4736,6 +5321,7 @@ sensor:
                 ble_set_focus(id(ble_row_dev1), new_idx == 2);
                 ble_set_focus(id(ble_row_dev2), new_idx == 3);
                 ble_set_focus(id(ble_row_back), new_idx == 4);
+                id(style_secondary_pages)->execute();
                 // 自动滚动到焦点
                 lv_obj_t* focus_rows[] = {id(ble_row_scan), id(ble_row_dev0), id(ble_row_dev1), id(ble_row_dev2), id(ble_row_back)};
                 lv_obj_scroll_to_view(focus_rows[new_idx], LV_ANIM_ON);
@@ -4796,6 +5382,7 @@ sensor:
                         i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827), LV_PART_MAIN);
                     }
                   }
+                  id(style_secondary_pages)->execute();
                   lv_obj_scroll_to_view(rows_k[new_idx], LV_ANIM_ON);
                 }
               }
@@ -4820,6 +5407,7 @@ sensor:
                 lv_obj_set_style_border_color(id(dbg_row_back), hl_color, LV_PART_MAIN);
                 lv_obj_set_style_border_side(id(dbg_row_back), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                 lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x142033) : lv_color_hex(0x080D16), LV_PART_MAIN);
+                id(style_secondary_pages)->execute();
                 lv_obj_scroll_to_view(new_idx == 0 ? id(dbg_row_recal) : id(dbg_row_back), LV_ANIM_ON);
               }
               id(reset_idle_timer)->execute();
@@ -4845,6 +5433,7 @@ sensor:
             float pct = roundf((float)new_vol * 100.0f / (float)id(max_volume));
             if (pct > 100.0f) pct = 100.0f;
             id(volume_number)->publish_state(pct);
+            id(save_current_input_volume)->execute(id(current_input), id(volume_val));
             id(send_volume_to_pga)->execute();
             if (active == id(spectrum_page)->obj) {
               lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 150, 0, false);
@@ -4867,7 +5456,7 @@ sensor:
               - lambda: |-
                   id(temp_protect_forced_standby) = !id(standby);
                   id(temp_protect) = true;
-                  id(mute_switch)->turn_off();
+                  id(mute_switch)->turn_on();
                   id(send_volume_to_pga)->execute();
                   if (id(temp_protect_forced_standby)) {
                     id(standby_switch)->turn_off();
@@ -4884,7 +5473,7 @@ sensor:
                   if (wake_from_protect && id(standby)) {
                     id(standby_switch)->turn_on();
                   } else if (!id(standby)) {
-                    if (!id(soft_mute)) id(mute_switch)->turn_on();
+                    if (!id(soft_mute)) id(mute_switch)->turn_off();
                     id(send_volume_to_pga)->execute();
                   }
 
@@ -4974,7 +5563,9 @@ number:
           if (v > id(max_volume)) v = id(max_volume);
           id(volume_val) = v;
           id(last_v_change_ms) = millis();
+          id(save_current_input_volume)->execute(id(current_input), id(volume_val));
           id(send_volume_to_pga)->execute();
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
 
   - platform: template
@@ -5025,6 +5616,7 @@ number:
                 pga2311::set_volume(r_reg, l_reg);
           }
           id(send_volume_to_pga)->execute();
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
   - platform: template
     name: "最大音量上限 Max"
@@ -5048,7 +5640,9 @@ number:
           float pct = (float)id(volume_val) / (float)id(max_volume);
           if (pct > 1.0f) pct = 1.0f;
           id(volume_number)->publish_state(pct * 100.0f);
+          id(save_current_input_volume)->execute(id(current_input), id(volume_val));
           id(send_volume_to_pga)->execute();
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
 
   - platform: template
@@ -5061,7 +5655,11 @@ number:
     mode: slider
     initial_value: 192
     set_action:
-      - lambda: 'id(power_on_limit) = (int)x;'
+      - lambda: |-
+          if (!id(system_ready)) return;
+          id(power_on_limit) = (int)x;
+          id(power_on_limit_number)->publish_state((float)id(power_on_limit));
+          id(sync_settings_ui)->execute();
       - script.execute: reset_idle_timer
 
   - platform: template
@@ -5083,6 +5681,7 @@ number:
           }
           id(display_is_off) = false;
           id(display_brightness_number)->publish_state((float)id(display_brightness));
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
 
   - platform: template
@@ -5095,7 +5694,12 @@ number:
     mode: box
     initial_value: 5
     set_action:
-      - lambda: 'id(display_timeout_min) = (int)x;'
+      - lambda: |-
+          if (!id(system_ready)) return;
+          id(display_timeout_min) = (int)x;
+          id(display_timeout_number)->publish_state((float)id(display_timeout_min));
+          id(sync_settings_ui)->execute();
+          id(reset_idle_timer)->execute();
 
   - platform: template
     name: "主题色彩 Theme"
@@ -5111,6 +5715,7 @@ number:
           if (!id(system_ready)) return;
           id(theme) = (int)x;
           id(apply_theme)->execute();
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
 
 select:
@@ -5144,12 +5749,18 @@ select:
           if (!id(system_ready) || id(switching_input)) return;
           uint32_t now = millis();
           if (now - id(last_switch_ms) < 1500) return;
+          int target = -1;
+          if      (x == "CD")  target = 0;
+          else if (x == "DAC") target = 1;
+          else if (x == "PC")  target = 2;
+          else if (x == "AUX") target = 3;
+          if (target < 0) return;
           id(last_switch_ms) = now;
-          id(last_manual_input_ms) = millis();   // 记录手动选择
-          if      (x == "CD")  { id(current_input) = 0; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-          else if (x == "DAC") { id(current_input) = 1; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-          else if (x == "PC")  { id(current_input) = 2; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
-          else if (x == "AUX") { id(current_input) = 3; id(switch_input)->execute(); id(reset_idle_timer)->execute(); }
+          id(last_manual_input_ms) = now;   // 记录手动选择
+          id(current_input) = target;
+          id(sync_settings_ui)->execute();
+          id(switch_input)->execute();
+          id(reset_idle_timer)->execute();
 
 # ═══════════════════════════════════════════════════════════════
 # 定时读取 — MSGEQ7 频谱 + NTC 温度 + LVGL 更新
@@ -5549,7 +6160,15 @@ interval:
           //   以 FADE_IN 动画切换到主页面。
           {
             static bool splash_done = false;
+            static bool splash_forced = false;
             static int fade_frame = 0;
+            uint32_t now = millis();
+
+            if (!splash_done && !splash_forced && now >= 500) {
+              splash_forced = true;
+              id(show_splash_boot)->execute();
+              ESP_LOGI("BOOT_DIAG", "splash action requested from interval: now=%u heap=%u", (unsigned)now, (unsigned)esp_get_free_heap_size());
+            }
 
             if (!splash_done && lv_scr_act() == id(splash_page)->obj) {
               // Logo 渐显: 11 帧 (0=微光→10=全亮, 550ms @ 50ms interval)
@@ -5557,23 +6176,26 @@ interval:
                 lv_opa_t opa = (fade_frame == 0) ? 15 : (fade_frame == 10) ? 255 : (fade_frame * 24 + 15);
                 lv_obj_set_style_opa(id(lbl_splash_title), opa, LV_PART_MAIN);
                 lv_obj_set_style_opa(id(lbl_splash_sub), opa, LV_PART_MAIN);
+                lv_obj_invalidate(id(splash_page)->obj);
+                lv_refr_now(NULL);
                 fade_frame++;
               }
 
               // 过渡条件: 最短 3 秒 + (WiFi 已连接 或 10 秒超时)
-              uint32_t now = millis();
               if (now >= 3000) {
                 bool wifi_ok = wifi::global_wifi_component->is_connected();
                 if (wifi_ok || now >= 10000) {
                   splash_done = true;
                   ESP_LOGI("BOOT_DIAG", "splash -> main begin: wifi=%d now=%u heap=%u", wifi_ok ? 1 : 0, (unsigned)now, (unsigned)esp_get_free_heap_size());
-                  lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 300, 0, false);
+                  id(show_main_boot)->execute();
                   ESP_LOGI("BOOT_DIAG", "splash -> main requested: heap=%u", (unsigned)esp_get_free_heap_size());
                 }
               }
-            } else if (!splash_done) {
+            } else if (!splash_done && now >= 12000) {
               // splash_page 未激活 (例如调试模式), 标记为完成
               splash_done = true;
+              ESP_LOGW("BOOT_DIAG", "splash fallback -> main: active=%p now=%u heap=%u", lv_scr_act(), (unsigned)now, (unsigned)esp_get_free_heap_size());
+              id(show_main_boot)->execute();
             }
           }
 
@@ -5683,6 +6305,23 @@ interval:
 
           // ═══ 主题强调色 ═══
           lv_color_t _accent = get_theme_accent(id(theme));
+          {
+            static int last_runtime_theme = -999;
+            if (last_runtime_theme != id(theme)) {
+              last_runtime_theme = id(theme);
+              lv_obj_set_style_bg_color(id(separator), _accent, LV_PART_MAIN);
+              lv_obj_set_style_bg_color(id(bar_volume), _accent, LV_PART_INDICATOR);
+              lv_obj_set_style_text_color(id(lbl_main_active_input), _accent, LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_main_output_value), lv_color_mix(_accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_main_auto_value), lv_color_mix(_accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
+              lv_obj_t* mini_specs[] = {
+                id(mini_spec_0), id(mini_spec_1), id(mini_spec_2), id(mini_spec_3),
+                id(mini_spec_4), id(mini_spec_5), id(mini_spec_6), id(mini_spec_7),
+                id(mini_spec_8), id(mini_spec_9), id(mini_spec_10), id(mini_spec_11)
+              };
+              for (auto *o : mini_specs) lv_obj_set_style_bg_color(o, _accent, LV_PART_MAIN);
+            }
+          }
 
           // Subtle hardware-safe visual effects: opacity/color only, no extra objects.
           {
@@ -5700,8 +6339,8 @@ interval:
             static bool db_pivot_ready = false;
             if (!db_pivot_ready) {
               db_pivot_ready = true;
-              lv_obj_set_style_transform_pivot_x(id(lbl_vol_db), 91, LV_PART_MAIN);
-              lv_obj_set_style_transform_pivot_y(id(lbl_vol_db), 17, LV_PART_MAIN);
+              lv_obj_set_style_transform_pivot_x(id(lbl_vol_db), 84, LV_PART_MAIN);
+              lv_obj_set_style_transform_pivot_y(id(lbl_vol_db), 19, LV_PART_MAIN);
             }
             if (v_dt < 420) {
               uint8_t mix = (uint8_t)(36 + ((420 - v_dt) * 72 / 420));
@@ -5717,7 +6356,7 @@ interval:
             if (pulse != last_pulse) {
               last_pulse = pulse;
               if (wifi::global_wifi_component->is_connected()) lv_obj_set_style_opa(id(lbl_wifi), pulse, LV_PART_MAIN);
-              if (id(ble_connected)) lv_obj_set_style_opa(id(lbl_ble), pulse, LV_PART_MAIN);
+              if (id(ble_connected) && !id(ble_remote_connected)) lv_obj_set_style_opa(id(lbl_ble), pulse, LV_PART_MAIN);
               if (id(ble_remote_connected)) lv_obj_set_style_opa(id(lbl_ble_remote_indicator), pulse, LV_PART_MAIN);
             }
           }
@@ -5728,9 +6367,9 @@ interval:
             int bal = id(balance);
             if (bal != last_bal) {
               last_bal = bal;
-              int dot_x = 210 + bal * 159 / 20;
-              if (dot_x < 54) dot_x = 54;
-              if (dot_x > 373) dot_x = 373;
+              int dot_x = 207 + bal * 165 / 20;
+              if (dot_x < 46) dot_x = 46;
+              if (dot_x > 370) dot_x = 370;
               lv_obj_set_x(id(balance_dot), dot_x);
               lv_obj_set_style_text_color(id(lbl_bal_L),
                 bal < 0 ? _accent : lv_color_hex(0x8E9FB8), LV_PART_MAIN);
@@ -5746,11 +6385,15 @@ interval:
             }
           }
 
-          // ═══ 输入源 LED + 图标着色 + LED 呼吸灯 (共享 cur 变量) ═══
+          // ═══ 输入源卡片状态拆分 ═══
+          // MCP23017: 只控制图标/名称/SIGNAL/IDLE 明暗
+          // current_input: 只控制外框/选中背景
+          // MSGEQ7: 只控制当前输入卡片里的小 LED 点/条
           {
             static int last_input = -1;
             static int last_theme = -1;
             int cur = id(current_input);
+            if (cur < 0 || cur > 3) cur = 0;
             bool sigs[] = {id(audio_cd)->state, id(audio_dac)->state, id(audio_pc)->state, id(audio_aux)->state};
             static bool last_sigs[] = {false, false, false, false};
             bool sig_changed = false;
@@ -5770,54 +6413,45 @@ interval:
               lv_obj_t* states_lbl[] = {id(lbl_src_state_0), id(lbl_src_state_1), id(lbl_src_state_2), id(lbl_src_state_3)};
               const char* state_text[] = {"IDLE", "SIGNAL"};
               for (int i = 0; i < 4; i++) {
-                bool active = (i == cur);
-                bool has_mcp_signal = sigs[i];
-                lv_obj_set_style_bg_color(cards[i], active ? lv_color_hex(0x0B2A24) : lv_color_hex(0x08121E), LV_PART_MAIN);
-                lv_obj_set_style_border_color(cards[i], active ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
-                lv_obj_set_style_text_color(icons_lbl[i], has_mcp_signal
-                  ? (active ? _accent : lv_color_hex(0x5DAF95))
-                  : lv_color_hex(0x444444), LV_PART_MAIN);
-                lv_obj_set_style_text_color(names_lbl[i], has_mcp_signal
-                  ? lv_color_hex(0xF8FAFC)
-                  : lv_color_hex(0x64748B), LV_PART_MAIN);
-                lv_label_set_text(states_lbl[i], state_text[has_mcp_signal ? 1 : 0]);
-                lv_obj_set_style_text_color(states_lbl[i], has_mcp_signal
-                  ? (active ? _accent : lv_color_hex(0x5DAF95))
-                  : lv_color_hex(0x64748B), LV_PART_MAIN);
+                bool selected = (i == cur);
+                bool mcp_signal = sigs[i];
+
+                lv_obj_set_style_bg_color(cards[i],
+                  selected ? lv_color_hex(0x0B1420) : lv_color_hex(0x08121E), LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(cards[i], selected ? LV_OPA_50 : LV_OPA_20, LV_PART_MAIN);
+                lv_obj_set_style_border_color(cards[i], selected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                lv_obj_set_style_border_opa(cards[i], selected ? LV_OPA_80 : LV_OPA_40, LV_PART_MAIN);
+
+                lv_color_t icon_color = mcp_signal ? _accent : lv_color_hex(0x334155);
+                lv_color_t name_color = lv_color_hex(0xF8FAFC);
+                lv_color_t state_color = mcp_signal ? _accent : lv_color_hex(0x475569);
+                lv_obj_set_style_text_color(icons_lbl[i], icon_color, LV_PART_MAIN);
+                lv_obj_set_style_text_color(names_lbl[i], name_color, LV_PART_MAIN);
+                lv_label_set_text(states_lbl[i], state_text[mcp_signal ? 1 : 0]);
+                lv_obj_set_style_text_color(states_lbl[i], state_color, LV_PART_MAIN);
               }
               const char* input_names[] = {"CD", "DAC", "PC", "AUX"};
               lv_label_set_text(id(lbl_main_active_input), input_names[cur]);
-              for (int i = 0; i < 4; i++) {
-                lv_obj_t* led = nullptr;
-                switch (i) {
-                  case 0: led = id(led_src_0); break;
-                  case 1: led = id(led_src_1); break;
-                  case 2: led = id(led_src_2); break;
-                  case 3: led = id(led_src_3); break;
-                }
-                if (led && i != cur) {
-                  lv_led_set_brightness(led, 0);
-                }
-              }
             }
-            // ── LED 呼吸灯 + 信号强度指示 (嵌套在同作用域, 使用上方 cur) ──
             {
               static uint32_t breath_tick = 0;
               breath_tick++;
-              // sin 周期约 5.2 秒 (2π/0.06 ≈ 105 帧)
               float breath = (sinf(breath_tick * 0.06f) + 1.0f) * 0.5f;
               int b;
-              if (s_signal_avg > 80)                    // 信号强 → 常亮
+              if (s_signal_avg > 80)
                 b = 255;
-              else if (s_signal_avg > 5)                // 有信号 → 呼吸 (140~255)
+              else if (s_signal_avg > 5)
                 b = 140 + (int)(breath * 115.0f);
-              else                                      // 无 MSGEQ7 信号 → 熄灭
+              else
                 b = 0;
               lv_obj_t* leds[] = { id(led_src_0), id(led_src_1), id(led_src_2), id(led_src_3) };
               for (int i = 0; i < 4; i++) {
-                if (leds[i] && i == cur) {
-                  lv_led_set_brightness(leds[i], b);
-                }
+                if (!leds[i]) continue;
+                bool active_led = (i == cur && b > 0);
+                lv_led_set_color(leds[i], _accent);
+                lv_led_set_brightness(leds[i], i == cur ? b : 0);
+                lv_obj_set_style_bg_color(leds[i], active_led ? _accent : lv_color_hex(0x1F2937), LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(leds[i], active_led ? (lv_opa_t)b : LV_OPA_50, LV_PART_MAIN);
               }
             }
           }
@@ -5855,13 +6489,13 @@ interval:
 
           // ═══ 静音指示 (含变化检测) ═══
           {
-            static bool last_mute = false;
+            static int last_mute = -1;
             bool mute_now = id(soft_mute);
-            if (mute_now != last_mute) {
-              last_mute = mute_now;
+            if ((int)mute_now != last_mute) {
+              last_mute = (int)mute_now;
               lv_obj_set_style_text_color(id(lbl_mute),
-                mute_now ? lv_color_hex(0xEF4444) : lv_color_hex(0x263244), LV_PART_MAIN);
-              lv_obj_set_style_opa(id(lbl_mute), mute_now ? LV_OPA_COVER : LV_OPA_30, LV_PART_MAIN);
+                mute_now ? lv_color_hex(0xEF4444) : lv_color_hex(0x6B7280), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_mute), mute_now ? LV_OPA_COVER : LV_OPA_70, LV_PART_MAIN);
             }
           }
 
@@ -5869,23 +6503,23 @@ interval:
           {
             static bool last_wifi = false;
             bool wifi_ok = wifi::global_wifi_component->is_connected();
-            if (wifi_ok != last_wifi) {
-              last_wifi = wifi_ok;
-              lv_obj_set_style_text_color(id(lbl_wifi),
-                wifi_ok ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
-              lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+              if (wifi_ok != last_wifi) {
+                last_wifi = wifi_ok;
+                lv_obj_set_style_text_color(id(lbl_wifi),
+                  wifi_ok ? _accent : lv_color_hex(0x64748B), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_wifi), wifi_ok ? LV_OPA_90 : LV_OPA_60, LV_PART_MAIN);
             }
           }
 
           // ═══ BLE 图标颜色 (含变化检测) ═══
           {
-            static bool last_ble = false;
-            bool ble_ok = id(ble_connected);
-            if (ble_ok != last_ble) {
-              last_ble = ble_ok;
-              lv_obj_set_style_text_color(id(lbl_ble),
-                ble_ok ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
-              lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_80 : LV_OPA_30, LV_PART_MAIN);
+            static int last_ble = -1;
+            bool ble_ok = id(ble_connected) && !id(ble_remote_connected);
+              if ((int)ble_ok != last_ble) {
+                last_ble = (int)ble_ok;
+                lv_obj_set_style_text_color(id(lbl_ble),
+                  ble_ok ? _accent : lv_color_hex(0x64748B), LV_PART_MAIN);
+              lv_obj_set_style_opa(id(lbl_ble), ble_ok ? LV_OPA_90 : LV_OPA_60, LV_PART_MAIN);
             }
           }
 
@@ -5908,9 +6542,9 @@ interval:
                 bool has_peer = !bda.empty() && bda != "\"\"" && bda.length() >= 17;
                 lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x263244), LV_PART_MAIN);
-                lv_obj_set_style_opa(id(lbl_ble_remote_indicator), has_peer ? LV_OPA_40 : LV_OPA_20, LV_PART_MAIN);
-                lv_obj_set_style_opa(id(ble_remote_batt_outline), has_peer ? LV_OPA_40 : LV_OPA_20, LV_PART_MAIN);
+                lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), lv_color_hex(0x64748B), LV_PART_MAIN);
+                lv_obj_set_style_opa(id(lbl_ble_remote_indicator), has_peer ? LV_OPA_70 : LV_OPA_50, LV_PART_MAIN);
+                lv_obj_set_style_opa(id(ble_remote_batt_outline), has_peer ? LV_OPA_70 : LV_OPA_50, LV_PART_MAIN);
               }
             }
 
@@ -5963,7 +6597,7 @@ interval:
                 if (connected) {
                   id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
                   // 电池电量
-                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b); id(ble_remote_scan_status) += buf; } }
+                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b); id(ble_remote_scan_status) += buf; } else { id(ble_remote_scan_status) += " 电池: 未知"; } }
                   // 持久化 BDA
                   std::string bda = ble_hid_host::get_peer_bda_string();
                   if (!bda.empty()) id(ble_remote_peer_bda) = bda;
@@ -5977,13 +6611,13 @@ interval:
                 lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_set_style_text_color(id(lbl_ble_remote_indicator),
-                  connected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                  connected ? _accent : lv_color_hex(0x64748B), LV_PART_MAIN);
                 lv_obj_set_style_opa(id(lbl_ble_remote_indicator),
-                  connected ? LV_OPA_80 : (has_peer ? LV_OPA_40 : LV_OPA_20), LV_PART_MAIN);
+                  connected ? LV_OPA_90 : (has_peer ? LV_OPA_70 : LV_OPA_50), LV_PART_MAIN);
                 lv_obj_set_style_border_color(id(ble_remote_batt_outline),
-                  connected ? _accent : lv_color_hex(0x263244), LV_PART_MAIN);
+                  connected ? _accent : lv_color_hex(0x64748B), LV_PART_MAIN);
                 lv_obj_set_style_opa(id(ble_remote_batt_outline),
-                  connected ? LV_OPA_80 : (has_peer ? LV_OPA_40 : LV_OPA_20), LV_PART_MAIN);
+                  connected ? LV_OPA_90 : (has_peer ? LV_OPA_70 : LV_OPA_50), LV_PART_MAIN);
                 // 更新 ble_remote_page 返回按钮文字（断开留在本页，不返回设置）
                 lv_label_set_text(id(lbl_ble_back), connected ? "断开" : "返回设置");
               }
@@ -6000,6 +6634,13 @@ interval:
                       id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
                       char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b);
                       id(ble_remote_scan_status) += buf;
+                    }
+                  } else {
+                    id(ble_remote_battery) = -1;
+                    static bool last_batt_unknown = false;
+                    if (!last_batt_unknown) {
+                      last_batt_unknown = true;
+                      id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name() + " 电池: 未知";
                     }
                   }
                 }
@@ -6065,7 +6706,8 @@ interval:
               const char* ha_event_name = "";
               // ── 应用用户按键映射 ──
               {
-                int mapped = (int)evt.type;
+                int raw_type = (int)evt.type;
+                int mapped = raw_type;
                 switch (evt.type) {
                   case 1: mapped = id(key_map_1); break;
                   case 2: mapped = id(key_map_2); break;
@@ -6082,14 +6724,39 @@ interval:
                   case 13: mapped = id(key_map_13); break;
                   case 14: mapped = id(key_map_14); break;
                 }
-                if (mapped == 0) continue;  // 禁用此按键
+                // 1~8 是遥控器核心按键。旧 NVS 或误操作若把它们映射成禁用/非法值，
+                // 会造成“日志有 HID，实体完全没反应”，这里回退到原始动作。
+                if ((mapped <= 0 || mapped >= remote_keys::ACTION_COUNT) &&
+                    raw_type >= (int)ble_hid_host::HID_EVT_VOLUME_UP &&
+                    raw_type <= (int)ble_hid_host::HID_EVT_CYCLE_INPUT) {
+                  mapped = raw_type;
+                }
+                ESP_LOGI("ble_hid", "HID action raw=%d mapped=%d standby=%d ready=%d switching=%d",
+                         raw_type, mapped, id(standby) ? 1 : 0, id(system_ready) ? 1 : 0,
+                         id(switching_input) ? 1 : 0);
+                if (mapped == 0) continue;  // 扩展按键仍允许禁用
                 evt.type = (ble_hid_host::HidEventType)mapped;
+              }
+              if (id(standby) &&
+                  ((evt.type >= ble_hid_host::HID_EVT_VOLUME_UP &&
+                    evt.type <= ble_hid_host::HID_EVT_CYCLE_INPUT) ||
+                   evt.type == ble_hid_host::HID_EVT_PAUSE)) {
+                if (!id(temp_protect)) {
+                  ESP_LOGI("ble_hid", "HID wake from standby mapped=%d", (int)evt.type);
+                  id(exit_standby)->execute();
+                  ha_event_name = "WAKE";
+                }
+                if (ha_event_name[0] && ((int)evt.type < 0x10 || evt.type == ble_hid_host::HID_EVT_PAUSE)) {
+                  id(ble_hid_event_text).publish_state(ha_event_name);
+                }
+                continue;
               }
               switch (evt.type) {
                 case ble_hid_host::HID_EVT_VOLUME_UP:
                   if (id(standby) || !id(system_ready) || id(switching_input)) break;
                   if (id(volume_val) < id(max_volume)) { id(volume_val) = id(volume_val) + 1; }
                   id(last_v_change_ms) = millis();
+                  id(save_current_input_volume)->execute(id(current_input), id(volume_val));
                   id(send_volume_to_pga)->execute();
                   ha_event_name = "VOLUME_UP";
                   break;
@@ -6097,6 +6764,7 @@ interval:
                   if (id(standby) || !id(system_ready) || id(switching_input)) break;
                   if (id(volume_val) > 0) { id(volume_val) = id(volume_val) - 1; }
                   id(last_v_change_ms) = millis();
+                  id(save_current_input_volume)->execute(id(current_input), id(volume_val));
                   id(send_volume_to_pga)->execute();
                   ha_event_name = "VOLUME_DOWN";
                   break;
@@ -6109,7 +6777,13 @@ interval:
                   if (id(standby) || !id(system_ready)) break;
                   id(media_select)->publish_state("播放");
                   id(media_reset)->execute();
-                  ha_event_name = "PLAY_PAUSE";
+                  ha_event_name = "PLAY";
+                  break;
+                case ble_hid_host::HID_EVT_PAUSE:
+                  if (id(standby) || !id(system_ready)) break;
+                  id(media_select)->publish_state("暂停");
+                  id(media_reset)->execute();
+                  ha_event_name = "PAUSE";
                   break;
                 case ble_hid_host::HID_EVT_NEXT_TRACK:
                   if (id(standby) || !id(system_ready)) break;
@@ -6178,7 +6852,7 @@ interval:
                   break;
               }
               // 推送 HA 事件
-              if (ha_event_name[0] && evt.type < 0x10) {  // 只推送用户按键事件（非内部事件）
+              if (ha_event_name[0] && (evt.type < 0x10 || evt.type == ble_hid_host::HID_EVT_PAUSE)) {
                 id(ble_hid_event_text).publish_state(ha_event_name);
               }
             }
@@ -6369,6 +7043,7 @@ binary_sensor:
                       lv_obj_set_style_border_width(id(dbg_row_back), 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(id(dbg_row_back), lv_color_hex(0x080D16), LV_PART_MAIN);
                     }
+                    id(style_secondary_pages)->execute();
                     id(last_display_interaction) = millis();
                     lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
 
@@ -6417,6 +7092,7 @@ binary_sensor:
                               id(ble_remote_device_count) = 0;
                               id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "已连接: " + ble_hid_host::get_connected_name() : "未连接";
                               id(ble_remote_connected) = ble_hid_host::is_connected();
+                              id(style_secondary_pages)->execute();
                               id(last_display_interaction) = millis();
                               lv_scr_load_anim(id(ble_remote_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
@@ -6439,6 +7115,7 @@ binary_sensor:
                                 lv_obj_set_style_bg_color(rows_k[i],
                                   i == 0 ? lv_color_hex(0x142033) : (i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827)), LV_PART_MAIN);
                               }
+                              id(style_secondary_pages)->execute();
                               id(last_display_interaction) = millis();
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
@@ -6448,12 +7125,14 @@ binary_sensor:
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], 24);
+                            id(style_secondary_pages)->execute();
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）
                             id(settings_active_idx) = -1;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x142033), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::bar_base_heights[idx]);
+                            id(style_secondary_pages)->execute();
                           }
                       - script.execute: reset_idle_timer
                     else:
@@ -6516,6 +7195,7 @@ binary_sensor:
                                             id(keymap_row_6), id(keymap_row_7)
                                           };
                                           lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1B2A40), LV_PART_MAIN);
+                                          id(style_secondary_pages)->execute();
                                         } else {
                                           // 调节→浏览：确认修改, 恢复背景
                                           id(keymap_active_idx) = -1;
@@ -6525,6 +7205,7 @@ binary_sensor:
                                             id(keymap_row_6), id(keymap_row_7)
                                           };
                                           lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x142033), LV_PART_MAIN);
+                                          id(style_secondary_pages)->execute();
                                         }
                                       } else if (f == 8) {
                                         id(keymap_active_idx) = -1;
@@ -6587,6 +7268,7 @@ binary_sensor:
                                                         lv_obj_set_style_border_color(rows[0], get_theme_accent(id(theme)), LV_PART_MAIN);
                                                         lv_obj_set_style_border_side(rows[0], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                                                         lv_obj_set_style_bg_color(rows[0], lv_color_hex(0x142033), LV_PART_MAIN);
+                                                        id(style_secondary_pages)->execute();
                                                         lv_obj_scroll_to_view(rows[0], LV_ANIM_OFF);
                                                     - lvgl.page.show:
                                                         id: settings_page
@@ -6742,4 +7424,3 @@ binary_sensor:
     on_release:
       then:
         - script.execute: auto_switch_input
-

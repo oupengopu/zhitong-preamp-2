@@ -130,6 +130,15 @@ inline int _l_offset[MSGEQ7_NUM_BANDS] = {0};
 //   中值滤波后仍有 ±0.3°C 抖动, IIR 平滑后显示更稳定
 static constexpr float NTC_IIR_ALPHA = 0.15f;  // 越小越平滑, 0.15 ≈ 7s 时间常数 @10s间隔
 inline float _ntc_smooth = NTC_INVALID;
+inline bool _ntc_plausible_seen = false;
+inline uint8_t _ntc_attach_count = 0;
+inline float _ntc_attach_last = NTC_INVALID;
+
+static constexpr float NTC_ATTACH_MIN_C = -20.0f;
+static constexpr float NTC_ATTACH_MAX_C = 70.0f;
+static constexpr uint8_t NTC_ATTACH_CONFIRM_COUNT = 3;
+static constexpr float NTC_ATTACH_MAX_STEP_C = 8.0f;
+static constexpr float NTC_MAX_RUNTIME_STEP_C = 20.0f;
 
 // ═══════════════════════════════════════════════════════════════
 //  ADC 内部函数
@@ -470,6 +479,13 @@ static void read() {
 // 温度有效判定 (前向声明)
 static bool is_temperature_valid(float t) { return t > -50.0f && t < 150.0f; }
 
+static void _set_ntc_invalid() {
+  portENTER_CRITICAL(&_mux);
+  _ntc_temperature = NTC_INVALID;
+  _ntc_smooth = NTC_INVALID;
+  portEXIT_CRITICAL(&_mux);
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  读取 NTC 温度
 // ═══════════════════════════════════════════════════════════════
@@ -501,9 +517,7 @@ static void read_ntc() {
   // 电路: 3.3V → 10kΩ(上拉) → ADC → NTC → GND  (DOWNSTREAM)
   // R_ntc = R_series × V_adc / (V_ref - V_adc)
   if (voltage >= (NTC_REF_VOLTAGE - 0.01f) || voltage < 0.01f) {
-    portENTER_CRITICAL(&_mux);
-    _ntc_temperature = NTC_INVALID;
-    portEXIT_CRITICAL(&_mux);
+    _set_ntc_invalid();
     return;
   }
 
@@ -512,6 +526,42 @@ static void read_ntc() {
   // B 参数方程
   float t_inv = 1.0f / NTC_REF_TEMP_K + (1.0f / (float)NTC_B_CONSTANT) * logf(resistance / NTC_REF_RESISTANCE);
   float temp = 1.0f / t_inv - 273.15f;
+
+  if (!is_temperature_valid(temp)) {
+    _set_ntc_invalid();
+    return;
+  }
+
+  // GPIO10 floats when the NTC divider is not fitted on a bench setup.
+  // Trust over-temp protection only after several stable plausible readings.
+  if (!_ntc_plausible_seen) {
+    if (temp < NTC_ATTACH_MIN_C || temp > NTC_ATTACH_MAX_C) {
+      _ntc_attach_count = 0;
+      _ntc_attach_last = NTC_INVALID;
+      _set_ntc_invalid();
+      return;
+    }
+
+    if (!is_temperature_valid(_ntc_attach_last) ||
+        fabsf(temp - _ntc_attach_last) <= NTC_ATTACH_MAX_STEP_C) {
+      if (_ntc_attach_count < 255) _ntc_attach_count++;
+    } else {
+      _ntc_attach_count = 1;
+    }
+    _ntc_attach_last = temp;
+
+    if (_ntc_attach_count < NTC_ATTACH_CONFIRM_COUNT) {
+      _set_ntc_invalid();
+      return;
+    }
+    _ntc_plausible_seen = true;
+    ESP_LOGI("msgeq7", "NTC attached after %u stable readings (%.1fC)",
+             _ntc_attach_count, temp);
+  } else if (is_temperature_valid(_ntc_smooth) &&
+             fabsf(temp - _ntc_smooth) > NTC_MAX_RUNTIME_STEP_C) {
+    ESP_LOGW("msgeq7", "NTC spike ignored: %.1fC -> %.1fC", _ntc_smooth, temp);
+    return;
+  }
 
   // IIR 一阶低通 (防温度末位闪烁: 中值滤波后仍有 ±0.3°C 抖动)
   //   首次采样直接采纳, 后续 α=0.15 平滑 (约 7s 时间常数 @10s 间隔)

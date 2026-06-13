@@ -9,6 +9,8 @@
 
 #ifndef UNIT_TEST
 #include "esphome.h"
+#include "esphome/components/esp32_ble/ble.h"
+#include "esphome/components/esp32_ble/ble_scan_result.h"
 #include <esp_bt.h>
 #include <esp_bt_main.h>
 #include <esp_gap_ble_api.h>
@@ -29,7 +31,8 @@
 #define HID_SERVICE_UUID        0x1812
 #define HID_REPORT_UUID         0x2A4D
 #define HID_BOOT_KB_INPUT_UUID  0x2A22
-#define BLE_HID_MAX_REPORTS     4       // HID Service 下最多 Report 特征值数
+#define HID_BOOT_MOUSE_INPUT_UUID 0x2A33
+#define BLE_HID_MAX_REPORTS     8       // HID Service 下最多输入 Report 特征值数
 
 // Consumer page usage IDs (mapped from HID reports)
 #define CONSUMER_VOLUME_UP      0xE9
@@ -72,6 +75,7 @@ enum HidEventType : uint8_t {
     HID_EVT_CONNECTED      = 0x10,  // 内部事件
     HID_EVT_DISCONNECTED   = 0x11,  // 内部事件
     HID_EVT_SCAN_DONE      = 0x12,  // 内部事件
+    HID_EVT_PAUSE          = 0x13,  // extended media event
 };
 
 struct HidEvent {
@@ -115,6 +119,11 @@ struct HidState {
     int             report_cccds_written = 0;
     char            connected_name[BLE_HID_NAME_LEN] = {0};
     uint32_t        last_key_ms = 0;
+    bool            pending_ambig80_mute = false;
+    bool            ambig80_long_active = false;
+    uint32_t        pending_ambig80_due_ms = 0;
+    uint32_t        ambig80_last_ms = 0;
+    uint32_t        suppress_power_until_ms = 0;
     bool            auto_reconnect = true;
     bool            reconnect_pending = false;
     int             reconnect_retries = 0;
@@ -134,6 +143,10 @@ struct HidState {
     // 扫描
     bool            scan_active = false;
     bool            scan_start_pending = false;
+    bool            connect_pending = false;
+    uint8_t         pending_bda[6] = {0};
+    esp_ble_addr_type_t pending_addr_type = BLE_ADDR_TYPE_PUBLIC;
+    char            pending_name[BLE_HID_NAME_LEN] = {0};
 
     // 电池电量
     int             battery_level = -1;     // -1 = unknown
@@ -155,6 +168,8 @@ struct HidState {
     uint32_t        setup_start_ms = 0;
     bool            setup_done = false;
     bool            registration_warned = false;
+    esphome::esp32_ble::ESP32BLE* ble_parent = nullptr;
+    bool            gattc_register_requested = false;
 };
 
 // C++11 线程安全的函数局部静态 (Meyers Singleton)
@@ -165,12 +180,26 @@ inline HidState& S() {
 
 // ── 前向声明 ──
 static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
+static void _ble_gap_scan_cb(const esphome::esp32_ble::BLEScanResult& result);
 static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
 static void _handle_disconnect_event(int reason, const char* source);
 static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reconnect_retries_save);
+static void _open_pending_connection();
 
 // ── 辅助: 全零 BDA 常量 (替代 C99 复合字面量) ──
 static const uint8_t ZERO_BDA[6] = {0};
+
+static bool _request_gattc_app_register() {
+    if (S().registered || S().gattc_register_requested) return true;
+    esp_err_t ret = esp_ble_gattc_app_register(1);  // app_id 1 (server uses default 0)
+    if (ret != ESP_OK) {
+        ESP_LOGW("ble_hid", "GATTC app register deferred/failed: %s", esp_err_to_name(ret));
+        return false;
+    }
+    S().gattc_register_requested = true;
+    S().setup_start_ms = millis();
+    return true;
+}
 
 // ── 辅助: 判断 name 是否为 BDA 回退格式 "XX:XX:XX:XX:XX:XX" ──
 static bool _is_bda_name(const char* s) {
@@ -247,6 +276,78 @@ static void _parse_adv_data(const uint8_t* data, uint8_t len,
 static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
     if (len == 0) return HID_EVT_NONE;
 
+    auto parse_mouse_like = [](uint8_t buttons, int8_t x, int8_t y, int8_t wheel) -> HidEventType {
+        if (wheel > 0) return HID_EVT_VOLUME_UP;
+        if (wheel < 0) return HID_EVT_VOLUME_DOWN;
+        if (y < 0) return HID_EVT_SWIPE_UP;
+        if (y > 0) return HID_EVT_SWIPE_DOWN;
+        if (x < 0) return HID_EVT_SWIPE_LEFT;
+        if (x > 0) return HID_EVT_SWIPE_RIGHT;
+        if (buttons & 0x01) return HID_EVT_OK;
+        if (buttons & 0x02) return HID_EVT_CAMERA;
+        if (buttons & 0x04) return HID_EVT_PLAY_PAUSE;
+        return HID_EVT_NONE;
+    };
+
+    if (len == 10) {
+        auto emit_len10 = [](HidEventType evt) -> HidEventType {
+            static HidEventType last_evt = HID_EVT_NONE;
+            static uint32_t last_ms = 0;
+            uint32_t now = millis();
+            uint32_t gap_ms = (evt == HID_EVT_VOLUME_UP || evt == HID_EVT_VOLUME_DOWN) ? 120 : 500;
+            if (evt == last_evt && now - last_ms < gap_ms) return HID_EVT_NONE;
+            last_evt = evt;
+            last_ms = now;
+            return evt;
+        };
+        auto near16 = [](uint16_t value, uint16_t target, uint16_t tol) -> bool {
+            return value >= (uint16_t)(target - tol) && value <= (uint16_t)(target + tol);
+        };
+        uint16_t x1 = data[1] | (data[2] << 8);
+        uint16_t y1 = data[3] | (data[4] << 8);
+        uint16_t y2 = data[8] | (data[9] << 8);
+
+        static const uint8_t VOL_UP_1[10]      = {0x00,0x46,0x0E,0xCA,0x04,0x04,0x7D,0x03,0xCA,0x05};
+        static const uint8_t NEXT_1[10]        = {0x00,0x33,0x0B,0xAC,0x04,0x04,0x33,0x0B,0xAC,0x04};
+        static const uint8_t NEXT_2[10]        = {0x00,0xCD,0x04,0xAC,0x04,0x04,0xCD,0x04,0xAC,0x04};
+        static const uint8_t PLAY_PAUSE_1[10]  = {0x83,0x00,0x08,0x66,0x06,0x04,0x00,0x08,0x66,0x06};
+        static const uint8_t CYCLE_INPUT_1[10] = {0x00,0x00,0x08,0x9A,0x05,0x04,0x00,0x08,0x9A,0x05};
+        static const uint8_t POWER_1[10]       = {0x00,0xF4,0x06,0x20,0x03,0x04,0xF4,0x06,0xFC,0x08};
+        if (memcmp(data, VOL_UP_1, 10) == 0) return emit_len10(HID_EVT_VOLUME_UP);
+        if (memcmp(data, NEXT_1, 10) == 0 || memcmp(data, NEXT_2, 10) == 0) return emit_len10(HID_EVT_NEXT_TRACK);
+        if (memcmp(data, PLAY_PAUSE_1, 10) == 0) return emit_len10(HID_EVT_PLAY_PAUSE);
+        if (memcmp(data, CYCLE_INPUT_1, 10) == 0) return emit_len10(HID_EVT_CYCLE_INPUT);
+        if (memcmp(data, POWER_1, 10) == 0) return emit_len10(HID_EVT_POWER);
+
+        // Some remotes expose media keys as touch-like absolute reports. The
+        // exact coordinates drift, so match stable zones from the captured logs.
+        if (near16(y1, 0x04CA, 0x30) && near16(y2, 0x05CA, 0x40)) return emit_len10(HID_EVT_VOLUME_UP);
+        if (near16(y1, 0x04AC, 0x50) && near16(y2, 0x04AC, 0x50) && data[0] == 0x00) return emit_len10(HID_EVT_NEXT_TRACK);
+        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x0666, 0x90)) return emit_len10(HID_EVT_PLAY_PAUSE);
+        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x09EC, 0x90)) return emit_len10(HID_EVT_PAUSE);
+        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x059A, 0x90)) return emit_len10(HID_EVT_CYCLE_INPUT);
+        if (near16(x1, 0x06F4, 0x90) && (near16(y1, 0x0320, 0x90) || near16(y1, 0x03A0, 0x90))) {
+            return emit_len10(HID_EVT_POWER);
+        }
+    }
+
+    if (len == 1) {
+        HidEventType evt = parse_mouse_like(data[0], 0, 0, 0);
+        if (evt != HID_EVT_NONE) return evt;
+    }
+    if (len == 3 && data[0] != 0 && data[1] == 0 && data[2] == 0) {
+        HidEventType evt = parse_mouse_like(data[0], 0, 0, 0);
+        if (evt != HID_EVT_NONE) return evt;
+    }
+    if (len == 4 && (data[0] != 0 || data[3] != 0) && data[1] == 0 && data[2] == 0) {
+        HidEventType evt = parse_mouse_like(data[0], 0, 0, (int8_t)data[3]);
+        if (evt != HID_EVT_NONE) return evt;
+    }
+    if (len == 5 && (data[1] != 0 || data[4] != 0) && data[2] == 0 && data[3] == 0) {
+        HidEventType evt = parse_mouse_like(data[1], 0, 0, (int8_t)data[4]);
+        if (evt != HID_EVT_NONE) return evt;
+    }
+
     // ═══ Keyboard boot report: 8 bytes, or Report ID + keyboard report: 9 bytes ═══
     //   8B: byte 0=modifier, byte 1=reserved, bytes 2-7=key codes
     //   9B: byte 0=Report ID, byte 1=modifier, byte 2=reserved, bytes 3-8=key codes
@@ -302,6 +403,10 @@ static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
     if (len == 2) {
         uint16_t usage = data[0] | (data[1] << 8);
         switch (usage) {
+            case 0x0000: return HID_EVT_NONE;          // release frame
+            case 0x0080: return HID_EVT_MUTE;          // bitmask remote: observed [80 00]
+            case 0x0040: return HID_EVT_VOLUME_UP;     // bitmask remote: observed volume+ hold [40 00]
+            case 0x2000: return HID_EVT_VOLUME_DOWN;   // bitmask remote: observed [00 20]
             // ── 媒体键  [标准] ──
             case 0xE9: return HID_EVT_VOLUME_UP;
             case 0xEA: return HID_EVT_VOLUME_DOWN;
@@ -377,6 +482,23 @@ static void _queue_event_from_task(HidEventType type) {
     }
 }
 
+static void _flush_pending_ambig80_mute() {
+    bool should_emit_mute = false;
+    uint32_t now = millis();
+    if (S().mux && xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        if (S().pending_ambig80_mute && now >= S().pending_ambig80_due_ms) {
+            S().pending_ambig80_mute = false;
+            S().ambig80_long_active = false;
+            should_emit_mute = true;
+        }
+        xSemaphoreGive(S().mux);
+    }
+    if (should_emit_mute) {
+        ESP_LOGI("ble_hid", "ambiguous [80 00] resolved as MUTE");
+        _queue_event_from_task(HID_EVT_MUTE);
+    }
+}
+
 static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reconnect_retries_save) {
     if (!auto_reconnect_save) return;
 
@@ -416,6 +538,7 @@ static void _handle_disconnect_event(int reason, const char* source) {
         if (should_emit) {
             S().state = BLE_IDLE;
             S().conn_id = 0;
+            S().connect_pending = false;
             S().hid_svc_start = 0;
             S().hid_svc_end = 0;
             memset(S().report_char_handles, 0, sizeof(S().report_char_handles));
@@ -440,6 +563,47 @@ static void _handle_disconnect_event(int reason, const char* source) {
     ESP_LOGI("ble_hid", "已断开 (%s, reason=%d)", source, reason);
     _queue_event_from_task(HID_EVT_DISCONNECTED);
     _schedule_reconnect_from_snapshot(auto_reconnect_save, reconnect_retries_save);
+}
+
+static void _open_pending_connection() {
+    uint8_t bda[6] = {0};
+    esp_ble_addr_type_t addr_type = BLE_ADDR_TYPE_PUBLIC;
+    char name[BLE_HID_NAME_LEN] = {0};
+    esp_gatt_if_t gattc_if = 0;
+    bool valid = false;
+
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        bool busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED);
+        if (S().connect_pending && !busy && S().registered && S().gattc_if > 0) {
+            memcpy(bda, S().pending_bda, 6);
+            addr_type = S().pending_addr_type;
+            strncpy(name, S().pending_name, BLE_HID_NAME_LEN - 1);
+            name[BLE_HID_NAME_LEN - 1] = '\0';
+            gattc_if = S().gattc_if;
+
+            S().connect_pending = false;
+            memcpy(S().peer_bda, bda, 6);
+            S().peer_addr_type = addr_type;
+            strncpy(S().connected_name, name, BLE_HID_NAME_LEN - 1);
+            S().connected_name[BLE_HID_NAME_LEN - 1] = '\0';
+            S().paired = false;
+            S().cccd_ready = false;
+            S().auth_cmpl = false;
+            S().state = BLE_CONNECTING;
+            S().reconnect_retries = 0;
+            valid = memcmp(bda, ZERO_BDA, 6) != 0;
+        }
+        xSemaphoreGive(S().mux);
+    }
+
+    if (!valid) return;
+
+    ESP_LOGI("ble_hid", "正在连接 %s...", name);
+    esp_err_t ret = esp_ble_gattc_open(gattc_if, bda, addr_type, true);
+    if (ret != ESP_OK) {
+        ESP_LOGW("ble_hid", "GATT open 请求失败: %s", esp_err_to_name(ret));
+        _handle_disconnect_event((int) ret, "open_request");
+    }
 }
 
 // ═══════════════════════════════════════════════════
@@ -576,18 +740,23 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
             break;
 
         case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
+            {
+            bool should_emit_done = false;
+            bool should_open_pending = false;
             if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                 S().scan_active = false;
                 S().scan_start_pending = false;
                 if (S().state == BLE_SCANNING) {
                     S().state = BLE_IDLE;
-                    xSemaphoreGive(S().mux);
-                    _queue_event_from_task(HID_EVT_SCAN_DONE);
-                } else {
-                    xSemaphoreGive(S().mux);
+                    should_emit_done = true;
                 }
+                should_open_pending = S().connect_pending;
+                xSemaphoreGive(S().mux);
             }
+            if (should_emit_done) _queue_event_from_task(HID_EVT_SCAN_DONE);
+            if (should_open_pending) _open_pending_connection();
             break;
+            }
 
         // ── 安全握手: 商业遥控器连接后会主动请求配对 ──
         case ESP_GAP_BLE_SEC_REQ_EVT:
@@ -622,6 +791,20 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
 // ═══════════════════════════════════════════════════
 // GATT Client 回调 — 连接/服务发现/HID通知
 // ═══════════════════════════════════════════════════
+static void _ble_gap_scan_cb(const esphome::esp32_ble::BLEScanResult& result) {
+    esp_ble_gap_cb_param_t param = {};
+    param.scan_rst.search_evt = (esp_gap_search_evt_t) result.search_evt;
+    memcpy(param.scan_rst.bda, result.bda, sizeof(param.scan_rst.bda));
+    param.scan_rst.ble_addr_type = (esp_ble_addr_type_t) result.ble_addr_type;
+    param.scan_rst.rssi = result.rssi;
+    param.scan_rst.adv_data_len = result.adv_data_len;
+    param.scan_rst.scan_rsp_len = result.scan_rsp_len;
+    size_t adv_len = (size_t) result.adv_data_len + (size_t) result.scan_rsp_len;
+    if (adv_len > sizeof(param.scan_rst.ble_adv)) adv_len = sizeof(param.scan_rst.ble_adv);
+    memcpy(param.scan_rst.ble_adv, result.ble_adv, adv_len);
+    _ble_gap_cb(ESP_GAP_BLE_SCAN_RESULT_EVT, &param);
+}
+
 static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                            esp_ble_gattc_cb_param_t *param) {
     switch (event) {
@@ -638,9 +821,12 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 
         case ESP_GATTC_OPEN_EVT:
             if (param->open.status == ESP_GATT_OK) {
+                uint8_t local_bda[6] = {0};
+                uint16_t local_conn_id = param->open.conn_id;
                 if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                     S().conn_id = param->open.conn_id;
                     memcpy(S().peer_bda, param->open.remote_bda, 6);
+                    memcpy(local_bda, param->open.remote_bda, 6);
                     S().state = BLE_CONNECTING;
                     S().hid_svc_end = 0;
                     memset(S().report_char_handles, 0, sizeof(S().report_char_handles));
@@ -649,8 +835,12 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     S().report_cccds_written = 0;
                     xSemaphoreGive(S().mux);
                 }
+                esp_err_t sec_ret = esp_ble_set_encryption(local_bda, ESP_BLE_SEC_ENCRYPT_NO_MITM);
+                if (sec_ret != ESP_OK) {
+                    ESP_LOGW("ble_hid", "请求 BLE 加密失败: %s", esp_err_to_name(sec_ret));
+                }
                 ESP_LOGI("ble_hid", "已连接, 开始服务发现...");
-                esp_ble_gattc_search_service(gattc_if, S().conn_id, nullptr);
+                esp_ble_gattc_search_service(gattc_if, local_conn_id, nullptr);
             } else {
                 ESP_LOGW("ble_hid", "连接失败 (status=%d)", param->open.status);
                 _handle_disconnect_event(param->open.status, "open");
@@ -730,11 +920,16 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 uuid_boot_kb.len = ESP_UUID_LEN_16;
                 uuid_boot_kb.uuid.uuid16 = HID_BOOT_KB_INPUT_UUID;
 
+                esp_bt_uuid_t uuid_boot_mouse;
+                uuid_boot_mouse.len = ESP_UUID_LEN_16;
+                uuid_boot_mouse.uuid.uuid16 = HID_BOOT_MOUSE_INPUT_UUID;
+
                 esp_bt_uuid_t uuid_battery;
                 uuid_battery.len = ESP_UUID_LEN_16;
                 uuid_battery.uuid.uuid16 = BATTERY_LEVEL_UUID;
 
-                // Enumerate ALL Report characteristics (0x2A4D) in HID service
+                // Enumerate notifiable input Report characteristics (0x2A4D).
+                // HID output/feature reports may share UUID 0x2A4D but cannot emit keys.
                 {
                     esp_gattc_char_elem_t results[BLE_HID_MAX_REPORTS];
                     uint16_t count = BLE_HID_MAX_REPORTS;
@@ -743,17 +938,25 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                         uuid_hid_report,
                         results, &count);
                     if (status == ESP_GATT_OK || status == ESP_GATT_MORE) {
-                        local_report_count = count;
                         for (int i = 0; i < count; i++) {
-                            local_handles[i] = results[i].char_handle;
-                            ESP_LOGI("ble_hid", "  Report[%d] char_handle=0x%04x", i, results[i].char_handle);
+                            bool can_notify = (results[i].properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY) ||
+                                              (results[i].properties & ESP_GATT_CHAR_PROP_BIT_INDICATE);
+                            if (!can_notify) {
+                                ESP_LOGI("ble_hid", "  skip Report char_handle=0x%04x props=0x%02x (not input notify)",
+                                         results[i].char_handle, results[i].properties);
+                                continue;
+                            }
+                            int dst = local_report_count++;
+                            local_handles[dst] = results[i].char_handle;
+                            ESP_LOGI("ble_hid", "  Input Report[%d] char_handle=0x%04x props=0x%02x",
+                                     dst, results[i].char_handle, results[i].properties);
                             esp_gattc_descr_elem_t descr;
                             uint16_t d_count = 1;
                             if (esp_ble_gattc_get_descr_by_char_handle(
                                 gattc_if, local_conn_id, results[i].char_handle,
                                 uuid_cccd,
                                 &descr, &d_count) == ESP_GATT_OK && d_count > 0) {
-                                local_cccds[i] = descr.handle;
+                                local_cccds[dst] = descr.handle;
                                 ESP_LOGD("ble_hid", "    CCCD handle=0x%04x", descr.handle);
                             }
                         }
@@ -772,6 +975,29 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                         local_handles[0] = char_result.char_handle;
                         local_report_count = 1;
                         ESP_LOGI("ble_hid", "  回退: 使用 Boot KB Input (handle=0x%04x)", char_result.char_handle);
+                        esp_gattc_descr_elem_t descr;
+                        uint16_t d_count = 1;
+                        if (esp_ble_gattc_get_descr_by_char_handle(
+                            gattc_if, local_conn_id, char_result.char_handle,
+                            uuid_cccd,
+                            &descr, &d_count) == ESP_GATT_OK && d_count > 0) {
+                            local_cccds[0] = descr.handle;
+                        }
+                    }
+                }
+
+                // Fallback: Boot Mouse Input (0x2A33), common on small media/camera remotes
+                if (local_report_count == 0) {
+                    esp_gattc_char_elem_t char_result;
+                    uint16_t count = 1;
+                    esp_gatt_status_t status = esp_ble_gattc_get_char_by_uuid(
+                        gattc_if, local_conn_id, local_hid_start, local_hid_end,
+                        uuid_boot_mouse,
+                        &char_result, &count);
+                    if (status == ESP_GATT_OK && count > 0) {
+                        local_handles[0] = char_result.char_handle;
+                        local_report_count = 1;
+                        ESP_LOGI("ble_hid", "  fallback: Boot Mouse Input handle=0x%04x", char_result.char_handle);
                         esp_gattc_descr_elem_t descr;
                         uint16_t d_count = 1;
                         if (esp_ble_gattc_get_descr_by_char_handle(
@@ -825,9 +1051,13 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     esp_ble_gattc_close(gattc_if, local_conn_id);
                 }
 
+                if (local_batt_char <= 0) {
+                    ESP_LOGI("ble_hid", "Battery Level char not found; remote battery is unknown");
+                }
                 if (local_batt_char > 0) {
                     esp_ble_gattc_register_for_notify(gattc_if, local_peer_bda, local_batt_char);
                     esp_ble_gattc_read_char(gattc_if, local_conn_id, local_batt_char, ESP_GATT_AUTH_REQ_NONE);
+                    ESP_LOGI("ble_hid", "Battery Level read requested");
                     ESP_LOGI("ble_hid", "找到 Battery Level char (handle=0x%04x)", local_batt_char);
                 }
             } else {
@@ -838,7 +1068,6 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
         }
 
         case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
-            if (param->reg_for_notify.status != ESP_GATT_OK) break;
             uint16_t handle = param->reg_for_notify.handle;
 
             // 快照共享状态 (加锁读取，之后在锁外比对)
@@ -858,6 +1087,17 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 local_batt_cccd = S().batt_cccd_handle;
                 local_conn_id = S().conn_id;
                 xSemaphoreGive(S().mux);
+            }
+
+            bool is_report = false;
+            for (int i = 0; i < local_report_count; i++) {
+                if (handle == local_handles[i]) { is_report = true; break; }
+            }
+            if (param->reg_for_notify.status != ESP_GATT_OK) {
+                ESP_LOGW("ble_hid", "注册 HID notify 失败 handle=0x%04x status=%d",
+                         handle, param->reg_for_notify.status);
+                if (is_report && local_conn_id > 0) esp_ble_gattc_close(gattc_if, local_conn_id);
+                break;
             }
 
             uint16_t cccd_handle = 0;
@@ -888,6 +1128,8 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     if (all_ready) {
                         S().state = BLE_CONNECTED;
                         S().cccd_ready = true;
+                        S().connect_pending = false;
+                        S().auto_reconnect = true;
                         if (S().auth_cmpl) { S().paired = true; S().reconnect_retries = 0; }
                     }
                     xSemaphoreGive(S().mux);
@@ -937,6 +1179,8 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                         if (all_ready) {
                             S().state = BLE_CONNECTED;
                             S().cccd_ready = true;
+                            S().connect_pending = false;
+                            S().auto_reconnect = true;
                             if (S().auth_cmpl) { S().paired = true; S().reconnect_retries = 0; }
                         }
                         xSemaphoreGive(S().mux);
@@ -949,6 +1193,33 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     }
                 } else if (param->write.handle == local_batt_cccd && local_batt_cccd > 0) {
                     ESP_LOGD("ble_hid", "Battery CCCD 已启用");
+                }
+            } else {
+                int local_report_count = 0;
+                uint16_t local_cccds[BLE_HID_MAX_REPORTS] = {0};
+                uint16_t local_batt_cccd = 0;
+                uint16_t local_conn_id = 0;
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    local_report_count = S().report_count;
+                    for (int i = 0; i < local_report_count && i < BLE_HID_MAX_REPORTS; i++) {
+                        local_cccds[i] = S().report_cccd_handles[i];
+                    }
+                    local_batt_cccd = S().batt_cccd_handle;
+                    local_conn_id = S().conn_id;
+                    xSemaphoreGive(S().mux);
+                }
+                bool is_report_cccd = false;
+                for (int i = 0; i < local_report_count; i++) {
+                    if (param->write.handle == local_cccds[i]) {
+                        is_report_cccd = true;
+                        break;
+                    }
+                }
+                ESP_LOGW("ble_hid", "%s CCCD 写入失败 handle=0x%04x status=%d",
+                         is_report_cccd ? "HID" : (param->write.handle == local_batt_cccd ? "Battery" : "Unknown"),
+                         param->write.handle, param->write.status);
+                if (is_report_cccd && local_conn_id > 0) {
+                    esp_ble_gattc_close(gattc_if, local_conn_id);
                 }
             }
             break;
@@ -978,6 +1249,12 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             uint16_t n_handle = param->notify.handle;
             uint16_t n_len = param->notify.value_len;
             const uint8_t* n_val = param->notify.value;
+            char hex[64] = {0};
+            int hex_pos = 0;
+            uint16_t hex_len = n_len < 16 ? n_len : 16;
+            for (uint16_t i = 0; i < hex_len && hex_pos < (int)sizeof(hex) - 4; i++) {
+                hex_pos += snprintf(hex + hex_pos, sizeof(hex) - hex_pos, "%s%02X", i ? " " : "", n_val[i]);
+            }
 
             // Snapshot batt_char_handle under lock
             uint16_t local_batt_char;
@@ -990,6 +1267,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 
             // ── Battery level notification ──
             if (n_handle == local_batt_char && n_len > 0) {
+                ESP_LOGI("ble_hid", "Battery level notify: %d%%", (int)n_val[0]);
                 int level = -1;
                 if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                     S().battery_level = n_val[0];
@@ -1043,9 +1321,55 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             }
 
             // ── Parse HID report ──
+            bool is_ambig80_report = (n_len == 2 && n_val[0] == 0x80 && n_val[1] == 0x00);
+            if (!is_ambig80_report) _flush_pending_ambig80_mute();
+
             HidEventType evt_type = _parse_report(n_val, n_len);
+            uint32_t now = millis();
+
+            // Observed remote quirk:
+            //   [80 00] single press = mute, repeated hold = volume down.
+            // Hold also emits a spurious touch-like power packet at the end.
+            if (is_ambig80_report) {
+                bool emit_volume_down = false;
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    bool quick_repeat = (now - S().ambig80_last_ms) <= 900;
+                    if ((S().pending_ambig80_mute && quick_repeat) ||
+                        (S().ambig80_long_active && quick_repeat)) {
+                        S().pending_ambig80_mute = false;
+                        S().ambig80_long_active = true;
+                        S().suppress_power_until_ms = now + 1200;
+                        emit_volume_down = true;
+                    } else {
+                        S().pending_ambig80_mute = true;
+                        S().ambig80_long_active = false;
+                        S().pending_ambig80_due_ms = now + 800;
+                    }
+                    S().ambig80_last_ms = now;
+                    xSemaphoreGive(S().mux);
+                }
+                evt_type = emit_volume_down ? HID_EVT_VOLUME_DOWN : HID_EVT_NONE;
+            } else if (n_len == 2 && n_val[0] == 0x40 && n_val[1] == 0x00) {
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    S().suppress_power_until_ms = now + 1200;
+                    xSemaphoreGive(S().mux);
+                }
+            }
+
+            if (evt_type == HID_EVT_POWER) {
+                bool suppress_power = false;
+                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    suppress_power = now < S().suppress_power_until_ms;
+                    xSemaphoreGive(S().mux);
+                }
+                if (suppress_power) {
+                    ESP_LOGI("ble_hid", "suppress spurious power packet after volume hold");
+                    evt_type = HID_EVT_NONE;
+                }
+            }
+            ESP_LOGI("ble_hid", "HID notify handle=0x%04x len=%u data=[%s]%s evt=%d",
+                     n_handle, n_len, hex, n_len > 16 ? "..." : "", (int)evt_type);
             if (evt_type != HID_EVT_NONE) {
-                uint32_t now = millis();
                 bool should_queue = false;
                 if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
                     if (now - S().last_key_ms >= 30) {
@@ -1078,8 +1402,8 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 // Public API
 // ═══════════════════════════════════════════════════
 
-static bool setup() {
-    if (S().registered) return true;
+static bool setup(esphome::esp32_ble::ESP32BLE *ble = nullptr) {
+    if (S().registered || S().setup_done) return true;
 
     // 创建互斥量 (必须在注册 BLE 回调之前，因为回调可能异步触发)
     S().mux = xSemaphoreCreateMutex();
@@ -1097,8 +1421,23 @@ static bool setup() {
         return false;
     }
 
+    S().ble_parent = ble;
+
     // Register callbacks
-    esp_err_t ret = esp_ble_gap_register_callback(_ble_gap_cb);
+    esp_err_t ret = ESP_OK;
+    if (ble != nullptr) {
+        ble->add_gap_event_callback([](esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+            _ble_gap_cb(event, param);
+        });
+        ble->add_gap_scan_event_callback([](const esphome::esp32_ble::BLEScanResult& result) {
+            _ble_gap_scan_cb(result);
+        });
+        ble->add_gattc_event_callback([](esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
+            _ble_gattc_cb(event, gattc_if, param);
+        });
+        ESP_LOGI("ble_hid", "BLE HID Host using ESPHome BLE dispatcher");
+    } else {
+    ret = esp_ble_gap_register_callback(_ble_gap_cb);
     if (ret != ESP_OK) {
         ESP_LOGE("ble_hid", "GAP callback 注册失败: %s", esp_err_to_name(ret));
         vQueueDelete(S().hid_queue); S().hid_queue = nullptr;
@@ -1115,6 +1454,13 @@ static bool setup() {
     }
 
     // Register application (async — app ID assigned in ESP_GATTC_REG_EVT)
+    }
+
+    if (ble == nullptr || ble->is_active()) {
+        _request_gattc_app_register();
+    }
+
+    /*
     ret = esp_ble_gattc_app_register(1);  // app_id 1 (server uses default 0)
     if (ret != ESP_OK) {
         ESP_LOGE("ble_hid", "GATTC app register 失败: %s", esp_err_to_name(ret));
@@ -1122,12 +1468,14 @@ static bool setup() {
         vSemaphoreDelete(S().mux);   S().mux = nullptr;
         return false;
     }
+    */
 
     // Set security parameters (Just Works pairing)
     esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_BOND;
     esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;
     esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, sizeof(auth_req));
     esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, sizeof(iocap));
+    S().setup_done = true;
 
     // 异步等待注册 — 不阻塞主循环，在 poll() 中检查超时
     S().setup_done = true;
@@ -1209,92 +1557,85 @@ static void stop_scan() {
 }
 
 static void connect(int index) {
-    if (S().registered && S().gattc_if > 0) {
-        // Snapshot state under lock
-        {
-            BLEState st;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                st = S().state;
-                xSemaphoreGive(S().mux);
+    if (!(S().registered && S().gattc_if > 0)) return;
+
+    bool valid = false;
+    bool was_active = false;
+    bool busy = false;
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED || S().connect_pending);
+        if (!busy && index >= 0 && index < S().discovered_count) {
+            memcpy(S().pending_bda, S().discovered[index].bda, 6);
+            S().pending_addr_type = S().discovered[index].addr_type;
+            strncpy(S().pending_name, S().discovered[index].name, BLE_HID_NAME_LEN - 1);
+            S().pending_name[BLE_HID_NAME_LEN - 1] = '\0';
+            S().connect_pending = true;
+            S().auto_reconnect = false;
+            S().reconnect_pending = false;
+            S().reconnect_retries = 0;
+            was_active = S().scan_active;
+            if (S().scan_active || S().scan_start_pending) {
+                S().scan_active = false;
+                S().scan_start_pending = false;
+                if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
             }
-            if (st == BLE_SCANNING) {
-                stop_scan();
-            }
+            valid = true;
         }
-
-        // Snapshot device info under lock (count + device data in one critical section)
-        {
-            uint8_t bda[6];
-            esp_ble_addr_type_t addr_type;
-            char name[BLE_HID_NAME_LEN];
-            bool valid = false;
-
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                if (index >= 0 && index < S().discovered_count) {
-                    memcpy(bda, S().discovered[index].bda, 6);
-                    addr_type = S().discovered[index].addr_type;
-                    strncpy(name, S().discovered[index].name, BLE_HID_NAME_LEN - 1);
-                    name[BLE_HID_NAME_LEN - 1] = '\0';
-
-                    memcpy(S().peer_bda, bda, 6);
-                    S().peer_addr_type = addr_type;
-                    strncpy(S().connected_name, name, BLE_HID_NAME_LEN - 1);
-                    S().paired = false;
-                    S().cccd_ready = false;
-                    S().auth_cmpl = false;
-                    S().state = BLE_CONNECTING;
-                    S().reconnect_retries = 0;
-                    valid = true;
-                }
-                xSemaphoreGive(S().mux);
-            } else {
-                return;
-            }
-
-            if (valid) {
-                ESP_LOGI("ble_hid", "正在连接 %s...", name);
-                esp_ble_gattc_open(S().gattc_if, bda, addr_type, true);
-            }
-        }
+        xSemaphoreGive(S().mux);
+    } else {
+        return;
     }
+
+    if (busy) {
+        ESP_LOGW("ble_hid", "connect request ignored while busy");
+        return;
+    }
+    if (!valid) return;
+
+    if (was_active) {
+        esp_ble_gap_stop_scanning();
+    } else {
+        _open_pending_connection();
+    }
+    return;
 }
 
 static void connect_by_bda(const uint8_t* bda) {
-    if (S().registered && S().gattc_if > 0 && bda != nullptr) {
-        // Snapshot state under lock before deciding to stop scan
-        {
-            BLEState st;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                st = S().state;
-                xSemaphoreGive(S().mux);
+    if (!(S().registered && S().gattc_if > 0 && bda != nullptr)) return;
+
+    bool valid = false;
+    bool was_active = false;
+    bool busy = false;
+    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED || S().connect_pending);
+        if (!busy && memcmp(bda, ZERO_BDA, 6) != 0) {
+            memcpy(S().pending_bda, bda, 6);
+            S().pending_addr_type = S().peer_addr_type;
+            snprintf(S().pending_name, BLE_HID_NAME_LEN,
+                     "%02X:%02X:%02X:%02X:%02X:%02X",
+                     bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            S().connect_pending = true;
+            was_active = S().scan_active;
+            if (S().scan_active || S().scan_start_pending) {
+                S().scan_active = false;
+                S().scan_start_pending = false;
+                if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
             }
-            if (st == BLE_SCANNING) {
-                stop_scan();
-            }
+            valid = true;
         }
-
-        esp_ble_addr_type_t addr_type;
-        uint8_t local_bda[6];
-        if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-            memcpy(S().peer_bda, bda, 6);
-            S().paired = false;
-            S().cccd_ready = false;
-            S().auth_cmpl = false;
-            S().reconnect_retries = 0;
-            S().state = BLE_CONNECTING;
-            addr_type = S().peer_addr_type;
-            xSemaphoreGive(S().mux);
-        } else {
-            return;
-        }
-
-        memcpy(local_bda, bda, 6);
-
-        ESP_LOGI("ble_hid", "自动重连 %02X:%02X:%02X:%02X:%02X:%02X...",
-                 local_bda[0], local_bda[1], local_bda[2],
-                 local_bda[3], local_bda[4], local_bda[5]);
-        esp_ble_gattc_open(S().gattc_if, local_bda, addr_type, true);
+        xSemaphoreGive(S().mux);
+    } else {
+        return;
     }
+
+    if (busy || !valid) return;
+
+    if (was_active) {
+        esp_ble_gap_stop_scanning();
+    } else {
+        _open_pending_connection();
+    }
+    return;
 }
 
 static void disconnect() {
@@ -1302,6 +1643,7 @@ static void disconnect() {
         S().auto_reconnect = false;
         S().reconnect_pending = false;
         S().reconnect_retries = 0;
+        S().connect_pending = false;
         if (S().state == BLE_CONNECTED && S().gattc_if > 0) {
             uint16_t conn = S().conn_id;
             esp_gatt_if_t gif = S().gattc_if;
@@ -1319,6 +1661,7 @@ static void reconnect_enable() {
     if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
         S().auto_reconnect = true;
         S().reconnect_retries = 0;
+        S().connect_pending = false;
         S().reconnect_pending = true;
         S().reconnect_next_ms = millis() + 500;  // 500ms 后 poll() 触发首次连接
         xSemaphoreGive(S().mux);
@@ -1333,8 +1676,12 @@ static void poll() {
     if (S().mux == nullptr) return;
 
     // 异步注册超时检测
-    if (!S().registered && S().setup_done && !S().registration_warned) {
-        if (millis() - S().setup_start_ms > 2000) {
+if (!S().registered && S().setup_done) {
+        if (!S().gattc_register_requested &&
+            (S().ble_parent == nullptr || S().ble_parent->is_active())) {
+            _request_gattc_app_register();
+        }
+        if (!S().registration_warned && millis() - S().setup_start_ms > 2000) {
             ESP_LOGE("ble_hid", "GATT Client 注册超时 (2s)");
             S().registration_warned = true;
         }
@@ -1361,6 +1708,7 @@ static void poll() {
 
 static bool has_event() {
     if (S().hid_queue == nullptr) return false;
+    _flush_pending_ambig80_mute();
     UBaseType_t waiting = uxQueueMessagesWaiting(S().hid_queue);
     return waiting > 0;
 }

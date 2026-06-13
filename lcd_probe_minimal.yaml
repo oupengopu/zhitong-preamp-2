@@ -1,0 +1,25 @@
+esphome:
+  name: lcd-probe-s3
+  friendly_name: LCD Probe S3
+  includes:
+    - PGA/lcd_probe.h
+  on_boot:
+    - priority: 600
+      then:
+        - delay: 500ms
+        - lambda: |-
+            ESP_LOGI("LCD_PROBE", "minimal firmware boot");
+            lcd_probe::run_reset_probe();
+            lcd_probe::run_color_test();
+            lcd_probe::run_color_test_3wire();
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+  hardware_uart: UART0
