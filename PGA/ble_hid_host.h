@@ -411,9 +411,11 @@ static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* d
         if (data[1] == 0x20) {
             return _make_normalized_fingerprint(handle, len, NK_SHORT_KEY, NV_VOLUME_DOWN);
         }
-        if (data[0] == 0x40 || data[0] == 0x80) {
-            return _make_normalized_fingerprint(handle, len, NK_SHORT_KEY, NV_MUTE_TOGGLE);
-        }
+        // [40 XX] / [80 XX]: cheap remotes send these for various keys.
+        // Do NOT normalize them to a single NV_MUTE_TOGGLE -- collapsing
+        // [40 00] and [80 00] into the same NK_SHORT_KEY fingerprint
+        // causes key aliasing ('串键'). Use NK_RAW_FALLBACK so the FNV-1a
+        // hash captures the full report bytes as distinct fingerprints.
         RawFingerprint raw = _make_raw_fingerprint(handle, data, len);
         if (!raw.learnable) return none;
         return _make_raw_fallback_fingerprint(raw);

@@ -102,7 +102,7 @@ class RealControlPreviewTest(unittest.TestCase):
         self.assertIn("NK_AXIS_DIR", header)
         self.assertIn("NK_AXIS_CENTER", header)
         self.assertIn("NK_AXIS_POINT", header)
-        self.assertIn("data[0] == 0x40 || data[0] == 0x80", header)
+        self.assertNotIn("data[0] == 0x40 || data[0] == 0x80", header)
         self.assertIn("data[1] == 0x20", header)
         self.assertIn("int16_t x = (int16_t)(data[1] | (data[2] << 8));", header)
         self.assertIn("int16_t y = (int16_t)(data[3] | (data[4] << 8));", header)
