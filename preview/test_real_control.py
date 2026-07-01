@@ -106,8 +106,8 @@ class RealControlPreviewTest(unittest.TestCase):
         self.assertIn("data[1] == 0x20", header)
         self.assertIn("int16_t x = (int16_t)(data[1] | (data[2] << 8));", header)
         self.assertIn("int16_t y = (int16_t)(data[3] | (data[4] << 8));", header)
-        self.assertIn("_abs32((int32_t)x - 0x0E46) < 160", header)
-        self.assertIn("_abs32((int32_t)y - 0x04CA) < 160", header)
+        self.assertIn("_abs32((int32_t)x - 0x0E46) < 100", header)
+        self.assertIn("_abs32((int32_t)y - 0x04CA) < 100", header)
         self.assertIn("last_trigger_time", header)
         notify_block = header[header.index("learned-only mode"):header.index("if (evt_type != HID_EVT_NONE)")]
         self.assertIn("evt_type = _match_learned_key(fp);", notify_block)
@@ -416,7 +416,7 @@ class RealControlPreviewTest(unittest.TestCase):
         self.assertIn("set_learned_key", header)
         self.assertIn("get_last_normalized_fingerprint", header)
         self.assertIn("learned[(int)action]", header)
-        self.assertIn("HID learned normalized match action=%d", header)
+        self.assertIn("HID learned match action=%d", header)
 
     def test_ble_hid_has_no_legacy_preset_parser(self):
         header = (ROOT.parent / "PGA" / "ble_hid_host.h").read_text(encoding="utf-8")
@@ -431,7 +431,7 @@ class RealControlPreviewTest(unittest.TestCase):
         self.assertIn("_is_learnable_raw_report", header)
         self.assertIn("keyboard_release", header)
         self.assertIn("consumer_release", header)
-        self.assertIn("if (fp.valid && fp.learnable) {", header)
+        self.assertIn("if (fp.is_valid()) {", header)
         self.assertIn("S().has_raw_fingerprint = true;", header)
 
     def test_remote_key_learning_state_is_persisted_and_registered(self):
