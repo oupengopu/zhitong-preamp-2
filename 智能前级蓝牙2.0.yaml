@@ -4360,6 +4360,18 @@ script:
             default: return;
           }
           ble_hid_host::set_learned_key((ble_hid_host::HidEventType)action, handle, len, kind, value, aux, hash);
+          // ??????????? key_map ???????????????A?B
+          switch (action) {
+            case 1: id(key_map_1) = 1; break;
+            case 2: id(key_map_2) = 2; break;
+            case 3: id(key_map_3) = 3; break;
+            case 4: id(key_map_4) = 4; break;
+            case 5: id(key_map_5) = 5; break;
+            case 6: id(key_map_6) = 6; break;
+            case 7: id(key_map_7) = 7; break;
+            case 8: id(key_map_8) = 8; break;
+            case 9: id(key_map_9) = 9; break;
+          }
           ESP_LOGI("ble_hid", "learned remote key action=%d handle=0x%04x len=%d kind=%d value=%d aux=%d hash=0x%08x",
                    action, handle, len, kind, value, aux, (unsigned)hash);
 

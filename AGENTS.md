@@ -704,3 +704,15 @@ esphome compile /config/esphome/20.yaml
 ```
 /data/build/zhitong-preamp-2/.pioenvs/zhitong-preamp-2/firmware.bin
 ```
+
+### 关键注意事项
+
+**30. 学习按键时自动重置 key_map 映射**
+
+学习按键和 key_map 动作映射是两层独立机制:
+- learned_key_N - NVS 持久化的实体遥控器 raw HID 指纹
+- key_map_N - NVS 持久化的动作映射表（源按键 N 映射到哪个动作）
+
+如果学习了一个按键（写入 learned_key_N）但 key_map_N 之前被意外修改（比如在遥控器按键页旋转编码器改变了映射值），就会导致学A得B的 bug。
+
+**修复**: save_learned_remote_key 脚本在 set_learned_key() 之后自动重置对应的 key_map_N 到恒等值 (N)。这样无论之前映射页怎么调过，只要重新学习就强制同步。
