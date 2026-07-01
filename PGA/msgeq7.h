@@ -28,7 +28,7 @@
 //   第一个 STROBE 下降沿即触发 63Hz 输出，时序完全合规。
 //
 // NTC 分压电路 (DOWNSTREAM = NTC 接地端):
-//   3.3V → 10kΩ(上拉) → ADC测量点 → NTC(9.4kΩ@25°C) → GND
+//   3.3V → 9.74kΩ(实测上拉) → ADC测量点 → NTC(9.4kΩ@25°C) → GND
 //   R_ntc = R_series × V_adc / (V_ref - V_adc)
 //
 // 线程安全:
@@ -46,8 +46,9 @@
 #define NTC_B_CONSTANT      3950
 #define NTC_REF_TEMP_K      298.15f           // 25°C in Kelvin
 #define NTC_REF_RESISTANCE  9400.0f           // 9.4kΩ @ 25°C
-#define NTC_SERIES_RESISTOR 10000.0f          // 10kΩ 分压电阻
+#define NTC_SERIES_RESISTOR 9740.0f           // 9.74kΩ 实测上拉电阻
 #define NTC_REF_VOLTAGE     3.3f              // 分压供电电压
+#define NTC_TEMP_OFFSET_C   (-3.9f)           // 实机对比温度计偏高约3.9°C，统一补偿
 
 #define MSGEQ7_NUM_BANDS    7
 
@@ -107,6 +108,7 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 //   MSGEQ7 3.3V 供电时底噪约 100-200mV, 对应 ADC ≈ 124-248 / 4095 → 8-15 / 255
 //   旧值 3 太低会导致静音时频谱跳动, 提升到 8 消除底噪
 static constexpr int NOISE_GATE = 8;
+static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
 inline adc_oneshot_unit_handle_t _adc_handle = nullptr;
@@ -130,14 +132,7 @@ inline int _l_offset[MSGEQ7_NUM_BANDS] = {0};
 //   中值滤波后仍有 ±0.3°C 抖动, IIR 平滑后显示更稳定
 static constexpr float NTC_IIR_ALPHA = 0.15f;  // 越小越平滑, 0.15 ≈ 7s 时间常数 @10s间隔
 inline float _ntc_smooth = NTC_INVALID;
-inline bool _ntc_plausible_seen = false;
-inline uint8_t _ntc_attach_count = 0;
-inline float _ntc_attach_last = NTC_INVALID;
 
-static constexpr float NTC_ATTACH_MIN_C = -20.0f;
-static constexpr float NTC_ATTACH_MAX_C = 70.0f;
-static constexpr uint8_t NTC_ATTACH_CONFIRM_COUNT = 3;
-static constexpr float NTC_ATTACH_MAX_STEP_C = 8.0f;
 static constexpr float NTC_MAX_RUNTIME_STEP_C = 20.0f;
 
 // ═══════════════════════════════════════════════════════════════
@@ -272,8 +267,8 @@ static void setup() {
     for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
       int avg_r = r_sum[j] / 3;
       int avg_l = l_sum[j] / 3;
-      _r_offset[j] = (avg_r < 50) ? avg_r : 0;
-      _l_offset[j] = (avg_l < 50) ? avg_l : 0;
+      _r_offset[j] = (avg_r < OFFSET_CALIBRATION_MAX_RAW) ? avg_r : 0;
+      _l_offset[j] = (avg_l < OFFSET_CALIBRATION_MAX_RAW) ? avg_l : 0;
     }
     ESP_LOGI("msgeq7", "零漂校准: R_offset[%d~%d]=%d/%d/%d/%d/%d/%d/%d",
              0, 6, _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
@@ -319,8 +314,8 @@ static bool recalibrate() {
   for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
     int avg_r = r_sum[j] / 3;
     int avg_l = l_sum[j] / 3;
-    _r_offset[j] = (avg_r < 50) ? avg_r : 0;
-    _l_offset[j] = (avg_l < 50) ? avg_l : 0;
+    _r_offset[j] = (avg_r < OFFSET_CALIBRATION_MAX_RAW) ? avg_r : 0;
+    _l_offset[j] = (avg_l < OFFSET_CALIBRATION_MAX_RAW) ? avg_l : 0;
   }
   ESP_LOGI("msgeq7", "重校准: R_offset[0~6]=%d/%d/%d/%d/%d/%d/%d",
            _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
@@ -514,7 +509,7 @@ static void read_ntc() {
   float voltage = (float)voltage_mv / 1000.0f;
 
   // 电压 → NTC 电阻
-  // 电路: 3.3V → 10kΩ(上拉) → ADC → NTC → GND  (DOWNSTREAM)
+  // 电路: 3.3V → 9.74kΩ(实测上拉) → ADC → NTC → GND  (DOWNSTREAM)
   // R_ntc = R_series × V_adc / (V_ref - V_adc)
   if (voltage >= (NTC_REF_VOLTAGE - 0.01f) || voltage < 0.01f) {
     _set_ntc_invalid();
@@ -526,39 +521,15 @@ static void read_ntc() {
   // B 参数方程
   float t_inv = 1.0f / NTC_REF_TEMP_K + (1.0f / (float)NTC_B_CONSTANT) * logf(resistance / NTC_REF_RESISTANCE);
   float temp = 1.0f / t_inv - 273.15f;
+  temp += NTC_TEMP_OFFSET_C;
 
   if (!is_temperature_valid(temp)) {
     _set_ntc_invalid();
     return;
   }
 
-  // GPIO10 floats when the NTC divider is not fitted on a bench setup.
-  // Trust over-temp protection only after several stable plausible readings.
-  if (!_ntc_plausible_seen) {
-    if (temp < NTC_ATTACH_MIN_C || temp > NTC_ATTACH_MAX_C) {
-      _ntc_attach_count = 0;
-      _ntc_attach_last = NTC_INVALID;
-      _set_ntc_invalid();
-      return;
-    }
-
-    if (!is_temperature_valid(_ntc_attach_last) ||
-        fabsf(temp - _ntc_attach_last) <= NTC_ATTACH_MAX_STEP_C) {
-      if (_ntc_attach_count < 255) _ntc_attach_count++;
-    } else {
-      _ntc_attach_count = 1;
-    }
-    _ntc_attach_last = temp;
-
-    if (_ntc_attach_count < NTC_ATTACH_CONFIRM_COUNT) {
-      _set_ntc_invalid();
-      return;
-    }
-    _ntc_plausible_seen = true;
-    ESP_LOGI("msgeq7", "NTC attached after %u stable readings (%.1fC)",
-             _ntc_attach_count, temp);
-  } else if (is_temperature_valid(_ntc_smooth) &&
-             fabsf(temp - _ntc_smooth) > NTC_MAX_RUNTIME_STEP_C) {
+  if (is_temperature_valid(_ntc_smooth) &&
+      fabsf(temp - _ntc_smooth) > NTC_MAX_RUNTIME_STEP_C) {
     ESP_LOGW("msgeq7", "NTC spike ignored: %.1fC -> %.1fC", _ntc_smooth, temp);
     return;
   }

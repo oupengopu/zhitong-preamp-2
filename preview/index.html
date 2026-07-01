@@ -535,59 +535,6 @@
     display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center;
     background: #1a1a2e; padding: 20px 30px; border-radius: 12px; border: 1px solid #2a2a4a;
   }
-  .real-console {
-    width: min(856px, 100%);
-    background: #111827;
-    border: 1px solid #2a2a4a;
-    border-radius: 10px;
-    padding: 12px 14px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: #8E9FB8;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-  }
-  .real-console input[type="text"] {
-    width: 132px;
-    background: #0B1220;
-    color: #F1F5F9;
-    border: 1px solid #2A3A50;
-    border-radius: 6px;
-    padding: 7px 9px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-  }
-  .real-console button {
-    background: #1E2D42;
-    color: #F1F5F9;
-    border: 1px solid #34465F;
-    border-radius: 6px;
-    padding: 7px 10px;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .real-console button:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .real-console label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-  }
-  .real-status {
-    min-width: 130px;
-    color: #64748B;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-  .real-status.ok { color: var(--accent); }
-  .real-status.err { color: #EF4444; }
   .controls label {
     color: #8E9FB8; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Montserrat', sans-serif;
   }
@@ -3177,17 +3124,6 @@
 </div>
 
 <!-- 控制面板 -->
-<div class="real-console">
-  <label>Device IP <input type="text" id="realIpInput" value="zhitong-preamp-2.local"></label>
-  <label><input type="checkbox" id="realSendEnabled" checked> Send to device</label>
-  <button type="button" onclick="encoder.rotate(-1)">ENC +</button>
-  <button type="button" onclick="encoder.rotate(1)">ENC -</button>
-  <button type="button" onclick="encoder.singleClick()">CLICK</button>
-  <button type="button" onclick="encoder.doubleClick()">DOUBLE</button>
-  <button type="button" onclick="encoder.longPress()">LONG</button>
-  <span class="real-status" id="realStatus">device ready</span>
-</div>
-
 <div class="controls">
   <label>音量
     <input type="range" min="0" max="100" value="60" id="volSlider" oninput="onUserAction('volume',this.value)">
@@ -3249,7 +3185,7 @@
     mainSpecInterval: null, mainSpecPhase: 0,
     mainSpecLevels: [8, 12, 18, 24, 20, 14, 9, 11, 16, 23, 27, 20, 13, 9, 12, 18, 22, 17, 12, 8, 6],
     signalDetected: [true, false, false, true],  // CD有信号, DAC无, PC无, AUX有
-    theme: 0,  // 0=翠绿, 1=赤红, 2=冰蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=柏林青, 7=南瓜橙
+    theme: 0,  // 0=翠绿, 1=赤红, 2=冰蓝, 3=紫, 4=麦景图蓝, 5=金嗓子金, 6=孔雀青, 7=南瓜橙
     msgeqSignal: true,  // MSGEQ7 real spectrum signal; separate from MCP23017 input detect
     settingsFocus: 0,
     settingsActive: -1,
@@ -3280,8 +3216,8 @@
     pageIdleTimer: null
   };
 
-  const ACCENT_COLORS = ['#10B981', '#EF4444', '#7DD3FC', '#8B5CF6', '#0071E3', '#CD9B4A', '#06B6D4', '#F97316'];
-  const THEMES = ['翠绿', '赤红', '冰蓝', '紫色', '麦景图蓝', '金嗓子金', '柏林青', '南瓜橙'];
+  const ACCENT_COLORS = ['#10B981', '#EF4444', '#7DD3FC', '#8B5CF6', '#0071E3', '#CD9B4A', '#0F766E', '#F97316'];
+  const THEMES = ['翠绿', '赤红', '冰蓝', '紫色', '麦景图蓝', '金嗓子金', '孔雀青', '南瓜橙'];
   const PAGE_NAMES = ['控制屏', '立体声频谱', '设置屏', '蓝牙遥控', '诊断信息', '遥控器按键'];
   const KEYMAP_ACTIONS = ['禁用', '音量+', '音量-', '静音', '播放/暂停', '下一曲', '上一曲', '电源', '切换输入', '上划', '下划', '左划', '右划', '拍照', '切换镜头', '确定'];
   const KEYMAP_SOURCES = ['音量+', '音量-', '静音', '播放/暂停', '下一曲', '上一曲', '电源', '切换输入'];
@@ -3292,7 +3228,7 @@
     ['#2E0E4E','#3E1A5F','#4E2878','#5E3A96','#7A52B9','#9A78D3','#C0A8E7'], // 3 紫色
     ['#002D5C','#003D7A','#004D99','#005EB8','#0071E3','#3B94F7','#7BB8FF'], // 4 麦景图蓝
     ['#4A3720','#6B4F2E','#8C683C','#AD804A','#CD9B4A','#DDB56A','#EED49A'], // 5 金嗓子金
-    ['#003D47','#005666','#007085','#0089A4','#06B6D4','#38D0EA','#7AE4F5'], // 6 柏林青
+    ['#052E2B','#064E45','#0F766E','#149989','#2DD4BF','#5EEAD4','#99F6E4'], // 6 孔雀青
     ['#5C2800','#7A3600','#994400','#B85200','#F97316','#FA9540','#FBB570'], // 7 南瓜橙
   ];
 
@@ -4346,155 +4282,6 @@
   // ═══════════════════════════════════════════════════
   // 编码器模拟 (旋钮 + 按键)
   // ═══════════════════════════════════════════════════
-  const REAL_ENCODER_BUTTONS = {
-    cw: 'Virtual Encoder CW',
-    ccw: 'Virtual Encoder CCW',
-    click: 'Virtual Encoder Click',
-    double: 'Virtual Encoder Double',
-    long: 'Virtual Encoder Long'
-  };
-  const DEFAULT_REAL_DEVICE = 'zhitong-preamp-2.local';
-  const LEGACY_REAL_DEVICE = [192, 168, 31, 86].join('.');
-  const savedRealDevice = localStorage.getItem('pga2311_ip');
-  const realDevice = {
-    ip: (!savedRealDevice || savedRealDevice === LEGACY_REAL_DEVICE) ? DEFAULT_REAL_DEVICE : savedRealDevice,
-    enabled: true,
-    lastCommandAt: 0,
-    queue: [],
-    busy: false,
-    gapMs: 45,
-    rotateDelta: 0,
-    rotateTimer: null
-  };
-
-  function realSetStatus(text, tone) {
-    const el = document.getElementById('realStatus');
-    if (!el) return;
-    el.textContent = text;
-    el.classList.remove('ok', 'err');
-    if (tone) el.classList.add(tone);
-  }
-
-  function realInit() {
-    const ipInput = document.getElementById('realIpInput');
-    const enabled = document.getElementById('realSendEnabled');
-    if (ipInput) {
-      ipInput.value = realDevice.ip;
-      ipInput.addEventListener('change', () => {
-        realDevice.ip = ipInput.value.trim();
-        localStorage.setItem('pga2311_ip', realDevice.ip);
-        realSetStatus('ip saved', 'ok');
-      });
-    }
-    if (enabled) {
-      realDevice.enabled = enabled.checked;
-      enabled.addEventListener('change', () => {
-        realDevice.enabled = enabled.checked;
-        realSetStatus(realDevice.enabled ? 'send enabled' : 'local only', realDevice.enabled ? 'ok' : '');
-      });
-    }
-  }
-
-  function realCommand(path, label) {
-    const ipInput = document.getElementById('realIpInput');
-    const enabled = document.getElementById('realSendEnabled');
-    realDevice.ip = (ipInput?.value || realDevice.ip || '').trim();
-    realDevice.enabled = enabled ? enabled.checked : realDevice.enabled;
-    if (!realDevice.enabled) {
-      realSetStatus('local only', '');
-      return;
-    }
-    if (!realDevice.ip || realDevice.ip.includes('x')) {
-      realSetStatus('set device ip', 'err');
-      return;
-    }
-    localStorage.setItem('pga2311_ip', realDevice.ip);
-    if (realDevice.queue.length > 12) {
-      realDevice.queue.splice(0, realDevice.queue.length - 12);
-    }
-    const nonce = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    realDevice.queue.push({ path, label, nonce, ip: realDevice.ip });
-    realSetStatus(`queue ${realDevice.queue.length}: ${label}`, '');
-    realDrainQueue();
-  }
-
-  function realDrainQueue() {
-    if (realDevice.busy) return;
-    const job = realDevice.queue.shift();
-    if (!job) return;
-
-    realDevice.busy = true;
-    const elapsed = Date.now() - realDevice.lastCommandAt;
-    const wait = Math.max(0, realDevice.gapMs - elapsed);
-
-    setTimeout(() => {
-      realDevice.lastCommandAt = Date.now();
-      realSetStatus(`sending ${job.label}`, '');
-      const proxySep = job.path.includes('?') ? '&' : '?';
-      const proxyUrl = `/real${job.path}${proxySep}ip=${encodeURIComponent(job.ip)}&_=${job.nonce}`;
-      const directUrl = `http://${job.ip}${job.path}${proxySep}_=${job.nonce}`;
-      fetch(proxyUrl, {
-        method: 'POST',
-        cache: 'no-store'
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error(`proxy ${res.status}`);
-          return res.json().catch(() => ({}));
-        })
-        .then(() => {
-          const left = realDevice.queue.length;
-          realSetStatus(left ? `sent ${job.label} +${left}` : `sent ${job.label}`, 'ok');
-        })
-        .catch(() => {
-          return fetch(directUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            cache: 'no-store',
-            keepalive: false
-          })
-            .then(() => {
-              const left = realDevice.queue.length;
-          realSetStatus(left ? `direct sent ${job.label} +${left}` : `direct sent ${job.label}`, 'ok');
-            })
-            .catch(() => realSetStatus(`send failed ${job.label}`, 'err'));
-        })
-        .finally(() => {
-          realDevice.busy = false;
-          realDrainQueue();
-        });
-    }, wait);
-  }
-
-  function realEncoderPress(action) {
-    const name = REAL_ENCODER_BUTTONS[action];
-    if (!name) return;
-    realButtonPress(name, action);
-  }
-
-  function realButtonPress(name, label = name) {
-    realCommand(`/button/${encodeURIComponent(name)}/press`, label);
-  }
-
-  function realEncoderRotate(diff) {
-    realDevice.rotateDelta += diff < 0 ? 1 : -1;
-    if (realDevice.rotateDelta > 24) realDevice.rotateDelta = 24;
-    if (realDevice.rotateDelta < -24) realDevice.rotateDelta = -24;
-    if (realDevice.rotateTimer) return;
-
-    realDevice.rotateTimer = setTimeout(() => {
-      const steps = realDevice.rotateDelta;
-      realDevice.rotateDelta = 0;
-      realDevice.rotateTimer = null;
-      realEncoderRotateBatch(steps);
-    }, realDevice.gapMs);
-  }
-
-  function realEncoderRotateBatch(steps) {
-    if (!steps) return;
-    const capped = Math.max(-24, Math.min(24, steps));
-    realCommand(`/encoder/rotate?steps=${encodeURIComponent(capped)}`, capped > 0 ? `cw x${capped}` : `ccw x${Math.abs(capped)}`);
-  }
-
   const encoder = {
     knob: document.getElementById('encoderKnob'),
     action: document.getElementById('encoderAction'),
@@ -4618,7 +4405,6 @@
     },
 
     rotate(diff) {
-      realEncoderRotate(diff);
       const page = state.currentPage;
       // 屏幕休眠 → 不响应
       if (state.standby) return;
@@ -4781,7 +4567,6 @@
     },
 
     singleClick() {
-      realEncoderPress('click');
       if (state.standby) return;
       const page = state.currentPage;
       this.flashAction('单击');
@@ -4874,7 +4659,6 @@
     },
 
     doubleClick() {
-      realEncoderPress('double');
       if (state.standby) return;
       if (state.currentPage > 1) return;
       // 与当前固件一致: 仅主页/频谱页有效
@@ -4888,7 +4672,6 @@
     },
 
     longPress() {
-      realEncoderPress('long');
       this.holdFired = true;
       const page = state.currentPage;
       // 设置页 / 蓝牙遥控页 / 诊断页 / 遥控器按键页 → 返回主页面
@@ -5477,7 +5260,6 @@
     }, 70);
   };
 
-  realInit();
   encoder.init();
 
   setInput(0, true);

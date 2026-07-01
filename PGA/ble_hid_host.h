@@ -60,27 +60,79 @@ enum HidEventType : uint8_t {
     HID_EVT_VOLUME_UP      = 0x01,
     HID_EVT_VOLUME_DOWN    = 0x02,
     HID_EVT_MUTE           = 0x03,
-    HID_EVT_PLAY_PAUSE     = 0x04,
-    HID_EVT_NEXT_TRACK     = 0x05,
-    HID_EVT_PREV_TRACK     = 0x06,
-    HID_EVT_POWER          = 0x07,
-    HID_EVT_CYCLE_INPUT    = 0x08,
-    HID_EVT_SWIPE_UP       = 0x09,
-    HID_EVT_SWIPE_DOWN     = 0x0A,
-    HID_EVT_SWIPE_LEFT     = 0x0B,
-    HID_EVT_SWIPE_RIGHT    = 0x0C,
-    HID_EVT_CAMERA         = 0x0D,
-    HID_EVT_CAMERA_SWITCH  = 0x0E,
-    HID_EVT_OK             = 0x0F,
+    HID_EVT_PLAY           = 0x04,
+    HID_EVT_PAUSE          = 0x05,
+    HID_EVT_NEXT_TRACK     = 0x06,
+    HID_EVT_PREV_TRACK     = 0x07,
+    HID_EVT_POWER          = 0x08,
+    HID_EVT_CYCLE_INPUT    = 0x09,
     HID_EVT_CONNECTED      = 0x10,  // 内部事件
     HID_EVT_DISCONNECTED   = 0x11,  // 内部事件
     HID_EVT_SCAN_DONE      = 0x12,  // 内部事件
-    HID_EVT_PAUSE          = 0x13,  // extended media event
 };
 
 struct HidEvent {
     HidEventType type;
     uint32_t timestamp_ms;  // for dedup
+};
+
+struct RawFingerprint {
+    uint16_t handle = 0;
+    uint16_t len = 0;
+    uint32_t hash = 0;
+    bool valid = false;
+    bool learnable = false;
+};
+
+enum NormalizedKind : uint8_t {
+    NK_NONE = 0,
+    NK_SHORT_KEY,
+    NK_AXIS_DIR,
+    NK_AXIS_CENTER,
+    NK_AXIS_POINT,
+    NK_RAW_FALLBACK,
+};
+
+enum NormalizedValue : uint8_t {
+    NV_NONE = 0,
+    NV_NAV_UP = 1,
+    NV_NAV_DOWN = 2,
+    NV_NAV_LEFT = 3,
+    NV_NAV_RIGHT = 4,
+    NV_NAV_CENTER = 5,
+    NV_VOLUME_UP = 11,
+    NV_VOLUME_DOWN = 12,
+    NV_MUTE_TOGGLE = 13,
+};
+
+struct NormalizedFingerprint {
+    uint16_t handle = 0;
+    uint16_t len = 0;
+    uint32_t hash = 0;
+    uint8_t kind = NK_NONE;
+    uint8_t value = NV_NONE;
+    uint16_t aux = 0;
+    bool valid = false;
+    bool learnable = false;
+};
+
+struct LearnedKey {
+    bool enabled = false;
+    uint16_t handle = 0;
+    uint16_t len = 0;
+    uint32_t hash = 0;
+    uint8_t kind = NK_NONE;
+    uint8_t value = NV_NONE;
+    uint16_t aux = 0;
+    HidEventType action = HID_EVT_NONE;
+    uint32_t last_emit_ms = 0;
+};
+
+struct TrendWindow {
+    uint32_t last_trigger_time = 0;
+    bool tracking = false;
+    int16_t start_x = 0;
+    int16_t start_y = 0;
 };
 
 // ── BLE 状态 ──
@@ -119,11 +171,6 @@ struct HidState {
     int             report_cccds_written = 0;
     char            connected_name[BLE_HID_NAME_LEN] = {0};
     uint32_t        last_key_ms = 0;
-    bool            pending_ambig80_mute = false;
-    bool            ambig80_long_active = false;
-    uint32_t        pending_ambig80_due_ms = 0;
-    uint32_t        ambig80_last_ms = 0;
-    uint32_t        suppress_power_until_ms = 0;
     bool            auto_reconnect = true;
     bool            reconnect_pending = false;
     int             reconnect_retries = 0;
@@ -160,6 +207,11 @@ struct HidState {
     uint16_t        last_raw_usage = 0;
     uint8_t         last_raw_value = 0;
     bool            has_raw_event = false;
+    NormalizedFingerprint last_raw_fingerprint = {};
+    bool            has_raw_fingerprint = false;
+    bool            learning_capture_active = false;
+    LearnedKey      learned[10] = {};
+    TrendWindow     trend = {};
 
     // ── 同步原语：互斥量 (BLE 回调线程 vs ESPHome 主循环) ──
     SemaphoreHandle_t mux = nullptr;
@@ -261,6 +313,188 @@ static void _parse_adv_data(const uint8_t* data, uint8_t len,
     }
 }
 
+static bool _is_learnable_raw_report(const uint8_t* data, uint16_t len) {
+    if (data == nullptr || len == 0) return false;
+
+    bool all_zero = true;
+    for (uint16_t i = 0; i < len; i++) {
+        if (data[i] != 0) { all_zero = false; break; }
+    }
+    if (all_zero) return false;
+
+    bool keyboard_release = false;
+    if (len == 8 || len == 9) {
+        int key_start = (len == 9) ? 3 : 2;
+        int key_end = (len == 9) ? 9 : 8;
+        keyboard_release = true;
+        for (int i = key_start; i < key_end; i++) {
+            if (data[i] != 0) { keyboard_release = false; break; }
+        }
+        if (keyboard_release) return false;
+    }
+
+    bool consumer_release =
+        (len == 2 && data[0] == 0x00 && data[1] == 0x00) ||
+        (len == 3 && data[1] == 0x00 && data[2] == 0x00) ||
+        (len == 4 && data[1] == 0x00 && data[2] == 0x00 && data[3] == 0x00);
+    if (consumer_release) return false;
+
+    return true;
+}
+
+static RawFingerprint _make_raw_fingerprint(uint16_t handle, const uint8_t* data, uint16_t len) {
+    RawFingerprint fp;
+    fp.handle = handle;
+    fp.len = len;
+    fp.valid = data != nullptr && len > 0;
+    fp.learnable = fp.valid && _is_learnable_raw_report(data, len);
+
+    uint32_t hash = 2166136261UL;  // FNV-1a over handle + len + report bytes
+    auto mix = [&](uint8_t b) {
+        hash ^= b;
+        hash *= 16777619UL;
+    };
+    mix((uint8_t)(handle & 0xFF));
+    mix((uint8_t)(handle >> 8));
+    mix((uint8_t)(len & 0xFF));
+    mix((uint8_t)(len >> 8));
+    if (data != nullptr) {
+        for (uint16_t i = 0; i < len; i++) mix(data[i]);
+    }
+    fp.hash = hash == 0 ? 1 : hash;
+    return fp;
+}
+
+static int32_t _abs32(int32_t v) {
+    return v < 0 ? -v : v;
+}
+
+static uint32_t _encode_normalized_hash(uint8_t kind, uint8_t value, uint16_t aux) {
+    return 0xA5000000UL | ((uint32_t)kind << 16) | ((uint32_t)value << 8) | (uint32_t)(aux & 0xFF);
+}
+
+static NormalizedFingerprint _make_normalized_fingerprint(uint16_t handle, uint16_t len,
+                                                          uint8_t kind, uint8_t value,
+                                                          uint16_t aux = 0) {
+    NormalizedFingerprint fp;
+    fp.handle = handle;
+    fp.len = len;
+    fp.kind = kind;
+    fp.value = value;
+    fp.aux = aux;
+    fp.valid = kind != NK_NONE && value != NV_NONE;
+    fp.learnable = fp.valid;
+    fp.hash = _encode_normalized_hash(kind, value, aux);
+    return fp;
+}
+
+static NormalizedFingerprint _make_raw_fallback_fingerprint(const RawFingerprint& raw) {
+    NormalizedFingerprint fp;
+    fp.handle = raw.handle;
+    fp.len = raw.len;
+    fp.kind = NK_RAW_FALLBACK;
+    fp.value = (uint8_t)(raw.hash & 0xFF);
+    fp.aux = (uint16_t)((raw.hash >> 8) & 0xFFFF);
+    fp.hash = raw.hash;
+    fp.valid = raw.valid;
+    fp.learnable = raw.learnable;
+    return fp;
+}
+
+static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* data, uint16_t len) {
+    NormalizedFingerprint none;
+    none.handle = handle;
+    none.len = len;
+    if (data == nullptr || len == 0) return none;
+
+    if (len == 2) {
+        if (data[1] == 0x20) {
+            return _make_normalized_fingerprint(handle, len, NK_SHORT_KEY, NV_VOLUME_DOWN);
+        }
+        if (data[0] == 0x40 || data[0] == 0x80) {
+            return _make_normalized_fingerprint(handle, len, NK_SHORT_KEY, NV_MUTE_TOGGLE);
+        }
+        RawFingerprint raw = _make_raw_fingerprint(handle, data, len);
+        if (!raw.learnable) return none;
+        return _make_raw_fallback_fingerprint(raw);
+    }
+
+    if (len == 10) {
+        int16_t x = (int16_t)(data[1] | (data[2] << 8));
+        int16_t y = (int16_t)(data[3] | (data[4] << 8));
+        bool is_active = (data[0] == 0x83);
+        uint32_t now = millis();
+        TrendWindow& trend = S().trend;
+
+        if (_abs32((int32_t)x - 0x0E46) < 160 && _abs32((int32_t)y - 0x04CA) < 160) {
+            trend.tracking = false;
+            return _make_normalized_fingerprint(handle, len, NK_AXIS_POINT, NV_VOLUME_UP);
+        }
+
+        if (is_active && _abs32((int32_t)x - 0x0800) < 180 && _abs32((int32_t)y - 0x0666) < 180) {
+            trend.tracking = false;
+            return _make_normalized_fingerprint(handle, len, NK_AXIS_CENTER, NV_NAV_CENTER);
+        }
+
+        if (now - trend.last_trigger_time < 150) {
+            return none;
+        }
+
+        if (!trend.tracking) {
+            if (is_active && (_abs32((int32_t)x - 0x0800) > 180 || _abs32((int32_t)y - 0x0666) > 180)) {
+                trend.tracking = true;
+                trend.start_x = x;
+                trend.start_y = y;
+            }
+            return none;
+        }
+
+        if (!is_active) {
+            trend.tracking = false;
+            return none;
+        }
+
+        int32_t dx = (int32_t)x - (int32_t)trend.start_x;
+        int32_t dy = (int32_t)y - (int32_t)trend.start_y;
+        const int32_t TRIGGER_THRESHOLD = 800;
+        if (_abs32(dy) > _abs32(dx) && _abs32(dy) > TRIGGER_THRESHOLD) {
+            trend.tracking = false;
+            trend.last_trigger_time = now;
+            return _make_normalized_fingerprint(handle, len, NK_AXIS_DIR, dy > 0 ? NV_NAV_UP : NV_NAV_DOWN);
+        }
+        if (_abs32(dx) >= _abs32(dy) && _abs32(dx) > TRIGGER_THRESHOLD) {
+            trend.tracking = false;
+            trend.last_trigger_time = now;
+            return _make_normalized_fingerprint(handle, len, NK_AXIS_DIR, dx > 0 ? NV_NAV_LEFT : NV_NAV_RIGHT);
+        }
+        return none;
+    }
+
+    RawFingerprint raw = _make_raw_fingerprint(handle, data, len);
+    if (!raw.learnable) return none;
+    return _make_raw_fallback_fingerprint(raw);
+}
+
+static HidEventType _match_learned_key(const NormalizedFingerprint& fp) {
+    if (!fp.valid || !fp.learnable) return HID_EVT_NONE;
+    uint32_t now = millis();
+    for (int action = (int)HID_EVT_VOLUME_UP; action <= (int)HID_EVT_CYCLE_INPUT; action++) {
+        LearnedKey& key = S().learned[action];
+        if (!key.enabled) continue;
+        if (key.handle != fp.handle || key.len != fp.len) continue;
+        if (key.kind != fp.kind || key.value != fp.value || key.aux != fp.aux) continue;
+        if (key.kind == NK_RAW_FALLBACK && key.hash != fp.hash) continue;
+
+        uint32_t gap_ms = (key.action == HID_EVT_VOLUME_UP || key.action == HID_EVT_VOLUME_DOWN) ? 80 : 250;
+        if (now - key.last_emit_ms < gap_ms) return HID_EVT_NONE;
+        key.last_emit_ms = now;
+        ESP_LOGI("ble_hid", "HID learned normalized match action=%d handle=0x%04x len=%u kind=%u value=%u hash=0x%08x",
+                 (int)key.action, fp.handle, fp.len, fp.kind, fp.value, (unsigned)fp.hash);
+        return key.action;
+    }
+    return HID_EVT_NONE;
+}
+
 // ═══════════════════════════════════════════════════
 // HID 报告解析 — 基于市售 BLE 遥控器实测码
 // ═══════════════════════════════════════════════════
@@ -272,201 +506,8 @@ static void _parse_adv_data(const uint8_t* data, uint8_t len,
 //   Keyboard Page (0x07): 0x28=Enter 0x29=Esc 0x2C=Space
 //                         0x4F→0x52=←↑↓→  0x66=Power 0x68=F13
 //   廉价遥控器兼容码: 将 Consumer 码塞入 Keyboard 报告 (0xE9/0xEA/0xCD/0xB5/0xB6/0x30)
-// ═══════════════════════════════════════════════════
-static HidEventType _parse_report(const uint8_t* data, uint16_t len) {
-    if (len == 0) return HID_EVT_NONE;
+// HID reports are learned-only. Legacy preset parsing was removed to avoid ambiguous remote conflicts.
 
-    auto parse_mouse_like = [](uint8_t buttons, int8_t x, int8_t y, int8_t wheel) -> HidEventType {
-        if (wheel > 0) return HID_EVT_VOLUME_UP;
-        if (wheel < 0) return HID_EVT_VOLUME_DOWN;
-        if (y < 0) return HID_EVT_SWIPE_UP;
-        if (y > 0) return HID_EVT_SWIPE_DOWN;
-        if (x < 0) return HID_EVT_SWIPE_LEFT;
-        if (x > 0) return HID_EVT_SWIPE_RIGHT;
-        if (buttons & 0x01) return HID_EVT_OK;
-        if (buttons & 0x02) return HID_EVT_CAMERA;
-        if (buttons & 0x04) return HID_EVT_PLAY_PAUSE;
-        return HID_EVT_NONE;
-    };
-
-    if (len == 10) {
-        auto emit_len10 = [](HidEventType evt) -> HidEventType {
-            static HidEventType last_evt = HID_EVT_NONE;
-            static uint32_t last_ms = 0;
-            uint32_t now = millis();
-            uint32_t gap_ms = (evt == HID_EVT_VOLUME_UP || evt == HID_EVT_VOLUME_DOWN) ? 120 : 500;
-            if (evt == last_evt && now - last_ms < gap_ms) return HID_EVT_NONE;
-            last_evt = evt;
-            last_ms = now;
-            return evt;
-        };
-        auto near16 = [](uint16_t value, uint16_t target, uint16_t tol) -> bool {
-            return value >= (uint16_t)(target - tol) && value <= (uint16_t)(target + tol);
-        };
-        uint16_t x1 = data[1] | (data[2] << 8);
-        uint16_t y1 = data[3] | (data[4] << 8);
-        uint16_t y2 = data[8] | (data[9] << 8);
-
-        static const uint8_t VOL_UP_1[10]      = {0x00,0x46,0x0E,0xCA,0x04,0x04,0x7D,0x03,0xCA,0x05};
-        static const uint8_t NEXT_1[10]        = {0x00,0x33,0x0B,0xAC,0x04,0x04,0x33,0x0B,0xAC,0x04};
-        static const uint8_t NEXT_2[10]        = {0x00,0xCD,0x04,0xAC,0x04,0x04,0xCD,0x04,0xAC,0x04};
-        static const uint8_t PLAY_PAUSE_1[10]  = {0x83,0x00,0x08,0x66,0x06,0x04,0x00,0x08,0x66,0x06};
-        static const uint8_t CYCLE_INPUT_1[10] = {0x00,0x00,0x08,0x9A,0x05,0x04,0x00,0x08,0x9A,0x05};
-        static const uint8_t POWER_1[10]       = {0x00,0xF4,0x06,0x20,0x03,0x04,0xF4,0x06,0xFC,0x08};
-        if (memcmp(data, VOL_UP_1, 10) == 0) return emit_len10(HID_EVT_VOLUME_UP);
-        if (memcmp(data, NEXT_1, 10) == 0 || memcmp(data, NEXT_2, 10) == 0) return emit_len10(HID_EVT_NEXT_TRACK);
-        if (memcmp(data, PLAY_PAUSE_1, 10) == 0) return emit_len10(HID_EVT_PLAY_PAUSE);
-        if (memcmp(data, CYCLE_INPUT_1, 10) == 0) return emit_len10(HID_EVT_CYCLE_INPUT);
-        if (memcmp(data, POWER_1, 10) == 0) return emit_len10(HID_EVT_POWER);
-
-        // Some remotes expose media keys as touch-like absolute reports. The
-        // exact coordinates drift, so match stable zones from the captured logs.
-        if (near16(y1, 0x04CA, 0x30) && near16(y2, 0x05CA, 0x40)) return emit_len10(HID_EVT_VOLUME_UP);
-        if (near16(y1, 0x04AC, 0x50) && near16(y2, 0x04AC, 0x50) && data[0] == 0x00) return emit_len10(HID_EVT_NEXT_TRACK);
-        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x0666, 0x90)) return emit_len10(HID_EVT_PLAY_PAUSE);
-        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x09EC, 0x90)) return emit_len10(HID_EVT_PAUSE);
-        if (near16(x1, 0x0800, 0x90) && near16(y1, 0x059A, 0x90)) return emit_len10(HID_EVT_CYCLE_INPUT);
-        if (near16(x1, 0x06F4, 0x90) && (near16(y1, 0x0320, 0x90) || near16(y1, 0x03A0, 0x90))) {
-            return emit_len10(HID_EVT_POWER);
-        }
-    }
-
-    if (len == 1) {
-        HidEventType evt = parse_mouse_like(data[0], 0, 0, 0);
-        if (evt != HID_EVT_NONE) return evt;
-    }
-    if (len == 3 && data[0] != 0 && data[1] == 0 && data[2] == 0) {
-        HidEventType evt = parse_mouse_like(data[0], 0, 0, 0);
-        if (evt != HID_EVT_NONE) return evt;
-    }
-    if (len == 4 && (data[0] != 0 || data[3] != 0) && data[1] == 0 && data[2] == 0) {
-        HidEventType evt = parse_mouse_like(data[0], 0, 0, (int8_t)data[3]);
-        if (evt != HID_EVT_NONE) return evt;
-    }
-    if (len == 5 && (data[1] != 0 || data[4] != 0) && data[2] == 0 && data[3] == 0) {
-        HidEventType evt = parse_mouse_like(data[1], 0, 0, (int8_t)data[4]);
-        if (evt != HID_EVT_NONE) return evt;
-    }
-
-    // ═══ Keyboard boot report: 8 bytes, or Report ID + keyboard report: 9 bytes ═══
-    //   8B: byte 0=modifier, byte 1=reserved, bytes 2-7=key codes
-    //   9B: byte 0=Report ID, byte 1=modifier, byte 2=reserved, bytes 3-8=key codes
-    if (len == 8 || len == 9) {
-        int key_start = (len == 9) ? 3 : 2;
-        int key_end   = (len == 9) ? 9 : 8;
-
-        bool all_zero = true;
-        for (int i = key_start; i < key_end; i++) {
-            if (data[i] != 0) { all_zero = false; break; }
-        }
-        if (all_zero) return HID_EVT_NONE;
-
-        for (int i = key_start; i < key_end; i++) {
-            uint8_t key = data[i];
-            if (key == 0) continue;
-            switch (key) {
-                // ── 音量±  [兼容] 廉价遥控器把 Consumer 码塞进键盘报告 ──
-                case 0xE9: case 0x80: return HID_EVT_VOLUME_UP;
-                case 0xEA: case 0x81: return HID_EVT_VOLUME_DOWN;
-                // ── 静音  [兼容] ──
-                case 0xE2: case 0x7F: return HID_EVT_MUTE;
-                // ── 播放/暂停  [兼容] ──
-                case 0xCD: return HID_EVT_PLAY_PAUSE;
-                // ── 上下曲  [兼容] ──
-                case 0xB5: return HID_EVT_NEXT_TRACK;
-                case 0xB6: return HID_EVT_PREV_TRACK;
-                // ── 电源  [兼容]+[标准] 0x66=Keyboard Power ──
-                case 0x30: case 0x66: return HID_EVT_POWER;
-                // ── 切换输入  [标准] F13 ──
-                case 0x68: return HID_EVT_CYCLE_INPUT;
-                // ── 确定  [标准] Enter ──
-                case 0x28: return HID_EVT_OK;
-                // ── 方向键→滑动  [标准] 抖音戒指遥控器实测有效 ──
-                case 0x52: return HID_EVT_SWIPE_UP;
-                case 0x51: return HID_EVT_SWIPE_DOWN;
-                case 0x50: return HID_EVT_SWIPE_LEFT;
-                case 0x4F: return HID_EVT_SWIPE_RIGHT;
-                // ── Page Up/Down→滑动  [标准] PPT翻页器实测有效 ──
-                case 0x4B: return HID_EVT_SWIPE_UP;
-                case 0x4E: return HID_EVT_SWIPE_DOWN;
-                // ── 拍照  [标准] Space=自拍遥控器快门 ──
-                case 0x2C: return HID_EVT_CAMERA;
-                // ── 切换镜头  [自定义] 预留, 市售遥控器无独立按键 ──
-                case 0x8C: return HID_EVT_CAMERA_SWITCH;
-                default: continue;
-            }
-        }
-        return HID_EVT_NONE;
-    }
-
-    // ═══ Consumer page report: 2 bytes (Usage Page 0x0C) ═══
-    if (len == 2) {
-        uint16_t usage = data[0] | (data[1] << 8);
-        switch (usage) {
-            case 0x0000: return HID_EVT_NONE;          // release frame
-            case 0x0080: return HID_EVT_MUTE;          // bitmask remote: observed [80 00]
-            case 0x0040: return HID_EVT_VOLUME_UP;     // bitmask remote: observed volume+ hold [40 00]
-            case 0x2000: return HID_EVT_VOLUME_DOWN;   // bitmask remote: observed [00 20]
-            // ── 媒体键  [标准] ──
-            case 0xE9: return HID_EVT_VOLUME_UP;
-            case 0xEA: return HID_EVT_VOLUME_DOWN;
-            case 0xE2: return HID_EVT_MUTE;
-            case 0xCD: return HID_EVT_PLAY_PAUSE;
-            case 0xB5: return HID_EVT_NEXT_TRACK;
-            case 0xB6: return HID_EVT_PREV_TRACK;
-            case 0x30: return HID_EVT_POWER;
-            // ── 切换输入  [自定义] 特定遥控器专有码 ──
-            case 0x233: return HID_EVT_CYCLE_INPUT;
-        }
-        return HID_EVT_NONE;
-    }
-
-    // ═══ Consumer page report: 3 bytes (Report ID + Usage) ═══
-    if (len == 3) {
-        uint16_t usage = data[1] | (data[2] << 8);
-        switch (usage) {
-            // ── 媒体键  [标准] ──
-            case 0xE9: return HID_EVT_VOLUME_UP;
-            case 0xEA: return HID_EVT_VOLUME_DOWN;
-            case 0xE2: return HID_EVT_MUTE;
-            case 0xCD: return HID_EVT_PLAY_PAUSE;
-            case 0xB5: return HID_EVT_NEXT_TRACK;
-            case 0xB6: return HID_EVT_PREV_TRACK;
-            case 0x30: return HID_EVT_POWER;
-            // ── 切换输入  [自定义] ──
-            case 0x233: return HID_EVT_CYCLE_INPUT;
-        }
-        return HID_EVT_NONE;
-    }
-
-    // ═══ Consumer page report: 4 bytes (Report ID + Usage + value) ═══
-    // 部分市售遥控器多带一个 value/release 字节: value=0 表示松开, 不产生事件。
-    if (len == 4) {
-        uint16_t usage = data[1] | (data[2] << 8);
-        uint8_t value = data[3];
-        if (value == 0) return HID_EVT_NONE;
-
-        switch (usage) {
-            // ── 媒体键  [标准] ──
-            case 0xE9: return HID_EVT_VOLUME_UP;
-            case 0xEA: return HID_EVT_VOLUME_DOWN;
-            case 0xE2: return HID_EVT_MUTE;
-            case 0xCD: return HID_EVT_PLAY_PAUSE;
-            case 0xB5: return HID_EVT_NEXT_TRACK;
-            case 0xB6: return HID_EVT_PREV_TRACK;
-            case 0x30: return HID_EVT_POWER;
-            // ── 切换输入  [自定义] ──
-            case 0x233: return HID_EVT_CYCLE_INPUT;
-        }
-        return HID_EVT_NONE;
-    }
-
-    return HID_EVT_NONE;
-}
-
-// ═══════════════════════════════════════════════════
-// 队列操作
-// ═══════════════════════════════════════════════════
 static void _queue_event_from_task(HidEventType type) {
     if (S().hid_queue == nullptr) return;
     HidEvent evt;
@@ -482,23 +523,6 @@ static void _queue_event_from_task(HidEventType type) {
     }
 }
 
-static void _flush_pending_ambig80_mute() {
-    bool should_emit_mute = false;
-    uint32_t now = millis();
-    if (S().mux && xSemaphoreTake(S().mux, portMAX_DELAY)) {
-        if (S().pending_ambig80_mute && now >= S().pending_ambig80_due_ms) {
-            S().pending_ambig80_mute = false;
-            S().ambig80_long_active = false;
-            should_emit_mute = true;
-        }
-        xSemaphoreGive(S().mux);
-    }
-    if (should_emit_mute) {
-        ESP_LOGI("ble_hid", "ambiguous [80 00] resolved as MUTE");
-        _queue_event_from_task(HID_EVT_MUTE);
-    }
-}
-
 static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reconnect_retries_save) {
     if (!auto_reconnect_save) return;
 
@@ -509,7 +533,7 @@ static void _schedule_reconnect_from_snapshot(bool auto_reconnect_save, int reco
         delay_ms = 60000;
     }
 
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         S().reconnect_pending = true;
         S().reconnect_next_ms = millis() + delay_ms;
         S().reconnect_retries = reconnect_retries_save + 1;
@@ -528,7 +552,7 @@ static void _handle_disconnect_event(int reason, const char* source) {
     bool auto_reconnect_save = false;
     int reconnect_retries_save = 0;
 
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         should_emit = (S().state != BLE_IDLE) || (S().conn_id != 0) ||
                       (S().report_count > 0) || S().cccd_ready ||
                       (S().connected_name[0] != '\0');
@@ -572,7 +596,7 @@ static void _open_pending_connection() {
     esp_gatt_if_t gattc_if = 0;
     bool valid = false;
 
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         bool busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED);
         if (S().connect_pending && !busy && S().registered && S().gattc_if > 0) {
             memcpy(bda, S().pending_bda, 6);
@@ -637,7 +661,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
             if (!has_hid && name[0] == '\0') break;
 
             // Lock and update shared device list
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
 
                 // Dedup by BDA (always, even when list is full — updates RSSI)
                 bool found = false;
@@ -700,7 +724,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
 
         case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
             bool pending = false;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
                 pending = S().scan_start_pending;
                 xSemaphoreGive(S().mux);
             }
@@ -709,7 +733,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
             esp_err_t ret = esp_ble_gap_start_scanning(BLE_HID_SCAN_DURATION);
             if (ret != ESP_OK) {
                 ESP_LOGE("ble_hid", "启动扫描失败: %s", esp_err_to_name(ret));
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().scan_start_pending = false;
                     S().scan_active = false;
                     if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
@@ -721,7 +745,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
 
         case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
             if (param->scan_start_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().scan_start_pending = false;
                     S().scan_active = true;
                     S().state = BLE_SCANNING;
@@ -730,7 +754,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
                 ESP_LOGI("ble_hid", "开始扫描 (%ds)...", BLE_HID_SCAN_DURATION);
             } else {
                 ESP_LOGW("ble_hid", "扫描启动失败 (status=%d)", param->scan_start_cmpl.status);
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().scan_start_pending = false;
                     S().scan_active = false;
                     if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
@@ -743,7 +767,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
             {
             bool should_emit_done = false;
             bool should_open_pending = false;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
                 S().scan_active = false;
                 S().scan_start_pending = false;
                 if (S().state == BLE_SCANNING) {
@@ -768,7 +792,7 @@ static void _ble_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *pa
         case ESP_GAP_BLE_AUTH_CMPL_EVT: {
             esp_ble_auth_cmpl_t auth = param->ble_security.auth_cmpl;
             if (auth.success) {
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().auth_cmpl = true;
                     if (S().cccd_ready && !S().paired) {
                         S().paired = true;
@@ -810,7 +834,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
     switch (event) {
         case ESP_GATTC_REG_EVT:
             if (param->reg.status == ESP_GATT_OK) {
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().gattc_if = gattc_if;
                     S().registered = true;
                     xSemaphoreGive(S().mux);
@@ -823,7 +847,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             if (param->open.status == ESP_GATT_OK) {
                 uint8_t local_bda[6] = {0};
                 uint16_t local_conn_id = param->open.conn_id;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().conn_id = param->open.conn_id;
                     memcpy(S().peer_bda, param->open.remote_bda, 6);
                     memcpy(local_bda, param->open.remote_bda, 6);
@@ -860,7 +884,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             if (svc_uuid16 == HID_SERVICE_UUID) {
                 uint16_t s = param->search_res.start_handle;
                 uint16_t e = param->search_res.end_handle;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().hid_svc_start = s;
                     S().hid_svc_end   = e;
                     xSemaphoreGive(S().mux);
@@ -869,7 +893,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             } else if (svc_uuid16 == BATTERY_SERVICE_UUID) {
                 uint16_t s = param->search_res.start_handle;
                 uint16_t e = param->search_res.end_handle;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().batt_svc_start = s;
                     S().batt_svc_end   = e;
                     xSemaphoreGive(S().mux);
@@ -885,7 +909,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             uint8_t local_peer_bda[6] = {0};
             uint16_t local_hid_start = 0, local_hid_end = 0;
             uint16_t local_batt_start = 0, local_batt_end = 0;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
                 local_conn_id = S().conn_id;
                 memcpy(local_peer_bda, S().peer_bda, 6);
                 local_hid_start = S().hid_svc_start;
@@ -1030,7 +1054,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 }
 
                 // ── 统一写入共享状态 (加锁) ──
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().report_count = local_report_count;
                     for (int i = 0; i < local_report_count; i++) {
                         S().report_char_handles[i] = local_handles[i];
@@ -1077,7 +1101,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             uint16_t local_batt_char = 0;
             uint16_t local_batt_cccd = 0;
             uint16_t local_conn_id = 0;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
                 local_report_count = S().report_count;
                 for (int i = 0; i < local_report_count && i < BLE_HID_MAX_REPORTS; i++) {
                     local_handles[i] = S().report_char_handles[i];
@@ -1120,7 +1144,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 // Report has no CCCD — count as already enabled
                 bool all_ready = false;
                 int log_written = 0, log_count = 0;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().report_cccds_written++;
                     log_written = S().report_cccds_written;
                     log_count = S().report_count;
@@ -1150,7 +1174,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 int local_report_count = 0;
                 uint16_t local_cccds[BLE_HID_MAX_REPORTS] = {0};
                 uint16_t local_batt_cccd = 0;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     local_report_count = S().report_count;
                     for (int i = 0; i < local_report_count && i < BLE_HID_MAX_REPORTS; i++) {
                         local_cccds[i] = S().report_cccd_handles[i];
@@ -1171,7 +1195,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 if (report_idx >= 0) {
                     bool all_ready = false;
                     int log_written = 0, log_count = 0;
-                    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    if (xSemaphoreTake(S().mux, 0)) {
                         S().report_cccds_written++;
                         log_written = S().report_cccds_written;
                         log_count = S().report_count;
@@ -1199,7 +1223,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 uint16_t local_cccds[BLE_HID_MAX_REPORTS] = {0};
                 uint16_t local_batt_cccd = 0;
                 uint16_t local_conn_id = 0;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     local_report_count = S().report_count;
                     for (int i = 0; i < local_report_count && i < BLE_HID_MAX_REPORTS; i++) {
                         local_cccds[i] = S().report_cccd_handles[i];
@@ -1227,7 +1251,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
         case ESP_GATTC_READ_CHAR_EVT:
             if (param->read.status == ESP_GATT_OK && param->read.value_len > 0) {
                 uint16_t local_batt_char;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     local_batt_char = S().batt_char_handle;
                     xSemaphoreGive(S().mux);
                 } else {
@@ -1235,7 +1259,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 }
                 if (param->read.handle == local_batt_char) {
                     int level = -1;
-                    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                    if (xSemaphoreTake(S().mux, 0)) {
                         S().battery_level = param->read.value[0];
                         level = S().battery_level;
                         xSemaphoreGive(S().mux);
@@ -1258,7 +1282,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
 
             // Snapshot batt_char_handle under lock
             uint16_t local_batt_char;
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            if (xSemaphoreTake(S().mux, 0)) {
                 local_batt_char = S().batt_char_handle;
                 xSemaphoreGive(S().mux);
             } else {
@@ -1269,7 +1293,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             if (n_handle == local_batt_char && n_len > 0) {
                 ESP_LOGI("ble_hid", "Battery level notify: %d%%", (int)n_val[0]);
                 int level = -1;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     S().battery_level = n_val[0];
                     level = S().battery_level;
                     xSemaphoreGive(S().mux);
@@ -1279,8 +1303,18 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             }
 
             // ── Capture raw HID event for debug viewer ──
-            if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+            NormalizedFingerprint fp = _normalize_report(n_handle, n_val, n_len);
+            if (xSemaphoreTake(S().mux, 0)) {
                 S().has_raw_event = false;
+                if (fp.valid && fp.learnable) {
+                    if (S().learning_capture_active && !S().has_raw_fingerprint) {
+                        S().last_raw_fingerprint = fp;
+                        S().has_raw_fingerprint = true;
+                    } else if (!S().learning_capture_active) {
+                        S().last_raw_fingerprint = fp;
+                        S().has_raw_fingerprint = true;
+                    }
+                }
                 if (n_len == 8 || n_len == 9) {
                     // Keyboard boot report, optionally prefixed by Report ID
                     int key_start = (n_len == 9) ? 3 : 2;
@@ -1321,57 +1355,22 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             }
 
             // ── Parse HID report ──
-            bool is_ambig80_report = (n_len == 2 && n_val[0] == 0x80 && n_val[1] == 0x00);
-            if (!is_ambig80_report) _flush_pending_ambig80_mute();
-
-            HidEventType evt_type = _parse_report(n_val, n_len);
+            // learned-only mode: physical remote control actions must come
+            // from the user-learned raw fingerprint table. Built-in HID
+            // presets are intentionally bypassed to avoid key conflicts.
             uint32_t now = millis();
-
-            // Observed remote quirk:
-            //   [80 00] single press = mute, repeated hold = volume down.
-            // Hold also emits a spurious touch-like power packet at the end.
-            if (is_ambig80_report) {
-                bool emit_volume_down = false;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    bool quick_repeat = (now - S().ambig80_last_ms) <= 900;
-                    if ((S().pending_ambig80_mute && quick_repeat) ||
-                        (S().ambig80_long_active && quick_repeat)) {
-                        S().pending_ambig80_mute = false;
-                        S().ambig80_long_active = true;
-                        S().suppress_power_until_ms = now + 1200;
-                        emit_volume_down = true;
-                    } else {
-                        S().pending_ambig80_mute = true;
-                        S().ambig80_long_active = false;
-                        S().pending_ambig80_due_ms = now + 800;
-                    }
-                    S().ambig80_last_ms = now;
-                    xSemaphoreGive(S().mux);
-                }
-                evt_type = emit_volume_down ? HID_EVT_VOLUME_DOWN : HID_EVT_NONE;
-            } else if (n_len == 2 && n_val[0] == 0x40 && n_val[1] == 0x00) {
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    S().suppress_power_until_ms = now + 1200;
-                    xSemaphoreGive(S().mux);
-                }
-            }
-
-            if (evt_type == HID_EVT_POWER) {
-                bool suppress_power = false;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
-                    suppress_power = now < S().suppress_power_until_ms;
-                    xSemaphoreGive(S().mux);
-                }
-                if (suppress_power) {
-                    ESP_LOGI("ble_hid", "suppress spurious power packet after volume hold");
-                    evt_type = HID_EVT_NONE;
-                }
+            HidEventType evt_type = HID_EVT_NONE;
+            bool learned_match = false;
+            if (xSemaphoreTake(S().mux, 0)) {
+                evt_type = _match_learned_key(fp);
+                learned_match = evt_type != HID_EVT_NONE;
+                xSemaphoreGive(S().mux);
             }
             ESP_LOGI("ble_hid", "HID notify handle=0x%04x len=%u data=[%s]%s evt=%d",
                      n_handle, n_len, hex, n_len > 16 ? "..." : "", (int)evt_type);
             if (evt_type != HID_EVT_NONE) {
                 bool should_queue = false;
-                if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+                if (xSemaphoreTake(S().mux, 0)) {
                     if (now - S().last_key_ms >= 30) {
                         S().last_key_ms = now;
                         should_queue = true;
@@ -1493,7 +1492,7 @@ static void start_scan() {
 
     bool was_active = false;
     bool was_pending = false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         was_active = S().scan_active;
         was_pending = S().scan_start_pending;
         if (was_active || was_pending) {
@@ -1509,7 +1508,7 @@ static void start_scan() {
     if (was_active || was_pending) return;
 
     // Set scan params: active, reduced duty cycle (~25% for lower power)
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         S().state = BLE_SCANNING;
         S().scan_active = false;
         S().scan_start_pending = true;
@@ -1528,7 +1527,7 @@ static void start_scan() {
     esp_err_t ret = esp_ble_gap_set_scan_params(&scan_params);
     if (ret != ESP_OK) {
         ESP_LOGE("ble_hid", "设置扫描参数失败: %s", esp_err_to_name(ret));
-        if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+        if (xSemaphoreTake(S().mux, 0)) {
             S().scan_start_pending = false;
             S().scan_active = false;
             if (S().state == BLE_SCANNING) S().state = BLE_IDLE;
@@ -1541,7 +1540,7 @@ static void start_scan() {
 }
 
 static void stop_scan() {
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         bool was_active = S().scan_active;
         bool was_pending = S().scan_start_pending;
         if (was_active || was_pending) {
@@ -1562,7 +1561,7 @@ static void connect(int index) {
     bool valid = false;
     bool was_active = false;
     bool busy = false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED || S().connect_pending);
         if (!busy && index >= 0 && index < S().discovered_count) {
             memcpy(S().pending_bda, S().discovered[index].bda, 6);
@@ -1606,7 +1605,7 @@ static void connect_by_bda(const uint8_t* bda) {
     bool valid = false;
     bool was_active = false;
     bool busy = false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         busy = (S().state == BLE_CONNECTING || S().state == BLE_CONNECTED || S().connect_pending);
         if (!busy && memcmp(bda, ZERO_BDA, 6) != 0) {
             memcpy(S().pending_bda, bda, 6);
@@ -1639,7 +1638,7 @@ static void connect_by_bda(const uint8_t* bda) {
 }
 
 static void disconnect() {
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         S().auto_reconnect = false;
         S().reconnect_pending = false;
         S().reconnect_retries = 0;
@@ -1658,7 +1657,7 @@ static void disconnect() {
 }
 
 static void reconnect_enable() {
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         S().auto_reconnect = true;
         S().reconnect_retries = 0;
         S().connect_pending = false;
@@ -1690,7 +1689,7 @@ if (!S().registered && S().setup_done) {
     // Handle reconnect timer (snapshot shared state under lock)
     bool should_reconnect = false;
     uint8_t saved_bda[6];
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         if (S().reconnect_pending && S().auto_reconnect && S().state == BLE_IDLE) {
             uint32_t now = millis();
             if (now >= S().reconnect_next_ms) {
@@ -1708,7 +1707,6 @@ if (!S().registered && S().setup_done) {
 
 static bool has_event() {
     if (S().hid_queue == nullptr) return false;
-    _flush_pending_ambig80_mute();
     UBaseType_t waiting = uxQueueMessagesWaiting(S().hid_queue);
     return waiting > 0;
 }
@@ -1722,8 +1720,8 @@ static HidEvent pop_event() {
 
 static BLEState get_state() {
     if (S().mux == nullptr) return BLE_IDLE;
-    BLEState s;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    BLEState s = BLE_IDLE;
+    if (xSemaphoreTake(S().mux, 0)) {
         s = S().state;
         xSemaphoreGive(S().mux);
     }
@@ -1737,8 +1735,8 @@ static bool is_scanning() { return get_state() == BLE_SCANNING; }
 // ── 便捷访问器 (供 ESPHome YAML lambda 使用) ──
 static int get_discovered_device_count() {
     if (S().mux == nullptr) return 0;
-    int c;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    int c = 0;
+    if (xSemaphoreTake(S().mux, 0)) {
         c = S().discovered_count;
         xSemaphoreGive(S().mux);
     }
@@ -1749,7 +1747,7 @@ static int get_discovered_device_count() {
 static bool get_discovered_device(int i, DeviceInfo& out) {
     if (S().mux == nullptr) return false;
     bool ok = false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         if (i >= 0 && i < S().discovered_count) {
             out = S().discovered[i];
             ok = true;
@@ -1761,7 +1759,7 @@ static bool get_discovered_device(int i, DeviceInfo& out) {
 
 static std::string get_peer_bda_string() {
     if (S().mux == nullptr) return "";
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         bool ok = (S().paired || S().state == BLE_CONNECTED) &&
                   memcmp(S().peer_bda, ZERO_BDA, 6) != 0;
         if (!ok) { xSemaphoreGive(S().mux); return ""; }
@@ -1784,7 +1782,7 @@ static bool set_peer_bda_from_string(const std::string& str) {
 
 static std::string get_connected_name() {
     if (S().mux == nullptr) return "";
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         bool connected = (S().state == BLE_CONNECTED);
         std::string name;
         if (connected && S().connected_name[0] != '\0')
@@ -1798,8 +1796,8 @@ static std::string get_connected_name() {
 // ── 电池电量 ──
 static int get_battery_level() {
     if (S().mux == nullptr) return -1;
-    int level;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    int level = -1;
+    if (xSemaphoreTake(S().mux, 0)) {
         level = S().battery_level;
         xSemaphoreGive(S().mux);
     }
@@ -1818,7 +1816,7 @@ static std::string get_battery_level_string() {
 // ── 原始 HID 事件 (调试用) ──
 static std::string get_last_raw_event_string() {
     if (S().mux == nullptr) return "无";
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         if (!S().has_raw_event) { xSemaphoreGive(S().mux); return "无"; }
         char buf[48];
         snprintf(buf, sizeof(buf), "Page=0x%04X Usage=0x%04X Val=%u",
@@ -1831,8 +1829,8 @@ static std::string get_last_raw_event_string() {
 
 static bool has_raw_event() {
     if (S().mux == nullptr) return false;
-    bool v;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    bool v = false;
+    if (xSemaphoreTake(S().mux, 0)) {
         v = S().has_raw_event;
         xSemaphoreGive(S().mux);
     }
@@ -1841,16 +1839,94 @@ static bool has_raw_event() {
 
 static void clear_raw_event() {
     if (S().mux == nullptr) return;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         S().has_raw_event = false;
+        S().has_raw_fingerprint = false;
+        S().last_raw_fingerprint = NormalizedFingerprint{};
+        S().learning_capture_active = false;
+        xSemaphoreGive(S().mux);
+    }
+}
+
+static void begin_learning_capture() {
+    if (S().mux == nullptr) return;
+    if (xSemaphoreTake(S().mux, 0)) {
+        S().has_raw_event = false;
+        S().has_raw_fingerprint = false;
+        S().last_raw_fingerprint = NormalizedFingerprint{};
+        S().learning_capture_active = true;
+        S().trend.tracking = false;
+        xSemaphoreGive(S().mux);
+    }
+}
+
+static bool get_last_normalized_fingerprint(uint16_t* handle, uint16_t* len,
+                                            uint8_t* kind, uint8_t* value,
+                                            uint16_t* aux, uint32_t* hash) {
+    if (S().mux == nullptr || handle == nullptr || len == nullptr ||
+        kind == nullptr || value == nullptr || aux == nullptr || hash == nullptr) return false;
+    bool ok = false;
+    if (xSemaphoreTake(S().mux, 0)) {
+        ok = S().has_raw_fingerprint && S().last_raw_fingerprint.valid && S().last_raw_fingerprint.learnable;
+        if (ok) {
+            *handle = S().last_raw_fingerprint.handle;
+            *len = S().last_raw_fingerprint.len;
+            *kind = S().last_raw_fingerprint.kind;
+            *value = S().last_raw_fingerprint.value;
+            *aux = S().last_raw_fingerprint.aux;
+            *hash = S().last_raw_fingerprint.hash;
+            S().has_raw_fingerprint = false;
+            S().learning_capture_active = false;
+        }
+        xSemaphoreGive(S().mux);
+    }
+    return ok;
+}
+
+static void set_learned_key(HidEventType action, uint16_t handle, uint16_t len,
+                            uint8_t kind, uint8_t value, uint16_t aux, uint32_t hash) {
+    if (S().mux == nullptr) return;
+    int idx = (int)action;
+    if (idx < (int)HID_EVT_VOLUME_UP || idx > (int)HID_EVT_CYCLE_INPUT) return;
+    if (xSemaphoreTake(S().mux, 0)) {
+        LearnedKey& key = S().learned[(int)action];
+        key.enabled = (handle != 0 && len != 0 && kind != NK_NONE && value != NV_NONE);
+        key.handle = handle;
+        key.len = len;
+        key.hash = hash;
+        key.kind = kind;
+        key.value = value;
+        key.aux = aux;
+        key.action = action;
+        key.last_emit_ms = 0;
+        xSemaphoreGive(S().mux);
+    }
+}
+
+static void clear_learned_key(HidEventType action) {
+    if (S().mux == nullptr) return;
+    int idx = (int)action;
+    if (idx < (int)HID_EVT_VOLUME_UP || idx > (int)HID_EVT_CYCLE_INPUT) return;
+    if (xSemaphoreTake(S().mux, 0)) {
+        S().learned[idx] = LearnedKey{};
+        xSemaphoreGive(S().mux);
+    }
+}
+
+static void clear_all_learned_keys() {
+    if (S().mux == nullptr) return;
+    if (xSemaphoreTake(S().mux, 0)) {
+        for (int i = (int)HID_EVT_VOLUME_UP; i <= (int)HID_EVT_CYCLE_INPUT; i++) {
+            S().learned[i] = LearnedKey{};
+        }
         xSemaphoreGive(S().mux);
     }
 }
 
 static uint16_t get_raw_event_page() {
     if (S().mux == nullptr) return 0;
-    uint16_t v;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    uint16_t v = 0;
+    if (xSemaphoreTake(S().mux, 0)) {
         v = S().last_raw_page;
         xSemaphoreGive(S().mux);
     }
@@ -1859,8 +1935,8 @@ static uint16_t get_raw_event_page() {
 
 static uint16_t get_raw_event_usage() {
     if (S().mux == nullptr) return 0;
-    uint16_t v;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    uint16_t v = 0;
+    if (xSemaphoreTake(S().mux, 0)) {
         v = S().last_raw_usage;
         xSemaphoreGive(S().mux);
     }
@@ -1873,7 +1949,7 @@ static uint16_t get_raw_event_usage() {
 
 static bool get_peer_bda_string(char* out, size_t out_len) {
     if (S().mux == nullptr) return false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         bool ok = (S().paired || S().state == BLE_CONNECTED) &&
                   memcmp(S().peer_bda, ZERO_BDA, 6) != 0;
         if (!ok) { xSemaphoreGive(S().mux); return false; }
@@ -1894,21 +1970,23 @@ static bool set_peer_bda_from_string(const char* str) {
                         &b[0], &b[1], &b[2], &b[3], &b[4], &b[5], &t);
     if (parsed < 6) return false;
     if (S().mux == nullptr) return false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    bool ok = false;
+    if (xSemaphoreTake(S().mux, 0)) {
         for (int i = 0; i < 6; i++) S().peer_bda[i] = (uint8_t)b[i];
         if (parsed == 7) S().peer_addr_type = (esp_ble_addr_type_t)t;
         S().paired = true;
         S().auto_reconnect = true;
         S().reconnect_retries = 0;
+        ok = true;
         xSemaphoreGive(S().mux);
     }
-    return true;
+    return ok;
 }
 
 static bool has_paired_device() {
     if (S().mux == nullptr) return false;
     bool v = false;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         v = S().paired && memcmp(S().peer_bda, ZERO_BDA, 6) != 0;
         xSemaphoreGive(S().mux);
     }
@@ -1917,7 +1995,7 @@ static bool has_paired_device() {
 
 static void clear_paired() {
     if (S().mux == nullptr) return;
-    if (xSemaphoreTake(S().mux, portMAX_DELAY)) {
+    if (xSemaphoreTake(S().mux, 0)) {
         memset(S().peer_bda, 0, 6);
         S().peer_addr_type = BLE_ADDR_TYPE_PUBLIC;
         S().paired = false;

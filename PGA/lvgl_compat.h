@@ -65,6 +65,9 @@ lv_result_t lv_obj_invalidate(const lv_obj_t * obj);
 // src/core/lv_obj_scroll.h
 void lv_obj_scroll_to_view(lv_obj_t * obj, lv_anim_enable_t anim_en);
 
+// src/core/lv_obj_tree.h
+void lv_obj_move_foreground(lv_obj_t * obj);
+
 // src/core/lv_scr.h
 lv_obj_t * lv_scr_act(void);
 void lv_scr_load(lv_obj_t * scr);
@@ -78,14 +81,14 @@ inline lv_color_t get_theme_accent(int theme) {
   lv_color_t colors[] = {
     lv_color_hex(0x10B981), lv_color_hex(0xEF4444), lv_color_hex(0x7DD3FC),
     lv_color_hex(0x8B5CF6), lv_color_hex(0x0071E3), lv_color_hex(0xCD9B4A),
-    lv_color_hex(0x06B6D4), lv_color_hex(0xF97316)
+    lv_color_hex(0x0F766E), lv_color_hex(0xF97316)
   };
   return colors[theme >= 0 && theme < 8 ? theme : 0];
 }
 
 // 主题色名称数组 (font_cn 已包含这些字符)
 inline const char* get_theme_name(int theme) {
-  static const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "柏林青", "南瓜橙"};
+  static const char* names[] = {"翠绿", "赤红", "冰蓝", "紫色", "麦景图蓝", "金嗓子金", "孔雀青", "南瓜橙"};
   return names[theme >= 0 && theme < 8 ? theme : 0];
 }
 
@@ -93,10 +96,10 @@ inline const char* get_theme_name(int theme) {
 // 目标是跟 preview/index.html 的 Secondary pages v2 保持同一套暗色仪表菜单风格。
 namespace secondary_ui {
 
-constexpr int ROW_W = 414;
-constexpr int ROW_H = 36;
-constexpr int TITLE_H = 38;
-constexpr int DEBUG_H = 32;
+constexpr int ROW_W = 382;
+constexpr int ROW_H = 40;
+constexpr int TITLE_H = 40;
+constexpr int DEBUG_H = 36;
 
 inline void page(lv_obj_t* obj) {
   if (!obj) return;
@@ -112,7 +115,7 @@ inline void row(lv_obj_t* obj, lv_color_t accent, bool focused, bool dim = false
   lv_obj_set_width(obj, ROW_W);
   lv_obj_set_height(obj, height);
   lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
-  lv_obj_set_style_pad_all(obj, 3, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(obj, 4, LV_PART_MAIN);
   lv_obj_set_style_bg_color(obj, active ? lv_color_hex(0x142033) :
                                 focused ? lv_color_hex(0x101827) :
                                 dim ? lv_color_hex(0x060C16) : lv_color_hex(0x08121E), LV_PART_MAIN);
@@ -120,7 +123,7 @@ inline void row(lv_obj_t* obj, lv_color_t accent, bool focused, bool dim = false
   lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_FULL, LV_PART_MAIN);
   lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN);
   lv_obj_set_style_border_color(obj, focused || active ? accent : lv_color_hex(0x263244), LV_PART_MAIN);
-  lv_obj_set_style_border_opa(obj, focused || active ? LV_OPA_60 : LV_OPA_20, LV_PART_MAIN);
+  lv_obj_set_style_border_opa(obj, focused || active ? LV_OPA_70 : LV_OPA_20, LV_PART_MAIN);
 }
 
 inline void title(lv_obj_t* obj, lv_color_t accent) {

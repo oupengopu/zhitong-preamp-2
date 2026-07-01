@@ -72,12 +72,26 @@ esphome:
             id(active_input) = id(current_input);
             if (id(max_volume) < 10 || id(max_volume) > 255) id(max_volume) = 255;
             if (id(power_on_limit) < 10 || id(power_on_limit) > 255) id(power_on_limit) = 192;
+            if (id(power_on_limit) > id(max_volume)) id(power_on_limit) = id(max_volume);
             if (id(balance) < -20 || id(balance) > 20) id(balance) = 0;
+            if (!id(v211_balance_migrated)) {
+              id(input_bal_0) = id(balance);
+              id(input_bal_1) = id(balance);
+              id(input_bal_2) = id(balance);
+              id(input_bal_3) = id(balance);
+              id(v211_balance_migrated) = true;
+              ESP_LOGI("boot", "v2.1.1 migrate: input balance slots initialized to %d", id(balance));
+            }
+            if (id(input_bal_0) < -20 || id(input_bal_0) > 20) id(input_bal_0) = 0;
+            if (id(input_bal_1) < -20 || id(input_bal_1) > 20) id(input_bal_1) = 0;
+            if (id(input_bal_2) < -20 || id(input_bal_2) > 20) id(input_bal_2) = 0;
+            if (id(input_bal_3) < -20 || id(input_bal_3) > 20) id(input_bal_3) = 0;
             if (id(display_timeout_min) < 1 || id(display_timeout_min) > 60) id(display_timeout_min) = 5;
             if (id(display_brightness) < 0 || id(display_brightness) > 100) id(display_brightness) = 80;
             if (id(spectrum_auto_seconds) < 0 || id(spectrum_auto_seconds) > 60) id(spectrum_auto_seconds) = 15;
             if (id(spectrum_theme) < 0 || id(spectrum_theme) > 5) id(spectrum_theme) = 2;
             if (id(volume_val) < 0) id(volume_val) = 0;
+            id(register_learned_remote_keys)->execute();
 
             id(current_db) = -96.0f;
             id(target_db)  = -96.0f;
@@ -87,6 +101,12 @@ esphome:
               case 1: id(volume_val) = id(input_vol_1); break;
               case 2: id(volume_val) = id(input_vol_2); break;
               case 3: id(volume_val) = id(input_vol_3); break;
+            }
+            switch (id(current_input)) {
+              case 0: id(balance) = id(input_bal_0); break;
+              case 1: id(balance) = id(input_bal_1); break;
+              case 2: id(balance) = id(input_bal_2); break;
+              case 3: id(balance) = id(input_bal_3); break;
             }
             if (id(volume_val) > id(max_volume)) id(volume_val) = id(max_volume);
             if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
@@ -114,8 +134,11 @@ esphome:
             else
               id(relay_out)->turn_off();
 
-            id(system_ready) = true;
-            ESP_LOGI("BOOT_DIAG", "system_ready=true before boot input switch: heap=%u", (unsigned)esp_get_free_heap_size());
+            id(power_transitioning) = !id(standby);
+            id(system_ready) = false;
+            id(mute_switch)->turn_on();
+            pga2311::set_volume(0, 0);
+            ESP_LOGI("BOOT_DIAG", "system_ready=false before boot input switch: heap=%u", (unsigned)esp_get_free_heap_size());
 
         - if:
             condition:
@@ -132,11 +155,7 @@ esphome:
                   timeout: 5000ms
               - lambda: |-
                   ESP_LOGI("BOOT_DIAG", "switch_input complete: heap=%u", (unsigned)esp_get_free_heap_size());
-              - script.execute: display_idle_timer
               - script.execute: apply_theme    # ★ 上电后应用保存的主题色
-              - lambda: |-
-                  id(system_ready) = true;
-                  ESP_LOGI("BOOT_DIAG", "system_ready=true: heap=%u", (unsigned)esp_get_free_heap_size());
               - lvgl.resume:
               - lvgl.page.show: splash_page
               - lambda: |-
@@ -156,6 +175,8 @@ esphome:
                   pga2311::set_volume(0, 0);
                   id(current_db) = -96.0f;
                   id(target_db)  = -96.0f;
+                  id(system_ready) = false;
+                  id(power_transitioning) = false;
               - switch.turn_on: mute_switch
 
     - priority: -200
@@ -282,7 +303,7 @@ esp32_ble_server:
                       float pct = (float)vol * 100.0f / (float)id(max_volume);
                       if (pct > 100.0f) pct = 100.0f;
                       id(volume_number)->publish_state(pct);
-                      id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+                      id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
                       id(send_volume_to_pga)->execute();
                       id(reset_idle_timer)->execute();
                       break;
@@ -319,6 +340,7 @@ esp32_ble_server:
                       if (bal < -20) bal = -20;
                       if (bal > 20)  bal = 20;
                       id(balance) = bal;
+                      id(save_current_input_balance)->execute(id(current_input), id(balance));
                       id(balance_number)->publish_state((float)bal);
                       id(send_volume_to_pga)->execute();
                       id(reset_idle_timer)->execute();
@@ -338,6 +360,12 @@ esp32_ble_server:
                       if (max_vol < 10)  max_vol = 10;
                       if (max_vol > 255) max_vol = 255;
                       id(max_volume) = max_vol;
+                      if (id(power_on_limit) > max_vol) {
+                        id(power_on_limit) = max_vol;
+                        id(power_on_limit_number)->publish_state((float)max_vol);
+                        lv_bar_set_value(id(bar_power_on_limit), max_vol, LV_ANIM_OFF);
+                        lv_label_set_text(id(val_power_on), (std::to_string(max_vol)).c_str());
+                      }
                       if (id(volume_val) > max_vol) {
                          id(volume_val) = max_vol;
                          id(last_v_change_ms) = now;
@@ -393,7 +421,7 @@ esp32_ble_server:
                       if (len < 1) break;
                       uint8_t pol = x[3];
                       if (pol < 10)  pol = 10;
-                      if (pol > 255) pol = 255;
+                      if (pol > id(max_volume)) pol = id(max_volume);
                       id(power_on_limit) = pol;
                       id(power_on_limit_number)->publish_state((float)pol);
                       // 同步 LVGL 设置页
@@ -447,7 +475,8 @@ esp32_ble_server:
 
 logger:
   level: INFO
-  hardware_uart: UART0
+  # Real-machine USB debug uses the ESP32-S3 USB-Serial-JTAG port (COM7).
+  hardware_uart: USB_SERIAL_JTAG
 
 api:
   encryption:
@@ -468,7 +497,7 @@ api:
             if (v > id(max_volume)) v = id(max_volume);
             id(volume_val) = v;
             id(last_v_change_ms) = now;
-            id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+            id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
             id(send_volume_to_pga)->execute();
             id(reset_idle_timer)->execute();
 
@@ -597,7 +626,7 @@ font:
     size: 14
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
-      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址，。；：！？（）休眠唤醒保护厂恢复"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败"
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
@@ -605,7 +634,7 @@ font:
     size: 18
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
-      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址，。；：！？（）休眠唤醒保护厂恢复"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败"
 
   # ── Montserrat 字族 (web, 完整字体) ──
   - file:
@@ -805,7 +834,7 @@ switch:
     turn_off_action:
       - if:
           condition:
-            lambda: 'return id(standby) || id(temp_protect) || id(ota_active);'
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning);'
           then:
             - lambda: |-
                 id(soft_mute) = true;
@@ -930,7 +959,8 @@ display:
     color_depth: 16
     pixel_mode: 16bit
     invert_colors: false
-    data_rate: 80MHz
+    # Real chassis wiring has less margin than bench wiring; 40MHz keeps the NV3007 SPI link stable.
+    data_rate: 40MHz
     auto_clear_enabled: false
     update_interval: never
     id: tft_display
@@ -1101,11 +1131,15 @@ lvgl:
               id(ntc_temp)->publish_state(_ntc);
             }
           }
-      - light.turn_on:
-          id: display_backlight
-          transition_length: 500ms
-          brightness: !lambda 'return id(display_brightness) / 100.0f;'
-      - globals.set: {id: display_is_off, value: 'false'}
+      - if:
+          condition:
+            lambda: 'return !id(standby);'
+          then:
+            - light.turn_on:
+                id: display_backlight
+                transition_length: 500ms
+                brightness: !lambda 'return id(display_brightness) / 100.0f;'
+            - globals.set: {id: display_is_off, value: 'false'}
 
   pages:
     # ── 开机闪屏: Zhitong Audio Logo 渐显 (WiFi 就绪后切到主页面) ──
@@ -2321,8 +2355,9 @@ lvgl:
       bg_color: 0x0A1220
       layout:
         type: flex
-        flex_flow: column
+        flex_flow: row_wrap
         pad_row: 2
+        pad_column: 2
       pad_all: 4
       widgets:
         # ── Row 0: 标题 ──
@@ -2525,8 +2560,9 @@ lvgl:
       bg_color: 0x0A1220
       layout:
         type: flex
-        flex_flow: column
+        flex_flow: row_wrap
         pad_row: 2
+        pad_column: 2
       pad_all: 4
       widgets:
         # Row 0: 标题
@@ -2550,6 +2586,14 @@ lvgl:
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 140
+              - label:
+                  id: lbl_keymap_learn_status
+                  text: "KEY MAP"
+                  text_font: font_cn_small
+                  text_color: color_accent
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
 
         # 0: 音量+
         - obj:
@@ -2647,7 +2691,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 3: 播放/暂停
+        # 3: 播放
         - obj:
             id: keymap_row_3
             width: 420
@@ -2667,7 +2711,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "播放/暂停"
+                  text: "播放"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2679,9 +2723,41 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 4: 下一曲
+        # 4: 暂停
         - obj:
             id: keymap_row_4
+            width: 420
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x101827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F03E4"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 24
+              - label:
+                  text: "暂停"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 70
+              - label:
+                  id: val_keymap_4
+                  text: !lambda return remote_keys::get_action_name(id(key_map_5));
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+        # 5: 下一曲
+        - obj:
+            id: keymap_row_5
             width: 420
             height: 38
             layout:
@@ -2704,16 +2780,16 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 70
               - label:
-                  id: val_keymap_4
-                  text: !lambda return remote_keys::get_action_name(id(key_map_5));
+                  id: val_keymap_5
+                  text: !lambda return remote_keys::get_action_name(id(key_map_6));
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 5: 上一曲
+        # 6: 上一曲
         - obj:
-            id: keymap_row_5
+            id: keymap_row_6
             width: 420
             height: 38
             layout:
@@ -2736,16 +2812,16 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 70
               - label:
-                  id: val_keymap_5
-                  text: !lambda return remote_keys::get_action_name(id(key_map_6));
+                  id: val_keymap_6
+                  text: !lambda return remote_keys::get_action_name(id(key_map_7));
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 6: 电源
+        # 7: 电源
         - obj:
-            id: keymap_row_6
+            id: keymap_row_7
             width: 420
             height: 38
             layout:
@@ -2768,16 +2844,17 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 70
               - label:
-                  id: val_keymap_6
-                  text: !lambda return remote_keys::get_action_name(id(key_map_7));
+                  id: val_keymap_7
+                  text: !lambda return remote_keys::get_action_name(id(key_map_8));
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 7: 切换输入
+
+        # 8: 切换输入
         - obj:
-            id: keymap_row_7
+            id: keymap_row_8
             width: 420
             height: 38
             layout:
@@ -2800,15 +2877,81 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 70
               - label:
-                  id: val_keymap_7
-                  text: !lambda return remote_keys::get_action_name(id(key_map_8));
+                  id: val_keymap_8
+                  text: !lambda return remote_keys::get_action_name(id(key_map_9));
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
 
-        # Row 8: 返回
+        # 9: 学习按键
+        - obj:
+            id: keymap_row_learn
+            width: 420
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x101827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F0652"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 24
+              - label:
+                  text: "学习按键"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 90
+              - label:
+                  id: val_keymap_learn
+                  text: "音量+"
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+
+        # 10: 重置学习
+        - obj:
+            id: keymap_row_reset
+            width: 420
+            height: 38
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x101827
+            border_side: LEFT
+            border_width: 0
+            border_color: 0x10B981
+            widgets:
+              - label:
+                  text: "\U000F0450"
+                  text_font: mdi_settings_icons_24
+                  text_color: color_accent
+                  width: 24
+              - label:
+                  text: "重置学习"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 90
+              - label:
+                  id: val_keymap_reset
+                  text: "清空"
+                  text_font: font_cn_small
+                  text_color: 0xF1F5F9
+                  width: 0
+                  flex_grow: 1
+                  text_align: RIGHT
+
+        # Row 11: 返回
         - obj:
             id: keymap_row_back
             width: 420
@@ -2836,11 +2979,7 @@ lvgl:
     # ── 诊断信息页 (内存监控) ──
     - id: debug_page
       bg_color: 0x0A1220
-      layout:
-        type: flex
-        flex_flow: column
-        pad_row: 2
-      pad_all: 4
+      pad_all: 0
       widgets:
         # ── Row 0: 标题 ──
         - obj:
@@ -2864,10 +3003,28 @@ lvgl:
                   text_color: 0xF1F5F9
                   width: 120
 
-        # ── Row 1: Free Internal Heap ──
+        # ── Row 1A: CPU Usage ──
+        - obj:
+            id: dbg_row_cpu
+            width: 206
+            height: 32
+            layout:
+              type: flex
+              flex_flow: row
+            pad_all: 4
+            bg_color: 0x101827
+            widgets:
+              - label:
+                  id: lbl_dbg_cpu
+                  text: "CPU 占用: --"
+                  text_font: font_cn_small
+                  text_color: 0x8E9FB8
+                  width: 190
+
+        # ── Row 1B: Free Internal Heap ──
         - obj:
             id: dbg_row_heap
-            width: 420
+            width: 206
             height: 32
             layout:
               type: flex
@@ -2880,12 +3037,12 @@ lvgl:
                   text: "内部堆: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 250
+                  width: 190
 
-        # ── Row 2: Min Free Heap ──
+        # ── Row 2A: Min Free Heap ──
         - obj:
             id: dbg_row_minheap
-            width: 420
+            width: 206
             height: 32
             layout:
               type: flex
@@ -2898,12 +3055,12 @@ lvgl:
                   text: "最小空闲: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 250
+                  width: 190
 
-        # ── Row 3: Free PSRAM ──
+        # ── Row 2B: Free PSRAM ──
         - obj:
             id: dbg_row_psram
-            width: 420
+            width: 206
             height: 32
             layout:
               type: flex
@@ -2916,12 +3073,12 @@ lvgl:
                   text: "PSRAM: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 250
+                  width: 190
 
-        # ── Row 4: Min Free PSRAM ──
+        # ── Row 3A: Min Free PSRAM ──
         - obj:
             id: dbg_row_minpsram
-            width: 420
+            width: 206
             height: 32
             layout:
               type: flex
@@ -2934,12 +3091,12 @@ lvgl:
                   text: "PSRAM最小空闲: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 250
+                  width: 190
 
-        # ── Row 5: 运行时间 ──
+        # ── Row 3B: 运行时间 ──
         - obj:
             id: dbg_row_uptime
-            width: 420
+            width: 206
             height: 32
             layout:
               type: flex
@@ -2952,12 +3109,12 @@ lvgl:
                   text: "运行时间: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 250
+                  width: 190
 
-        # ── Row 6: MSGEQ7 重校准 ──
+        # ── Row 4A: MSGEQ7 重校准 ──
         - obj:
             id: dbg_row_recal
-            width: 420
+            width: 206
             height: 42
             layout:
               type: flex
@@ -2978,12 +3135,12 @@ lvgl:
                   text: "MSGEQ7 重校准 (单击执行)"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
-                  width: 220
+                  width: 168
 
-        # ── Row 7: 返回按钮 ──
+        # ── Row 4B: 返回按钮 ──
         - obj:
             id: dbg_row_back
-            width: 420
+            width: 206
             height: 42
             layout:
               type: flex
@@ -3600,6 +3757,10 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
+  - id: v211_balance_migrated
+    type: bool
+    restore_value: true
+    initial_value: 'false'
   - id: ota_active
     type: bool
     restore_value: false
@@ -3656,6 +3817,22 @@ globals:
     type: int
     restore_value: true
     initial_value: '160'
+  - id: input_bal_0
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: input_bal_1
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: input_bal_2
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: input_bal_3
+    type: int
+    restore_value: true
+    initial_value: '0'
   - id: theme
     type: int
     restore_value: true
@@ -3698,6 +3875,14 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
+  - id: encoder_button_guard_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: spectrum_auto_suppress_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
   - id: last_v_change_ms
     type: uint32_t
     restore_value: false
@@ -3710,16 +3895,19 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
-  - id: virtual_encoder_pos
-    type: int
-    restore_value: false
-    initial_value: '0'
-
   # ── 系统状态 ──
   - id: system_ready
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: power_transitioning
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: standby_wake_block_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
   - id: volume_val
     type: int
     restore_value: false
@@ -3826,11 +4014,27 @@ globals:
     type: int
     restore_value: false
     initial_value: '-1'
+  - id: key_learn_select_idx
+    type: int
+    restore_value: false
+    initial_value: '1'
+  - id: key_learn_pick_mode
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   - id: debug_focus_idx
     type: int
     restore_value: false
     initial_value: '0'   # 0=重校准, 1=返回设置
+  - id: firmware_hidden_click_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: firmware_hidden_click_started_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
 
   # ── BLE 遥控器按键映射 (可配置, 默认恒等映射) ──
   - id: key_map_1
@@ -3869,106 +4073,616 @@ globals:
     type: int
     restore_value: true
     initial_value: '9'
-  - id: key_map_10
+
+  # ── BLE 遥控器原始码学习表 (1~9 核心动作, handle+len+hash) ──
+  - id: key_learn_waiting
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: key_learn_target
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: key_learn_started_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: key_learn_feedback_idx
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: key_learn_feedback_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: learned_key_1_handle
     type: int
     restore_value: true
-    initial_value: '10'
-  - id: key_map_11
+    initial_value: '0'
+  - id: learned_key_1_len
     type: int
     restore_value: true
-    initial_value: '11'
-  - id: key_map_12
+    initial_value: '0'
+  - id: learned_key_1_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_1_kind
     type: int
     restore_value: true
-    initial_value: '12'
-  - id: key_map_13
+    initial_value: '0'
+  - id: learned_key_1_value
     type: int
     restore_value: true
-    initial_value: '13'
-  - id: key_map_14
+    initial_value: '0'
+  - id: learned_key_1_aux
     type: int
     restore_value: true
-    initial_value: '14'
+    initial_value: '0'
+  - id: learned_key_2_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_2_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_2_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_2_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_2_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_2_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_3_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_4_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_5_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_6_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_7_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_8_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_handle
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_len
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_hash
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_kind
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_value
+    type: int
+    restore_value: true
+    initial_value: '0'
+  - id: learned_key_9_aux
+    type: int
+    restore_value: true
+    initial_value: '0'
 
 # ═══════════════════════════════════════════════════════════════
 # 脚本
 # ═══════════════════════════════════════════════════════════════
 script:
+  - id: register_learned_remote_keys
+    mode: restart
+    then:
+      - lambda: |-
+          auto reg = [](int action, int handle, int len, int kind, int value, int aux, uint32_t hash) {
+            if (handle > 0 && len > 0 && kind > 0 && value > 0) {
+              ble_hid_host::set_learned_key((ble_hid_host::HidEventType)action, handle, len, kind, value, aux, hash);
+            }
+          };
+          reg(1, id(learned_key_1_handle), id(learned_key_1_len), id(learned_key_1_kind), id(learned_key_1_value), id(learned_key_1_aux), id(learned_key_1_hash));
+          reg(2, id(learned_key_2_handle), id(learned_key_2_len), id(learned_key_2_kind), id(learned_key_2_value), id(learned_key_2_aux), id(learned_key_2_hash));
+          reg(3, id(learned_key_3_handle), id(learned_key_3_len), id(learned_key_3_kind), id(learned_key_3_value), id(learned_key_3_aux), id(learned_key_3_hash));
+          reg(4, id(learned_key_4_handle), id(learned_key_4_len), id(learned_key_4_kind), id(learned_key_4_value), id(learned_key_4_aux), id(learned_key_4_hash));
+          reg(5, id(learned_key_5_handle), id(learned_key_5_len), id(learned_key_5_kind), id(learned_key_5_value), id(learned_key_5_aux), id(learned_key_5_hash));
+          reg(6, id(learned_key_6_handle), id(learned_key_6_len), id(learned_key_6_kind), id(learned_key_6_value), id(learned_key_6_aux), id(learned_key_6_hash));
+          reg(7, id(learned_key_7_handle), id(learned_key_7_len), id(learned_key_7_kind), id(learned_key_7_value), id(learned_key_7_aux), id(learned_key_7_hash));
+          reg(8, id(learned_key_8_handle), id(learned_key_8_len), id(learned_key_8_kind), id(learned_key_8_value), id(learned_key_8_aux), id(learned_key_8_hash));
+          reg(9, id(learned_key_9_handle), id(learned_key_9_len), id(learned_key_9_kind), id(learned_key_9_value), id(learned_key_9_aux), id(learned_key_9_hash));
+
+  - id: save_learned_remote_key
+    mode: restart
+    parameters:
+      action: int
+      handle: int
+      len: int
+      kind: int
+      value: int
+      aux: int
+      hash: uint32_t
+    then:
+      - lambda: |-
+          switch (action) {
+            case 1: id(learned_key_1_handle) = handle; id(learned_key_1_len) = len; id(learned_key_1_kind) = kind; id(learned_key_1_value) = value; id(learned_key_1_aux) = aux; id(learned_key_1_hash) = hash; break;
+            case 2: id(learned_key_2_handle) = handle; id(learned_key_2_len) = len; id(learned_key_2_kind) = kind; id(learned_key_2_value) = value; id(learned_key_2_aux) = aux; id(learned_key_2_hash) = hash; break;
+            case 3: id(learned_key_3_handle) = handle; id(learned_key_3_len) = len; id(learned_key_3_kind) = kind; id(learned_key_3_value) = value; id(learned_key_3_aux) = aux; id(learned_key_3_hash) = hash; break;
+            case 4: id(learned_key_4_handle) = handle; id(learned_key_4_len) = len; id(learned_key_4_kind) = kind; id(learned_key_4_value) = value; id(learned_key_4_aux) = aux; id(learned_key_4_hash) = hash; break;
+            case 5: id(learned_key_5_handle) = handle; id(learned_key_5_len) = len; id(learned_key_5_kind) = kind; id(learned_key_5_value) = value; id(learned_key_5_aux) = aux; id(learned_key_5_hash) = hash; break;
+            case 6: id(learned_key_6_handle) = handle; id(learned_key_6_len) = len; id(learned_key_6_kind) = kind; id(learned_key_6_value) = value; id(learned_key_6_aux) = aux; id(learned_key_6_hash) = hash; break;
+            case 7: id(learned_key_7_handle) = handle; id(learned_key_7_len) = len; id(learned_key_7_kind) = kind; id(learned_key_7_value) = value; id(learned_key_7_aux) = aux; id(learned_key_7_hash) = hash; break;
+            case 8: id(learned_key_8_handle) = handle; id(learned_key_8_len) = len; id(learned_key_8_kind) = kind; id(learned_key_8_value) = value; id(learned_key_8_aux) = aux; id(learned_key_8_hash) = hash; break;
+            case 9: id(learned_key_9_handle) = handle; id(learned_key_9_len) = len; id(learned_key_9_kind) = kind; id(learned_key_9_value) = value; id(learned_key_9_aux) = aux; id(learned_key_9_hash) = hash; break;
+            default: return;
+          }
+          ble_hid_host::set_learned_key((ble_hid_host::HidEventType)action, handle, len, kind, value, aux, hash);
+          ESP_LOGI("ble_hid", "learned remote key action=%d handle=0x%04x len=%d kind=%d value=%d aux=%d hash=0x%08x",
+                   action, handle, len, kind, value, aux, (unsigned)hash);
+
+  - id: clear_learned_remote_keys
+    mode: restart
+    then:
+      - lambda: |-
+          id(key_learn_waiting) = false;
+          id(key_learn_target) = 0;
+          id(key_learn_started_ms) = 0;
+          id(key_learn_feedback_idx) = -1;
+          id(key_learn_feedback_until_ms) = 0;
+          id(key_learn_select_idx) = 1;
+          id(key_learn_pick_mode) = false;
+          ble_hid_host::clear_raw_event();
+          id(learned_key_1_handle) = 0; id(learned_key_1_len) = 0; id(learned_key_1_kind) = 0; id(learned_key_1_value) = 0; id(learned_key_1_aux) = 0; id(learned_key_1_hash) = 0;
+          id(learned_key_2_handle) = 0; id(learned_key_2_len) = 0; id(learned_key_2_kind) = 0; id(learned_key_2_value) = 0; id(learned_key_2_aux) = 0; id(learned_key_2_hash) = 0;
+          id(learned_key_3_handle) = 0; id(learned_key_3_len) = 0; id(learned_key_3_kind) = 0; id(learned_key_3_value) = 0; id(learned_key_3_aux) = 0; id(learned_key_3_hash) = 0;
+          id(learned_key_4_handle) = 0; id(learned_key_4_len) = 0; id(learned_key_4_kind) = 0; id(learned_key_4_value) = 0; id(learned_key_4_aux) = 0; id(learned_key_4_hash) = 0;
+          id(learned_key_5_handle) = 0; id(learned_key_5_len) = 0; id(learned_key_5_kind) = 0; id(learned_key_5_value) = 0; id(learned_key_5_aux) = 0; id(learned_key_5_hash) = 0;
+          id(learned_key_6_handle) = 0; id(learned_key_6_len) = 0; id(learned_key_6_kind) = 0; id(learned_key_6_value) = 0; id(learned_key_6_aux) = 0; id(learned_key_6_hash) = 0;
+          id(learned_key_7_handle) = 0; id(learned_key_7_len) = 0; id(learned_key_7_kind) = 0; id(learned_key_7_value) = 0; id(learned_key_7_aux) = 0; id(learned_key_7_hash) = 0;
+          id(learned_key_8_handle) = 0; id(learned_key_8_len) = 0; id(learned_key_8_kind) = 0; id(learned_key_8_value) = 0; id(learned_key_8_aux) = 0; id(learned_key_8_hash) = 0;
+          id(learned_key_9_handle) = 0; id(learned_key_9_len) = 0; id(learned_key_9_kind) = 0; id(learned_key_9_value) = 0; id(learned_key_9_aux) = 0; id(learned_key_9_hash) = 0;
+          ble_hid_host::clear_all_learned_keys();
+          lv_label_set_text(id(val_keymap_learn), remote_keys::get_action_name(id(key_learn_select_idx)).c_str());
+
+  - id: refresh_keymap_values
+    mode: restart
+    then:
+      - lambda: |-
+          lv_label_set_text(id(val_keymap_0), remote_keys::get_action_name(id(key_map_1)).c_str());
+          lv_label_set_text(id(val_keymap_1), remote_keys::get_action_name(id(key_map_2)).c_str());
+          lv_label_set_text(id(val_keymap_2), remote_keys::get_action_name(id(key_map_3)).c_str());
+          lv_label_set_text(id(val_keymap_3), remote_keys::get_action_name(id(key_map_4)).c_str());
+          lv_label_set_text(id(val_keymap_4), remote_keys::get_action_name(id(key_map_5)).c_str());
+          lv_label_set_text(id(val_keymap_5), remote_keys::get_action_name(id(key_map_6)).c_str());
+          lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(id(key_map_7)).c_str());
+          lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(id(key_map_8)).c_str());
+          lv_label_set_text(id(val_keymap_8), remote_keys::get_action_name(id(key_map_9)).c_str());
+          lv_label_set_text(id(val_keymap_reset), "清空");
+
+  - id: refresh_keymap_learn_row
+    mode: restart
+    then:
+      - lambda: |-
+          int action = id(key_learn_select_idx);
+          if (action < 1 || action > 9) action = 1;
+          std::string label = remote_keys::get_action_name(action);
+          if (id(key_learn_waiting)) {
+            label = "学习中: " + label;
+          } else if (id(key_learn_feedback_idx) == action - 1 &&
+                     (int32_t)(millis() - id(key_learn_feedback_until_ms)) < 0) {
+            label = "已学习: " + label;
+          } else if (id(key_learn_pick_mode)) {
+            label = "选择: " + label;
+          }
+          lv_label_set_text(id(val_keymap_learn), label.c_str());
+
+  - id: start_remote_key_learning
+    mode: restart
+    parameters:
+      action: int
+    then:
+      - lambda: |-
+          if (action < 1 || action > 9) return;
+          id(key_learn_waiting) = true;
+          id(key_learn_target) = action;
+          id(key_learn_started_ms) = millis();
+          id(key_learn_feedback_idx) = -1;
+          id(key_learn_feedback_until_ms) = 0;
+          id(key_learn_select_idx) = action;
+          id(key_learn_pick_mode) = false;
+          ble_hid_host::begin_learning_capture();
+          id(refresh_keymap_values)->execute();
+          id(refresh_keymap_learn_row)->execute();
+          ESP_LOGI("ble_hid", "remote key learn start action=%d", action);
+
+  - id: poll_remote_key_learning
+    mode: restart
+    then:
+      - lambda: |-
+          uint32_t now = millis();
+          if (!id(key_learn_waiting)) {
+            if (id(key_learn_feedback_idx) >= 0 &&
+                (int32_t)(now - id(key_learn_feedback_until_ms)) >= 0) {
+              id(key_learn_feedback_idx) = -1;
+              id(key_learn_feedback_until_ms) = 0;
+              id(refresh_keymap_values)->execute();
+              id(refresh_keymap_learn_row)->execute();
+            }
+            return;
+          }
+          if (now - id(key_learn_started_ms) > 10000) {
+            id(key_learn_waiting) = false;
+            id(key_learn_target) = 0;
+            id(key_learn_started_ms) = 0;
+            id(key_learn_pick_mode) = false;
+            ble_hid_host::clear_raw_event();
+            id(refresh_keymap_values)->execute();
+            std::string text = "超时: " + remote_keys::get_action_name(id(key_learn_select_idx));
+            lv_label_set_text(id(val_keymap_learn), text.c_str());
+            ESP_LOGI("ble_hid", "remote key learn timeout");
+            return;
+          }
+
+          uint16_t handle = 0;
+          uint16_t len = 0;
+          uint8_t kind = 0;
+          uint8_t value = 0;
+          uint16_t aux = 0;
+          uint32_t hash = 0;
+          if (!ble_hid_host::get_last_normalized_fingerprint(&handle, &len, &kind, &value, &aux, &hash)) return;
+
+          int action = id(key_learn_target);
+          if (action < 1 || action > 9) return;
+          id(save_learned_remote_key)->execute(action, (int)handle, (int)len, (int)kind, (int)value, (int)aux, hash);
+          while (ble_hid_host::has_event()) {
+            ble_hid_host::pop_event();
+          }
+          id(key_learn_waiting) = false;
+          id(key_learn_target) = 0;
+          id(key_learn_started_ms) = 0;
+          id(key_learn_select_idx) = action;
+          id(key_learn_pick_mode) = false;
+          id(key_learn_feedback_idx) = action - 1;
+          id(key_learn_feedback_until_ms) = now + 1500;
+          id(refresh_keymap_learn_row)->execute();
+
   - id: style_secondary_pages
     mode: restart
     then:
       - lambda: |-
           lv_color_t accent = get_theme_accent(id(theme));
+          lv_obj_t* active_page = lv_scr_act();
+          bool style_all =
+            active_page != id(settings_page)->obj &&
+            active_page != id(ble_remote_page)->obj &&
+            active_page != id(remote_keys_page)->obj &&
+            active_page != id(debug_page)->obj;
+          bool style_settings = style_all || active_page == id(settings_page)->obj;
+          bool style_ble = style_all || active_page == id(ble_remote_page)->obj ||
+            (active_page == id(settings_page)->obj && id(settings_focus_idx) == 8);
+          bool style_keymap = style_all || active_page == id(remote_keys_page)->obj ||
+            (active_page == id(settings_page)->obj && id(settings_focus_idx) == 9);
+          bool style_debug = style_all || active_page == id(debug_page)->obj ||
+            (active_page == id(settings_page)->obj && id(settings_focus_idx) == 13);
 
-          secondary_ui::page(id(settings_page)->obj);
-          secondary_ui::page(id(ble_remote_page)->obj);
-          secondary_ui::page(id(remote_keys_page)->obj);
-          secondary_ui::page(id(debug_page)->obj);
+          if (style_settings) {
+            secondary_ui::page(id(settings_page)->obj);
+            settings_ui::init(
+              (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
+              (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
+              (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
+              (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
+              (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
+              (lv_obj_t*)id(row_output_mode),
+              (lv_obj_t*)id(row_spectrum_auto), (lv_obj_t*)id(row_spectrum_theme),
+              (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
+              (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
+              (lv_obj_t*)id(bar_balance),
+              (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
+            );
 
-          settings_ui::init(
-            (lv_obj_t*)id(row_max_vol), (lv_obj_t*)id(row_power_on),
-            (lv_obj_t*)id(row_balance), (lv_obj_t*)id(row_input),
-            (lv_obj_t*)id(row_auto_switch), (lv_obj_t*)id(row_brightness),
-            (lv_obj_t*)id(row_timeout), (lv_obj_t*)id(row_theme),
-            (lv_obj_t*)id(row_ble_remote), (lv_obj_t*)id(row_keymap),
-            (lv_obj_t*)id(row_output_mode),
-            (lv_obj_t*)id(row_spectrum_auto), (lv_obj_t*)id(row_spectrum_theme),
-            (lv_obj_t*)id(row_firmware), (lv_obj_t*)id(row_ip),
-            (lv_obj_t*)id(bar_max_vol), (lv_obj_t*)id(bar_power_on_limit),
-            (lv_obj_t*)id(bar_balance),
-            (lv_obj_t*)id(bar_brightness), (lv_obj_t*)id(bar_display_timeout)
-          );
-
-          lv_obj_t** setting_rows = settings_ui::rows();
-          lv_obj_t** setting_bars = settings_ui::bars();
-          int setting_focus = id(settings_focus_idx);
-          int setting_active = id(settings_active_idx);
-          for (int i = 0; i < settings_ui::N; i++) {
-            bool focused = (setting_active < 0 && i == setting_focus);
-            bool active = (setting_active == i);
-            bool dim = (i == 8 || i == 9 || i == 13 || i == 14);
-            secondary_ui::row(setting_rows[i], accent, focused, dim, active);
-            if (setting_bars[i]) {
-              lv_obj_set_height(setting_bars[i], active ? settings_ui::BAR_ACTIVE_H : settings_ui::bar_base_heights[i]);
+            lv_obj_t** setting_rows = settings_ui::rows();
+            lv_obj_t** setting_bars = settings_ui::bars();
+            int setting_focus = id(settings_focus_idx);
+            int setting_active = id(settings_active_idx);
+            for (int i = 0; i < settings_ui::N; i++) {
+              bool focused = (setting_active < 0 && i == setting_focus);
+              bool active = (setting_active == i);
+              bool dim = (i == 8 || i == 9 || i == 13 || i == 14);
+              secondary_ui::row(setting_rows[i], accent, focused, dim, active);
+              lv_obj_t* c0 = lv_obj_get_child(setting_rows[i], 0);
+              lv_obj_t* c1 = lv_obj_get_child(setting_rows[i], 1);
+              lv_obj_t* c2 = lv_obj_get_child(setting_rows[i], 2);
+              lv_obj_t* c3 = lv_obj_get_child(setting_rows[i], 3);
+              if (c0) lv_obj_set_width(c0, 22);
+              if (c1) lv_obj_set_width(c1, (i == 9) ? 94 : 76);
+              if (setting_bars[i]) {
+                lv_obj_set_width(setting_bars[i], 176);
+                lv_obj_set_height(setting_bars[i], active ? settings_ui::BAR_ACTIVE_H : settings_ui::bar_base_heights[i]);
+                if (c3) lv_obj_set_width(c3, 48);
+              } else if (i == 7) {
+                if (c2) lv_obj_set_width(c2, 12);
+                if (c3) lv_obj_set_width(c3, 230);
+              } else {
+                if (c2) lv_obj_set_width(c2, (i == 9) ? 230 : 250);
+              }
             }
           }
 
-          secondary_ui::title(id(ble_row_title), accent);
-          secondary_ui::row(id(ble_row_status), accent, false, true, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(ble_row_scan), accent, id(ble_remote_focus_idx) == 0);
-          secondary_ui::row(id(ble_row_dev0), accent, id(ble_remote_focus_idx) == 1);
-          secondary_ui::row(id(ble_row_dev1), accent, id(ble_remote_focus_idx) == 2);
-          secondary_ui::row(id(ble_row_dev2), accent, id(ble_remote_focus_idx) == 3);
-          secondary_ui::row(id(ble_row_back), accent, id(ble_remote_focus_idx) == 4, true);
-
-          secondary_ui::title(id(keymap_row_title), accent);
-          lv_obj_t* key_rows[] = {
-            id(keymap_row_0), id(keymap_row_1), id(keymap_row_2), id(keymap_row_3),
-            id(keymap_row_4), id(keymap_row_5), id(keymap_row_6), id(keymap_row_7),
-            id(keymap_row_back)
-          };
-          for (int i = 0; i <= 8; i++) {
-            bool focused = (id(keymap_active_idx) < 0 && id(keymap_focus_idx) == i);
-            bool active = (id(keymap_active_idx) == i);
-            secondary_ui::row(key_rows[i], accent, focused, i == 8, active);
+          if (style_ble) {
+            secondary_ui::page(id(ble_remote_page)->obj);
+            secondary_ui::title(id(ble_row_title), accent);
+            {
+              lv_obj_t* icon = lv_obj_get_child(id(ble_row_title), 0);
+              lv_obj_t* name = lv_obj_get_child(id(ble_row_title), 1);
+              if (icon) lv_obj_set_width(icon, 22);
+              if (name) lv_obj_set_width(name, 150);
+            }
+            secondary_ui::row(id(ble_row_status), accent, false, true, false, secondary_ui::DEBUG_H);
+            secondary_ui::row(id(ble_row_scan), accent, id(ble_remote_focus_idx) == 0);
+            secondary_ui::row(id(ble_row_dev0), accent, id(ble_remote_focus_idx) == 1);
+            secondary_ui::row(id(ble_row_dev1), accent, id(ble_remote_focus_idx) == 2);
+            secondary_ui::row(id(ble_row_dev2), accent, id(ble_remote_focus_idx) == 3);
+            secondary_ui::row(id(ble_row_back), accent, id(ble_remote_focus_idx) == 4, true);
+            {
+              lv_obj_t* status = lv_obj_get_child(id(ble_row_status), 0);
+              if (status) lv_obj_set_width(status, 360);
+              lv_obj_t* scan_icon = lv_obj_get_child(id(ble_row_scan), 0);
+              lv_obj_t* scan_text = lv_obj_get_child(id(ble_row_scan), 1);
+              if (scan_icon) lv_obj_set_width(scan_icon, 22);
+              if (scan_text) lv_obj_set_width(scan_text, 260);
+            }
           }
 
-          secondary_ui::title(id(dbg_row_title), accent);
-          secondary_ui::row(id(dbg_row_heap), accent, false, false, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(dbg_row_minheap), accent, false, false, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(dbg_row_psram), accent, false, false, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(dbg_row_minpsram), accent, false, false, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(dbg_row_uptime), accent, false, false, false, secondary_ui::DEBUG_H);
-          secondary_ui::row(id(dbg_row_recal), accent, id(debug_focus_idx) == 0);
-          secondary_ui::row(id(dbg_row_back), accent, id(debug_focus_idx) == 1, true);
+          if (style_keymap) {
+            secondary_ui::page(id(remote_keys_page)->obj);
+            secondary_ui::title(id(keymap_row_title), accent);
+            {
+              lv_obj_t* title_icon = lv_obj_get_child(id(keymap_row_title), 0);
+              if (title_icon) lv_obj_set_style_text_color(title_icon, accent, LV_PART_MAIN);
+              if (title_icon) lv_obj_set_width(title_icon, 22);
+              lv_obj_t* title_text = lv_obj_get_child(id(keymap_row_title), 1);
+              if (title_text) lv_obj_set_width(title_text, 150);
+              lv_obj_t* title_status = lv_obj_get_child(id(keymap_row_title), 2);
+              if (title_status) lv_obj_set_width(title_status, 210);
+              if (title_status) lv_obj_set_style_text_color(title_status, accent, LV_PART_MAIN);
+            }
+            lv_obj_t* key_rows[] = {
+              id(keymap_row_0), id(keymap_row_1), id(keymap_row_2), id(keymap_row_3),
+              id(keymap_row_4), id(keymap_row_5), id(keymap_row_6), id(keymap_row_7),
+              id(keymap_row_8), id(keymap_row_learn), id(keymap_row_reset), id(keymap_row_back)
+            };
+            for (int i = 0; i <= 11; i++) {
+              bool focused = (id(keymap_active_idx) < 0 && id(keymap_focus_idx) == i);
+              bool active = (id(keymap_active_idx) == i);
+              bool dim = (i == 11);
+              secondary_ui::row(key_rows[i], accent, focused, dim, active);
+              lv_color_t row_accent = (focused || active) ? accent : lv_color_hex(dim ? 0x6B7280 : 0x8E9FB8);
+              lv_obj_t* icon = lv_obj_get_child(key_rows[i], 0);
+              lv_obj_t* name = lv_obj_get_child(key_rows[i], 1);
+              lv_obj_t* value = lv_obj_get_child(key_rows[i], 2);
+              if (icon) lv_obj_set_width(icon, 22);
+              if (name) lv_obj_set_width(name, 94);
+              if (value) lv_obj_set_width(value, 250);
+              if (icon) lv_obj_set_style_text_color(icon, row_accent, LV_PART_MAIN);
+              if (name) lv_obj_set_style_text_color(name, dim ? lv_color_hex(0x8E9FB8) : lv_color_hex(0xE5E7EB), LV_PART_MAIN);
+              if (value) lv_obj_set_style_text_color(value, row_accent, LV_PART_MAIN);
+            }
+          }
 
-  - id: virtual_encoder_click_action
+          if (style_debug) {
+            lv_obj_set_style_bg_color(id(debug_page)->obj, lv_color_hex(0x0A1220), LV_PART_MAIN);
+            lv_obj_set_style_pad_all(id(debug_page)->obj, 0, LV_PART_MAIN);
+            lv_obj_set_style_pad_row(id(debug_page)->obj, 0, LV_PART_MAIN);
+            lv_obj_set_style_pad_column(id(debug_page)->obj, 0, LV_PART_MAIN);
+
+            auto style_debug_cell = [&](lv_obj_t* row, int x, int y, int w, int h, bool focused, bool dim) {
+              lv_obj_set_x(row, x);
+              lv_obj_set_y(row, y);
+              lv_obj_set_width(row, w);
+              lv_obj_set_height(row, h);
+              lv_obj_set_style_pad_all(row, 2, LV_PART_MAIN);
+              lv_obj_set_style_bg_color(row, lv_color_hex(focused ? 0x142033 : (dim ? 0x080D16 : 0x101827)), LV_PART_MAIN);
+              lv_obj_set_style_bg_opa(row, focused ? LV_OPA_70 : LV_OPA_30, LV_PART_MAIN);
+              lv_obj_set_style_border_width(row, focused ? 2 : 1, LV_PART_MAIN);
+              lv_obj_set_style_border_color(row, focused ? accent : lv_color_hex(0x172235), LV_PART_MAIN);
+              lv_obj_set_style_border_side(row, LV_BORDER_SIDE_FULL, LV_PART_MAIN);
+            };
+
+            style_debug_cell(id(dbg_row_title), 6, 4, 416, 24, false, false);
+            {
+              lv_obj_t* icon = lv_obj_get_child(id(dbg_row_title), 0);
+              lv_obj_t* title = lv_obj_get_child(id(dbg_row_title), 1);
+              if (icon) lv_obj_set_width(icon, 22);
+              if (title) lv_obj_set_width(title, 180);
+              if (icon) lv_obj_set_style_text_color(icon, accent, LV_PART_MAIN);
+            }
+
+            struct DebugCellSpec { lv_obj_t* row; int x; int y; int w; };
+            DebugCellSpec cells[] = {
+              {id(dbg_row_cpu),      6,   32, 204},
+              {id(dbg_row_heap),     214, 32, 208},
+              {id(dbg_row_minheap),  6,   56, 204},
+              {id(dbg_row_psram),    214, 56, 208},
+              {id(dbg_row_minpsram), 6,   80, 204},
+              {id(dbg_row_uptime),   214, 80, 208},
+            };
+            for (auto& cell : cells) {
+              style_debug_cell(cell.row, cell.x, cell.y, cell.w, 22, false, false);
+              lv_obj_t* label = lv_obj_get_child(cell.row, 0);
+              if (label) lv_obj_set_width(label, cell.w - 8);
+            }
+
+            style_debug_cell(id(dbg_row_recal), 6, 106, 204, 30, id(debug_focus_idx) == 0, false);
+            style_debug_cell(id(dbg_row_back), 214, 106, 208, 30, id(debug_focus_idx) == 1, true);
+            lv_obj_t* action_rows[] = { id(dbg_row_recal), id(dbg_row_back) };
+            for (auto* row : action_rows) {
+              lv_obj_t* icon = lv_obj_get_child(row, 0);
+              lv_obj_t* text = lv_obj_get_child(row, 1);
+              if (icon) lv_obj_set_width(icon, 22);
+              if (text) lv_obj_set_width(text, 170);
+              if (icon) lv_obj_set_style_text_color(icon, accent, LV_PART_MAIN);
+            }
+          }
+
+  - id: show_debug_page
+    mode: restart
+    then:
+      - lambda: |-
+          id(debug_focus_idx) = 0;
+          id(style_secondary_pages)->execute();
+          id(last_display_interaction) = millis();
+          lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+
+  - id: encoder_click_action
     mode: restart
     then:
       - lambda: |-
           if (id(display_is_off)) {
             id(reset_idle_timer)->execute();
-            return;
           }
 
           lv_obj_t* active_page = lv_scr_act();
@@ -3991,19 +4705,42 @@ script:
               if (idx == 9) {
                 id(keymap_focus_idx) = 0;
                 id(keymap_active_idx) = -1;
+                id(key_learn_waiting) = false;
+                id(key_learn_target) = 0;
+                id(key_learn_started_ms) = 0;
+                id(key_learn_pick_mode) = false;
+                ble_hid_host::clear_raw_event();
+                id(refresh_keymap_values)->execute();
+                id(refresh_keymap_learn_row)->execute();
                 id(style_secondary_pages)->execute();
                 id(last_display_interaction) = millis();
                 lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                 id(reset_idle_timer)->execute();
                 return;
               }
-              if (idx == 13 || idx == 14) return;
+              if (idx == 13) {
+                uint32_t now = millis();
+                if (now - id(firmware_hidden_click_started_ms) > 1200) {
+                  id(firmware_hidden_click_started_ms) = now;
+                  id(firmware_hidden_click_count) = 0;
+                }
+                id(firmware_hidden_click_count)++;
+                if (id(firmware_hidden_click_count) >= 3) {
+                  id(firmware_hidden_click_count) = 0;
+                  id(firmware_hidden_click_started_ms) = 0;
+                  id(show_debug_page)->execute();
+                }
+                id(reset_idle_timer)->execute();
+                return;
+              }
+              if (idx == 14) return;
               id(settings_active_idx) = idx;
               if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::BAR_ACTIVE_H);
             } else {
               int active = id(settings_active_idx);
               id(settings_active_idx) = -1;
               if (bars[active]) lv_obj_set_height(bars[active], settings_ui::bar_base_heights[active]);
+              if (active == 7) id(apply_theme)->execute();
             }
             id(style_secondary_pages)->execute();
             id(reset_idle_timer)->execute();
@@ -4048,11 +4785,42 @@ script:
           if (active_page == id(remote_keys_page)->obj) {
             int f = id(keymap_focus_idx);
             int act = id(keymap_active_idx);
-            if (f >= 0 && f <= 7) {
+            if (f >= 0 && f <= 8) {
               id(keymap_active_idx) = (act < 0) ? f : -1;
               id(style_secondary_pages)->execute();
-            } else if (f == 8) {
+            } else if (f == 9) {
+              if (id(key_learn_waiting)) {
+                id(key_learn_waiting) = false;
+                id(key_learn_target) = 0;
+                id(key_learn_started_ms) = 0;
+                id(key_learn_pick_mode) = false;
+                ble_hid_host::clear_raw_event();
+                id(refresh_keymap_learn_row)->execute();
+              } else if (id(key_learn_pick_mode)) {
+                int action = id(key_learn_select_idx);
+                if (action < 1 || action > 9) action = 1;
+                id(keymap_active_idx) = -1;
+                id(start_remote_key_learning)->execute(action);
+              } else {
+                id(key_learn_pick_mode) = true;
+                id(keymap_active_idx) = 9;
+                id(refresh_keymap_learn_row)->execute();
+                id(style_secondary_pages)->execute();
+              }
+            } else if (f == 10) {
               id(keymap_active_idx) = -1;
+              id(clear_learned_remote_keys)->execute();
+              lv_label_set_text(id(val_keymap_reset), "已清空");
+              id(style_secondary_pages)->execute();
+            } else if (f == 11) {
+              id(keymap_active_idx) = -1;
+              id(key_learn_waiting) = false;
+              id(key_learn_target) = 0;
+              id(key_learn_started_ms) = 0;
+              id(key_learn_pick_mode) = false;
+              ble_hid_host::clear_raw_event();
+              id(refresh_keymap_values)->execute();
+              id(refresh_keymap_learn_row)->execute();
               lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
             }
             id(reset_idle_timer)->execute();
@@ -4060,9 +4828,11 @@ script:
           }
 
           if (active_page == id(debug_page)->obj) {
+            ESP_LOGI("ENC_BTN", "debug click focus=%d", id(debug_focus_idx));
             if (id(debug_focus_idx) == 0) {
               bool ok = msgeq7::recalibrate();
               lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+              id(style_secondary_pages)->execute();
             } else {
               lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
             }
@@ -4071,6 +4841,7 @@ script:
           }
 
           if (active_page == id(spectrum_page)->obj) {
+            id(spectrum_auto_suppress_until_ms) = millis() + 1000;
             lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
             id(reset_idle_timer)->execute();
             return;
@@ -4098,7 +4869,7 @@ script:
           }
           id(reset_idle_timer)->execute();
 
-  - id: virtual_encoder_double_action
+  - id: encoder_double_action
     mode: restart
     then:
       - lambda: |-
@@ -4107,9 +4878,10 @@ script:
             if (id(soft_mute)) id(soft_mute_switch)->turn_off();
             else id(soft_mute_switch)->turn_on();
             id(reset_idle_timer)->execute();
+            return;
           }
 
-  - id: virtual_encoder_long_action
+  - id: encoder_long_action
     mode: restart
     then:
       - lambda: |-
@@ -4129,6 +4901,13 @@ script:
             }
             if (active_page == id(remote_keys_page)->obj) {
               id(keymap_active_idx) = -1;
+              id(key_learn_waiting) = false;
+              id(key_learn_target) = 0;
+              id(key_learn_started_ms) = 0;
+              id(key_learn_pick_mode) = false;
+              ble_hid_host::clear_raw_event();
+              id(refresh_keymap_values)->execute();
+              id(refresh_keymap_learn_row)->execute();
             }
             id(style_secondary_pages)->execute();
             lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -4181,6 +4960,10 @@ script:
             id(system_ready) = true;
             ESP_LOGW("BOOT_DIAG", "system_ready recovered by show_main_boot: heap=%u", (unsigned)esp_get_free_heap_size());
           }
+          if (id(power_transitioning)) {
+            ESP_LOGI("BOOT_DIAG", "power transition released by show_main_boot");
+          }
+          id(power_transitioning) = false;
           if (id(switching_input) && millis() > 8000) {
             id(switching_input) = false;
             id(active_input) = id(current_input);
@@ -4189,6 +4972,7 @@ script:
           if (!id(standby)) {
             id(display_idle_timer)->execute();
             id(apply_theme)->execute();
+            if (!id(soft_mute) && !id(temp_protect) && !id(ota_active)) id(mute_switch)->turn_off();
             id(send_volume_to_pga)->execute();
           }
           ESP_LOGI("BOOT_DIAG", "show_main_boot action: heap=%u", (unsigned)esp_get_free_heap_size());
@@ -4217,6 +5001,7 @@ script:
           // 重置所有 restore_value 全局变量到安全默认值
           id(volume_val)          = 160;
           id(v210_migrated)       = true;  // 重置后标记已迁移, 不再二次缩放
+          id(v211_balance_migrated) = true;  // 重置后标记已迁移, 不再复制旧平衡
           id(current_input)       = 0;
           id(balance)             = 0;
           id(max_volume)          = 255;
@@ -4234,14 +5019,18 @@ script:
           id(input_vol_1)         = 160;
           id(input_vol_2)         = 160;
           id(input_vol_3)         = 160;
+          id(input_bal_0)         = 0;
+          id(input_bal_1)         = 0;
+          id(input_bal_2)         = 0;
+          id(input_bal_3)         = 0;
           id(soft_mute)           = false;
           id(relay_out)->turn_off();
           // 重置按键映射为恒等映射
           id(key_map_1) = 1; id(key_map_2) = 2; id(key_map_3) = 3;
           id(key_map_4) = 4; id(key_map_5) = 5; id(key_map_6) = 6;
           id(key_map_7) = 7; id(key_map_8) = 8;
-          id(key_map_9) = 9; id(key_map_10) = 10; id(key_map_11) = 11;
-          id(key_map_12) = 12; id(key_map_13) = 13; id(key_map_14) = 14;
+          id(key_map_9) = 9;
+          id(clear_learned_remote_keys)->execute();
 
           // 同步到 HA
           id(max_volume_number)->publish_state(255.0f);
@@ -4268,21 +5057,37 @@ script:
   - id: enter_standby
     mode: restart
     then:
-      - script.stop: display_idle_timer
-      - lambda: |-
-          id(saved_soft_mute) = id(soft_mute);
-          id(soft_mute)       = true;
-          id(target_db)       = -96.0f;
-          id(mute_switch)->turn_on();
-          id(display_backlight)->turn_off();
-          pga2311::set_volume(0, 0);
-          id(current_db)      = -96.0f;
-          id(display_is_off)  = true;   // 同步显示状态
-          id(system_ready)    = false;
-          id(standby)         = true;
-          id(standby_switch)->publish_state(false);  // HA 同步
-      - lvgl.pause:
-      - delay: 100ms
+      - if:
+          condition:
+            lambda: 'return id(power_transitioning) || id(standby);'
+          then:
+            - lambda: |-
+                ESP_LOGD("standby", "enter_standby skipped: transitioning=%d standby=%d",
+                         id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0);
+          else:
+            - script.stop: display_idle_timer
+            - script.stop: send_volume_to_pga
+            - script.stop: switch_input
+            - lambda: |-
+                id(power_transitioning) = true;
+                id(standby_wake_block_until_ms) = millis() + 2500;
+                id(saved_soft_mute) = id(soft_mute);
+                id(soft_mute)       = true;
+                id(target_db)       = -96.0f;
+                id(current_db)      = -96.0f;
+                id(mute_switch)->turn_on();
+                auto off = id(display_backlight)->turn_off();
+                off.set_transition_length(0);
+                off.perform();
+                pga2311::set_volume(0, 0);
+                id(display_is_off)  = true;   // 同步显示状态
+                id(system_ready)    = false;
+                id(standby)         = true;
+                id(standby_switch)->publish_state(false);  // HA 同步
+            - lvgl.pause:
+            - delay: 100ms
+            - lambda: |-
+                id(power_transitioning) = false;
 
   # ── 退出待机 ──
   - id: exit_standby
@@ -4290,18 +5095,25 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return !id(standby);'
+            lambda: 'return !id(standby) || id(power_transitioning) || millis() < id(standby_wake_block_until_ms);'
           then:
-            - lambda: 'ESP_LOGD("standby", "Already awake, exit_standby skipped");'
+            - lambda: |-
+                ESP_LOGD("standby", "exit_standby skipped: transitioning=%d standby=%d",
+                         id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0);
           else:
             - script.stop: display_idle_timer
             - script.stop: enter_standby
+            - script.stop: send_volume_to_pga
+            - script.stop: switch_input
             - lambda: |-
+                id(power_transitioning) = true;
                 id(standby)    = false;
                 id(last_manual_input_ms) = 0;   // 退出待机 → 重新启用自动选择
                 id(soft_mute)  = id(saved_soft_mute);
                 id(current_db) = -96.0f;
                 id(target_db)  = -96.0f;
+                id(system_ready) = false;
+                id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
                 id(standby_switch)->publish_state(true);  // HA 同步
@@ -4316,8 +5128,12 @@ script:
                 condition:
                   lambda: 'return !id(switch_input)->is_running();'
             - script.execute: apply_theme    # ★ 待机恢复后应用主题色
-            - lambda: 'id(system_ready) = true;'
             - lvgl.page.show: main_page
+            - lambda: |-
+                id(power_transitioning) = false;
+                id(system_ready) = true;
+                if (!id(soft_mute) && !id(temp_protect) && !id(ota_active)) id(mute_switch)->turn_off();
+            - script.execute: send_volume_to_pga
             - script.execute: display_idle_timer
 
   - id: reset_idle_timer
@@ -4372,8 +5188,43 @@ script:
             case 3: id(input_vol_3) = vol; id(last_saved_vol_3) = vol; break;
           }
           id(last_save_ms) = millis();
-          ESP_LOGI("input_vol", "save input=%d vol=%d slots=%d/%d/%d/%d",
+          ESP_LOGI("input_vol", "persist input=%d vol=%d slots=%d/%d/%d/%d",
                    cur, vol, id(input_vol_0), id(input_vol_1), id(input_vol_2), id(input_vol_3));
+
+  - id: schedule_current_input_volume_save
+    mode: restart
+    parameters:
+      input: int
+      volume: int
+    then:
+      - delay: 2s
+      - lambda: |-
+          // Only persist after volume movement has settled. input_vol_0~3 use
+          // restore_value, so writing them on every encoder tick would wear flash.
+          if (!id(system_ready) || id(switching_input) || id(soft_mute)) return;
+          id(save_current_input_volume)->execute(input, volume);
+
+  - id: save_current_input_balance
+    mode: restart
+    parameters:
+      input: int
+      balance_value: int
+    then:
+      - lambda: |-
+          if (!id(system_ready) || id(switching_input)) return;
+          int cur = input;
+          int bal = balance_value;
+          if (cur < 0 || cur > 3) return;
+          if (bal < -20) bal = -20;
+          if (bal > 20) bal = 20;
+          switch (cur) {
+            case 0: id(input_bal_0) = bal; break;
+            case 1: id(input_bal_1) = bal; break;
+            case 2: id(input_bal_2) = bal; break;
+            case 3: id(input_bal_3) = bal; break;
+          }
+          ESP_LOGI("input_bal", "save input=%d bal=%d slots=%d/%d/%d/%d",
+                   cur, bal, id(input_bal_0), id(input_bal_1), id(input_bal_2), id(input_bal_3));
 
   # ══════════════════════════════════════════════════════════════
   # ★ V17 巅峰内核：双区间速度渐变 + 软锁释放
@@ -4382,7 +5233,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (id(ota_active) || id(temp_protect) || id(standby)) {
+          if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) {
             id(current_db) = -96.0f;
             id(target_db)  = -96.0f;
             pga2311::set_volume(0, 0);
@@ -4405,7 +5256,7 @@ script:
       - while:
           condition:
             lambda: |-
-              if (id(ota_active) || id(temp_protect) || id(standby)) return false;
+              if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) return false;
               return fabs(id(target_db) - id(current_db)) > 0.09f;
           then:
             - lambda: |-
@@ -4458,7 +5309,7 @@ script:
             - delay: 15ms
 
       - lambda: |-
-          if (id(ota_active) || id(temp_protect) || id(standby)) return;
+          if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) return;
 
           id(current_db) = id(target_db);
 
@@ -4502,32 +5353,6 @@ script:
           float media_pct = (float)id(volume_val) / (float)id(max_volume);
           if (media_pct > 1.0f) media_pct = 1.0f;
           id(media_volume)->publish_state(media_pct * 100.0f);
-
-          int cur = id(current_input);
-          int vol = id(volume_val);
-
-          int last = 0;
-          switch (cur) {
-            case 0: last = id(last_saved_vol_0); break;
-            case 1: last = id(last_saved_vol_1); break;
-            case 2: last = id(last_saved_vol_2); break;
-            case 3: last = id(last_saved_vol_3); break;
-          }
-
-          uint32_t now = millis();
-          bool diff_large  = abs(vol - last) >= 2 && (now - id(last_save_ms) > 1500);
-          bool stop_detect = abs(vol - last) > 0  && (now - id(last_v_change_ms) > 2000);
-
-          if (!id(switching_input) && !id(soft_mute) && (diff_large || stop_detect)) {
-            id(last_save_ms) = now;
-            switch (cur) {
-              case 0: id(last_saved_vol_0) = vol; id(input_vol_0) = vol; break;
-              case 1: id(last_saved_vol_1) = vol; id(input_vol_1) = vol; break;
-              case 2: id(last_saved_vol_2) = vol; id(input_vol_2) = vol; break;
-              case 3: id(last_saved_vol_3) = vol; id(input_vol_3) = vol; break;
-            }
-            ESP_LOGD("V17_SYNC", "Input %d volume %d saved safely.", cur, vol);
-          }
 
   # ══════════════════════════════════════════════════════════════
   # 主题切换：更新所有界面控件颜色
@@ -4708,14 +5533,14 @@ script:
                 spec_colors[5] = lv_color_hex(0xDDB56A);
                 spec_colors[6] = lv_color_hex(0xEED49A);
                 break;
-              case 6: // 柏林青
-                spec_colors[0] = lv_color_hex(0x003D47);
-                spec_colors[1] = lv_color_hex(0x005666);
-                spec_colors[2] = lv_color_hex(0x007085);
-                spec_colors[3] = lv_color_hex(0x0089A4);
-                spec_colors[4] = lv_color_hex(0x06B6D4);
-                spec_colors[5] = lv_color_hex(0x38D0EA);
-                spec_colors[6] = lv_color_hex(0x7AE4F5);
+              case 6: // 孔雀青
+                spec_colors[0] = lv_color_hex(0x052E2B);
+                spec_colors[1] = lv_color_hex(0x064E45);
+                spec_colors[2] = lv_color_hex(0x0F766E);
+                spec_colors[3] = lv_color_hex(0x149989);
+                spec_colors[4] = lv_color_hex(0x2DD4BF);
+                spec_colors[5] = lv_color_hex(0x5EEAD4);
+                spec_colors[6] = lv_color_hex(0x99F6E4);
                 break;
               case 7: // 南瓜橙
                 spec_colors[0] = lv_color_hex(0x5C2800);
@@ -4844,6 +5669,12 @@ script:
             case 2: id(input_vol_2) = id(volume_val); id(last_saved_vol_2) = id(volume_val); break;
             case 3: id(input_vol_3) = id(volume_val); id(last_saved_vol_3) = id(volume_val); break;
           }
+          switch (id(active_input)) {
+            case 0: id(input_bal_0) = id(balance); break;
+            case 1: id(input_bal_1) = id(balance); break;
+            case 2: id(input_bal_2) = id(balance); break;
+            case 3: id(input_bal_3) = id(balance); break;
+          }
 
       - if:
           condition:
@@ -4881,7 +5712,7 @@ script:
 
       - if:
           condition:
-            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active);'
+            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
           then:
             - switch.turn_off: mute_switch
       - delay: 20ms
@@ -4894,23 +5725,38 @@ script:
             case 2: new_vol = id(input_vol_2); break;
             case 3: new_vol = id(input_vol_3); break;
           }
+          int new_bal = 0;
+          switch (id(switching_target_input)) {
+            case 0: new_bal = id(input_bal_0); break;
+            case 1: new_bal = id(input_bal_1); break;
+            case 2: new_bal = id(input_bal_2); break;
+            case 3: new_bal = id(input_bal_3); break;
+          }
+          if (new_bal < -20) new_bal = -20;
+          if (new_bal > 20) new_bal = 20;
           if (new_vol > id(max_volume)) new_vol = id(max_volume);
           id(volume_val) = new_vol;
+          id(balance) = new_bal;
           id(last_v_change_ms) = millis();
           ESP_LOGI("input_vol", "switch load target=%d vol=%d slots=%d/%d/%d/%d",
                    id(switching_target_input), id(volume_val),
                    id(input_vol_0), id(input_vol_1), id(input_vol_2), id(input_vol_3));
+          ESP_LOGI("input_bal", "switch load target=%d bal=%d slots=%d/%d/%d/%d",
+                   id(switching_target_input), id(balance),
+                   id(input_bal_0), id(input_bal_1), id(input_bal_2), id(input_bal_3));
 
           float vol_pct = roundf((float)id(volume_val) * 100.0f / (float)id(max_volume));
           if (vol_pct > 100.0f) vol_pct = 100.0f;
           id(volume_number)->publish_state(vol_pct);
+          id(balance_number)->publish_state((float)id(balance));
+          id(sync_settings_ui)->execute();
 
           id(switching_input) = false;
           id(active_input) = id(switching_target_input);
 
       - if:
           condition:
-            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active);'
+            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
           then:
             - script.execute: send_volume_to_pga
 
@@ -4997,56 +5843,6 @@ script:
 # ═══════════════════════════════════════════════════════════════
 # 传感器
 # ═══════════════════════════════════════════════════════════════
-button:
-  - platform: template
-    name: "Virtual Encoder CW"
-    id: virtual_encoder_cw
-    icon: mdi:rotate-right
-    entity_category: diagnostic
-    disabled_by_default: true
-    on_press:
-      - lambda: |-
-          id(virtual_encoder_pos) += 1;
-          id(volume_encoder).publish_state((float)id(virtual_encoder_pos));
-
-  - platform: template
-    name: "Virtual Encoder CCW"
-    id: virtual_encoder_ccw
-    icon: mdi:rotate-left
-    entity_category: diagnostic
-    disabled_by_default: true
-    on_press:
-      - lambda: |-
-          id(virtual_encoder_pos) -= 1;
-          id(volume_encoder).publish_state((float)id(virtual_encoder_pos));
-
-  - platform: template
-    name: "Virtual Encoder Click"
-    id: virtual_encoder_click
-    icon: mdi:gesture-tap
-    entity_category: diagnostic
-    disabled_by_default: true
-    on_press:
-      - script.execute: virtual_encoder_click_action
-
-  - platform: template
-    name: "Virtual Encoder Double"
-    id: virtual_encoder_double
-    icon: mdi:gesture-double-tap
-    entity_category: diagnostic
-    disabled_by_default: true
-    on_press:
-      - script.execute: virtual_encoder_double_action
-
-  - platform: template
-    name: "Virtual Encoder Long"
-    id: virtual_encoder_long
-    icon: mdi:gesture-tap-hold
-    entity_category: diagnostic
-    disabled_by_default: true
-    on_press:
-      - script.execute: virtual_encoder_long_action
-
 sensor:
   - platform: rotary_encoder
     name: "音量编码器"
@@ -5075,8 +5871,11 @@ sensor:
             if (diff > 10) diff = 10;
             last_enc = cur;
             if (diff == 0) return;
-            lv_obj_t* active = lv_scr_act();
             uint32_t now = millis();
+            if (id(encoder_button).state || now < id(encoder_button_guard_until_ms)) {
+              return;
+            }
+            lv_obj_t* active = lv_scr_act();
             if (now - id(last_control_ms) < 30) return;
             id(last_control_ms) = now;
 
@@ -5116,10 +5915,10 @@ sensor:
               };
 
               if (act < 0) {
-                // ── 浏览模式：移动焦点（无限循环） ──
+                // ── 浏览模式：移动焦点（到头停止） ──
                 int new_idx = idx + diff;
-                if (new_idx < 0) new_idx = settings_ui::N - 1;
-                if (new_idx >= settings_ui::N) new_idx = 0;
+                if (new_idx < 0) new_idx = 0;
+                if (new_idx >= settings_ui::N) new_idx = settings_ui::N - 1;
                 if (new_idx != idx) {
                   id(settings_focus_idx) = new_idx;
                   set_focus(new_idx);
@@ -5134,23 +5933,29 @@ sensor:
                     int v = id(max_volume) + step;
                     if (v < 10) v = 10; if (v > 255) v = 255;
                     id(max_volume) = v;
+                    if (id(power_on_limit) > v) {
+                      id(power_on_limit) = v;
+                      lv_bar_set_value(id(bar_power_on_limit), v, LV_ANIM_OFF);
+                      lv_label_set_text(id(val_power_on), (std::to_string(v)).c_str());
+                      id(power_on_limit_number)->publish_state((float)v);
+                    }
                     lv_bar_set_value(id(bar_max_vol), v, LV_ANIM_OFF);
                     lv_label_set_text(id(val_max_vol), (std::to_string(v)).c_str());
                     id(max_volume_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
-                    id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+                    id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
                     id(send_volume_to_pga)->execute();
                     break;
                   }
                   case 1: { // 开机上限
                     int v = id(power_on_limit) + step;
-                    if (v < 10) v = 10; if (v > 255) v = 255;
+                    if (v < 10) v = 10; if (v > id(max_volume)) v = id(max_volume);
                     id(power_on_limit) = v;
                     lv_bar_set_value(id(bar_power_on_limit), v, LV_ANIM_OFF);
                     lv_label_set_text(id(val_power_on), (std::to_string(v)).c_str());
                     id(power_on_limit_number)->publish_state((float)v);
                     if (id(volume_val) > v) id(volume_val) = v;
-                    id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+                    id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
                     id(send_volume_to_pga)->execute();
                     break;
                   }
@@ -5158,6 +5963,7 @@ sensor:
                     int v = id(balance) + step;
                     if (v < -20) v = -20; if (v > 20) v = 20;
                     id(balance) = v;
+                    id(save_current_input_balance)->execute(id(current_input), id(balance));
                     lv_bar_set_value(id(bar_balance), v + 20, LV_ANIM_OFF);
                     {
                       char buf[8];
@@ -5232,7 +6038,6 @@ sensor:
                       lv_obj_set_style_bg_color(id(theme_dot), get_theme_accent(v), LV_PART_MAIN);
                     }
                     id(theme_number)->publish_state((float)v);
-                    id(apply_theme)->execute();
                     break;
                   }
                   case 10: { // 输出模式（toggle 变压器/直通）
@@ -5277,7 +6082,7 @@ sensor:
               return;
             }
 
-            // ═══ 蓝牙遥控页导航（无限循环，跳过隐藏行：0=扫描, 1-3=设备槽, 4=返回）═══
+            // ═══ 蓝牙遥控页导航（到头停止，跳过隐藏行：0=扫描, 1-3=设备槽, 4=返回）═══
             if (active == id(ble_remote_page)->obj) {
               int count = id(ble_remote_device_count);
               int cur = id(ble_remote_focus_idx);
@@ -5294,10 +6099,10 @@ sensor:
               for (int i = 0; i < valid_count; i++) {
                 if (valid[i] == cur) { pos = i; break; }
               }
-              // 循环移动
+              // 到头停止
               pos += diff;
-              if (pos < 0) pos = valid_count - 1;
-              if (pos >= valid_count) pos = 0;
+              if (pos < 0) pos = 0;
+              if (pos >= valid_count) pos = valid_count - 1;
               int new_idx = valid[pos];
               if (new_idx != cur) {
                 id(ble_remote_focus_idx) = new_idx;
@@ -5330,21 +6135,30 @@ sensor:
               return;
             }
 
-            // ═══ 遥控器按键页导航（9行：0-7=按键, 8=返回。调节模式循环0-15全动作）═══
+            // ═══ 遥控器按键页导航（12行：0-8=按键, 9=学习, 10=重置学习, 11=返回）═══
             if (active == id(remote_keys_page)->obj) {
               int act = id(keymap_active_idx);
-              if (act >= 0) {
-                // ── 调节模式：旋转循环映射 0=禁用, 1-15=对应动作 ──
+              if (act == 9) {
+                int next = id(key_learn_select_idx) + diff;
+                if (next < 1) next = 9;
+                if (next > 9) next = 1;
+                id(key_learn_select_idx) = next;
+                id(key_learn_pick_mode) = true;
+                id(refresh_keymap_learn_row)->execute();
+                id(style_secondary_pages)->execute();
+              } else if (act >= 0 && act <= 8) {
+                // ── 调节模式：旋转循环映射 0=禁用, 1-9=核心动作 ──
                 int cur = 0;
                 switch (act) {
                   case 0: cur = id(key_map_1); break; case 1: cur = id(key_map_2); break;
                   case 2: cur = id(key_map_3); break; case 3: cur = id(key_map_4); break;
                   case 4: cur = id(key_map_5); break; case 5: cur = id(key_map_6); break;
                   case 6: cur = id(key_map_7); break; case 7: cur = id(key_map_8); break;
+                  case 8: cur = id(key_map_9); break;
                 }
                 int next = cur + diff;
-                if (next < 0) next = 15;
-                if (next > 15) next = 0;
+                if (next < 0) next = 9;
+                if (next > 9) next = 0;
                 switch (act) {
                   case 0: id(key_map_1) = next; lv_label_set_text(id(val_keymap_0), remote_keys::get_action_name(next).c_str()); break;
                   case 1: id(key_map_2) = next; lv_label_set_text(id(val_keymap_1), remote_keys::get_action_name(next).c_str()); break;
@@ -5354,22 +6168,24 @@ sensor:
                   case 5: id(key_map_6) = next; lv_label_set_text(id(val_keymap_5), remote_keys::get_action_name(next).c_str()); break;
                   case 6: id(key_map_7) = next; lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(next).c_str()); break;
                   case 7: id(key_map_8) = next; lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(next).c_str()); break;
+                  case 8: id(key_map_9) = next; lv_label_set_text(id(val_keymap_8), remote_keys::get_action_name(next).c_str()); break;
                 }
               } else {
                 // ── 浏览模式：移动焦点 ──
                 int cur = id(keymap_focus_idx);
                 int new_idx = cur + diff;
-                if (new_idx < 0) new_idx = 8;
-                if (new_idx > 8) new_idx = 0;
+                if (new_idx < 0) new_idx = 0;
+                if (new_idx > 11) new_idx = 11;
                 if (new_idx != cur) {
                   id(keymap_focus_idx) = new_idx;
                   lv_color_t hl_color = get_theme_accent(id(theme));
                   lv_obj_t* rows_k[] = {
                     id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                     id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                    id(keymap_row_6), id(keymap_row_7), id(keymap_row_back)
+                    id(keymap_row_6), id(keymap_row_7), id(keymap_row_8),
+                    id(keymap_row_learn), id(keymap_row_reset), id(keymap_row_back)
                   };
-                  for (int i = 0; i <= 8; i++) {
+                  for (int i = 0; i <= 11; i++) {
                     bool focused = (i == new_idx);
                     if (focused) {
                       lv_obj_set_style_border_width(rows_k[i], 3, LV_PART_MAIN);
@@ -5379,7 +6195,7 @@ sensor:
                     } else {
                       lv_obj_set_style_border_width(rows_k[i], 0, LV_PART_MAIN);
                       lv_obj_set_style_bg_color(rows_k[i],
-                        i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827), LV_PART_MAIN);
+                        i == 11 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827), LV_PART_MAIN);
                     }
                   }
                   id(style_secondary_pages)->execute();
@@ -5396,19 +6212,7 @@ sensor:
               int new_idx = (cur + diff) > 1 ? 1 : ((cur + diff) < 0 ? 0 : (cur + diff));
               if (new_idx != cur) {
                 id(debug_focus_idx) = new_idx;
-                lv_color_t hl_color = get_theme_accent(id(theme));
-                bool recal_focused = (new_idx == 0);
-                bool back_focused = (new_idx == 1);
-                lv_obj_set_style_border_width(id(dbg_row_recal), recal_focused ? 3 : 0, LV_PART_MAIN);
-                lv_obj_set_style_border_color(id(dbg_row_recal), hl_color, LV_PART_MAIN);
-                lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(dbg_row_recal), recal_focused ? lv_color_hex(0x142033) : lv_color_hex(0x101827), LV_PART_MAIN);
-                lv_obj_set_style_border_width(id(dbg_row_back), back_focused ? 3 : 0, LV_PART_MAIN);
-                lv_obj_set_style_border_color(id(dbg_row_back), hl_color, LV_PART_MAIN);
-                lv_obj_set_style_border_side(id(dbg_row_back), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(dbg_row_back), back_focused ? lv_color_hex(0x142033) : lv_color_hex(0x080D16), LV_PART_MAIN);
                 id(style_secondary_pages)->execute();
-                lv_obj_scroll_to_view(new_idx == 0 ? id(dbg_row_recal) : id(dbg_row_back), LV_ANIM_ON);
               }
               id(reset_idle_timer)->execute();
               return;
@@ -5433,9 +6237,10 @@ sensor:
             float pct = roundf((float)new_vol * 100.0f / (float)id(max_volume));
             if (pct > 100.0f) pct = 100.0f;
             id(volume_number)->publish_state(pct);
-            id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+            id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
             id(send_volume_to_pga)->execute();
             if (active == id(spectrum_page)->obj) {
+              id(spectrum_auto_suppress_until_ms) = now + 1000;
               lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 150, 0, false);
             }
             id(reset_idle_timer)->execute();
@@ -5563,7 +6368,7 @@ number:
           if (v > id(max_volume)) v = id(max_volume);
           id(volume_val) = v;
           id(last_v_change_ms) = millis();
-          id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+          id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
           id(send_volume_to_pga)->execute();
           id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
@@ -5580,6 +6385,7 @@ number:
       - lambda: |-
           if (!id(system_ready) || id(switching_input)) return;
           id(balance) = (int)x;
+          id(save_current_input_balance)->execute(id(current_input), id(balance));
           // 音量稳态时，直接同步 L/R 声道到 PGA
           if (fabs(id(target_db) - id(current_db)) <= 0.09f) {
             float db = id(current_db);
@@ -5633,6 +6439,10 @@ number:
           float old_max = id(max_volume) > 0 ? (float)id(max_volume) : 1.0f;
           float current_pct = (float)id(volume_val) / old_max;
           id(max_volume) = (int)x;
+          if (id(power_on_limit) > id(max_volume)) {
+            id(power_on_limit) = id(max_volume);
+            id(power_on_limit_number)->publish_state((float)id(power_on_limit));
+          }
           int new_vol = (int)(current_pct * id(max_volume));
           if (new_vol > id(max_volume)) new_vol = id(max_volume);
           id(volume_val) = new_vol;
@@ -5640,7 +6450,7 @@ number:
           float pct = (float)id(volume_val) / (float)id(max_volume);
           if (pct > 1.0f) pct = 1.0f;
           id(volume_number)->publish_state(pct * 100.0f);
-          id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+          id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
           id(send_volume_to_pga)->execute();
           id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
@@ -5657,7 +6467,10 @@ number:
     set_action:
       - lambda: |-
           if (!id(system_ready)) return;
-          id(power_on_limit) = (int)x;
+          int v = (int)x;
+          if (v < 10) v = 10;
+          if (v > id(max_volume)) v = id(max_volume);
+          id(power_on_limit) = v;
           id(power_on_limit_number)->publish_state((float)id(power_on_limit));
           id(sync_settings_ui)->execute();
       - script.execute: reset_idle_timer
@@ -5774,6 +6587,8 @@ interval:
   - interval: 50ms
     then:
       - lambda: |-
+          int64_t loop_start_us = esp_timer_get_time();
+          static float s_cpu_load = 0.0f;
           // 信号强度 (跨块共享: 频谱块写入, LED 块读取)
           static int s_signal_avg = 0;
 
@@ -5801,6 +6616,23 @@ interval:
             // 替代原来的 7×get_combined() + 7×get_peak() = 14 次加锁
             msgeq7::SpectrumFrame frame;
             msgeq7::get_frame(&frame);
+            int spectrum_frame_peak = 0;
+            int spectrum_frame_avg = 0;
+            for (int i = 0; i < 7; i++) {
+              spectrum_frame_peak = std::max(spectrum_frame_peak, std::max(frame.left[i], frame.right[i]));
+              spectrum_frame_avg += std::max(frame.left[i], frame.right[i]);
+            }
+            spectrum_frame_avg /= 7;
+            if (spectrum_frame_peak <= 36 && spectrum_frame_avg <= 16) {
+              for (int i = 0; i < 7; i++) {
+                frame.left[i] = 0;
+                frame.right[i] = 0;
+                frame.combined[i] = 0;
+                frame.peak[i] = 0;
+                frame.peak_l[i] = 0;
+                frame.peak_r[i] = 0;
+              }
+            }
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
             lv_obj_t* bars_L[] = {
@@ -6166,8 +6998,9 @@ interval:
 
             if (!splash_done && !splash_forced && now >= 500) {
               splash_forced = true;
+              fade_frame = 0;
               id(show_splash_boot)->execute();
-              ESP_LOGI("BOOT_DIAG", "splash action requested from interval: now=%u heap=%u", (unsigned)now, (unsigned)esp_get_free_heap_size());
+              ESP_LOGI("BOOT_DIAG", "splash rescue show requested from interval: now=%u heap=%u", (unsigned)now, (unsigned)esp_get_free_heap_size());
             }
 
             if (!splash_done && lv_scr_act() == id(splash_page)->obj) {
@@ -6221,9 +7054,14 @@ interval:
             // 待机、静音或系统未就绪时不自动跳转（但不 return，继续执行后续更新）
             if (!id(standby) && !id(soft_mute) && id(system_ready)) {
               lv_obj_t* active = lv_scr_act();
+              bool auto_suppressed = now < id(spectrum_auto_suppress_until_ms);
+              if (auto_suppressed && has_signal) {
+                signal_stable_ms = now;
+              }
 
               // 1. 主页面 → 频谱页：信号存在且稳定达到用户设置时间（0=禁用）
               if (active == id(main_page)->obj && has_signal
+                  && !auto_suppressed
                   && id(spectrum_auto_seconds) > 0
                   && signal_stable_ms > 0
                   && (now - signal_stable_ms >= (uint32_t)id(spectrum_auto_seconds) * 1000UL)) {
@@ -6260,11 +7098,11 @@ interval:
                   }
                 } else if (is_keymap) {
                   int active = id(keymap_active_idx);
-                  if (active >= 0 && active <= 7) {
+                  if (active >= 0 && active <= 8) {
                     lv_obj_t* rows_k[] = {
                       id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                       id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                      id(keymap_row_6), id(keymap_row_7)
+                      id(keymap_row_6), id(keymap_row_7), id(keymap_row_8)
                     };
                     lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x142033), LV_PART_MAIN);
                   }
@@ -6292,6 +7130,7 @@ interval:
               snprintf(buf, sizeof(buf), "%.1fdB", db);
               lv_label_set_text(id(lbl_vol_db), buf);
             }
+            lv_obj_move_foreground(id(lbl_vol_db));
           }
 
           // ═══ 水平音量条更新 ═══
@@ -6311,6 +7150,9 @@ interval:
               last_runtime_theme = id(theme);
               lv_obj_set_style_bg_color(id(separator), _accent, LV_PART_MAIN);
               lv_obj_set_style_bg_color(id(bar_volume), _accent, LV_PART_INDICATOR);
+              lv_obj_set_style_text_color(id(lbl_bal_L), _accent, LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_bal_R), _accent, LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_balance_val), _accent, LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_main_active_input), _accent, LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_main_output_value), lv_color_mix(_accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_main_auto_value), lv_color_mix(_accent, lv_color_hex(0xE5E7EB), 176), LV_PART_MAIN);
@@ -6371,10 +7213,9 @@ interval:
               if (dot_x < 46) dot_x = 46;
               if (dot_x > 370) dot_x = 370;
               lv_obj_set_x(id(balance_dot), dot_x);
-              lv_obj_set_style_text_color(id(lbl_bal_L),
-                bal < 0 ? _accent : lv_color_hex(0x8E9FB8), LV_PART_MAIN);
-              lv_obj_set_style_text_color(id(lbl_bal_R),
-                bal > 0 ? _accent : lv_color_hex(0x8E9FB8), LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_bal_L), _accent, LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_bal_R), _accent, LV_PART_MAIN);
+              lv_obj_set_style_text_color(id(lbl_balance_val), _accent, LV_PART_MAIN);
               if (bal == 0) {
                 lv_label_set_text(id(lbl_balance_val), "平衡");
               } else {
@@ -6655,6 +7496,9 @@ interval:
                   last_update = now;
                   char buf[64];
 
+                  snprintf(buf, sizeof(buf), "CPU 占用: %.1f%%", s_cpu_load);
+                  lv_label_set_text(id(lbl_dbg_cpu), buf);
+
                   // Free internal heap
                   uint32_t free_internal = esp_get_free_heap_size();
                   uint32_t total_internal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
@@ -6664,7 +7508,7 @@ interval:
 
                   // Min free heap (all-time low watermark)
                   uint32_t min_free = esp_get_minimum_free_heap_size();
-                  snprintf(buf, sizeof(buf), "最小空闲: %u KB  (全时段低水位)",
+                  snprintf(buf, sizeof(buf), "最小空闲: %u KB",
                     (unsigned)(min_free / 1024));
                   lv_label_set_text(id(lbl_dbg_minheap), buf);
 
@@ -6687,13 +7531,14 @@ interval:
                   unsigned long hours = (ms % 86400000UL) / 3600000UL;
                   unsigned long mins = (ms % 3600000UL) / 60000UL;
                   unsigned long secs = (ms % 60000UL) / 1000UL;
-                  snprintf(buf, sizeof(buf), "运行: %lud %luh %lum %lus", days, hours, mins, secs);
+                  snprintf(buf, sizeof(buf), "运行时间: %02lu时 %02lu分 %02lu秒", days * 24 + hours, mins, secs);
                   lv_label_set_text(id(lbl_dbg_uptime), buf);
                 }
               }
             }
 
             // ── HID 按键事件处理 ──
+            id(poll_remote_key_learning)->execute();
             while (ble_hid_host::has_event()) {
               auto evt = ble_hid_host::pop_event();
               // 记录原始事件用于调试
@@ -6718,13 +7563,8 @@ interval:
                   case 7: mapped = id(key_map_7); break;
                   case 8: mapped = id(key_map_8); break;
                   case 9: mapped = id(key_map_9); break;
-                  case 10: mapped = id(key_map_10); break;
-                  case 11: mapped = id(key_map_11); break;
-                  case 12: mapped = id(key_map_12); break;
-                  case 13: mapped = id(key_map_13); break;
-                  case 14: mapped = id(key_map_14); break;
                 }
-                // 1~8 是遥控器核心按键。旧 NVS 或误操作若把它们映射成禁用/非法值，
+                // 1~9 是遥控器核心按键。旧 NVS 或误操作若把它们映射成禁用/非法值，
                 // 会造成“日志有 HID，实体完全没反应”，这里回退到原始动作。
                 if ((mapped <= 0 || mapped >= remote_keys::ACTION_COUNT) &&
                     raw_type >= (int)ble_hid_host::HID_EVT_VOLUME_UP &&
@@ -6738,15 +7578,14 @@ interval:
                 evt.type = (ble_hid_host::HidEventType)mapped;
               }
               if (id(standby) &&
-                  ((evt.type >= ble_hid_host::HID_EVT_VOLUME_UP &&
-                    evt.type <= ble_hid_host::HID_EVT_CYCLE_INPUT) ||
-                   evt.type == ble_hid_host::HID_EVT_PAUSE)) {
+                  (evt.type >= ble_hid_host::HID_EVT_VOLUME_UP &&
+                   evt.type <= ble_hid_host::HID_EVT_CYCLE_INPUT)) {
                 if (!id(temp_protect)) {
                   ESP_LOGI("ble_hid", "HID wake from standby mapped=%d", (int)evt.type);
                   id(exit_standby)->execute();
                   ha_event_name = "WAKE";
                 }
-                if (ha_event_name[0] && ((int)evt.type < 0x10 || evt.type == ble_hid_host::HID_EVT_PAUSE)) {
+                if (ha_event_name[0] && ((int)evt.type < 0x10)) {
                   id(ble_hid_event_text).publish_state(ha_event_name);
                 }
                 continue;
@@ -6756,7 +7595,7 @@ interval:
                   if (id(standby) || !id(system_ready) || id(switching_input)) break;
                   if (id(volume_val) < id(max_volume)) { id(volume_val) = id(volume_val) + 1; }
                   id(last_v_change_ms) = millis();
-                  id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+                  id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
                   id(send_volume_to_pga)->execute();
                   ha_event_name = "VOLUME_UP";
                   break;
@@ -6764,7 +7603,7 @@ interval:
                   if (id(standby) || !id(system_ready) || id(switching_input)) break;
                   if (id(volume_val) > 0) { id(volume_val) = id(volume_val) - 1; }
                   id(last_v_change_ms) = millis();
-                  id(save_current_input_volume)->execute(id(current_input), id(volume_val));
+                  id(schedule_current_input_volume_save)->execute(id(current_input), id(volume_val));
                   id(send_volume_to_pga)->execute();
                   ha_event_name = "VOLUME_DOWN";
                   break;
@@ -6773,7 +7612,7 @@ interval:
                   id(soft_mute_switch)->toggle();
                   ha_event_name = "MUTE";
                   break;
-                case ble_hid_host::HID_EVT_PLAY_PAUSE:
+                case ble_hid_host::HID_EVT_PLAY:
                   if (id(standby) || !id(system_ready)) break;
                   id(media_select)->publish_state("播放");
                   id(media_reset)->execute();
@@ -6813,34 +7652,6 @@ interval:
                   ha_event_name = "CYCLE_INPUT";
                   break;
                 }
-                case ble_hid_host::HID_EVT_SWIPE_UP:
-                  ESP_LOGD("ble_hid", "SWIPE_UP (mapped action)");
-                  ha_event_name = "SWIPE_UP";
-                  break;
-                case ble_hid_host::HID_EVT_SWIPE_DOWN:
-                  ESP_LOGD("ble_hid", "SWIPE_DOWN (mapped action)");
-                  ha_event_name = "SWIPE_DOWN";
-                  break;
-                case ble_hid_host::HID_EVT_SWIPE_LEFT:
-                  ESP_LOGD("ble_hid", "SWIPE_LEFT (mapped action)");
-                  ha_event_name = "SWIPE_LEFT";
-                  break;
-                case ble_hid_host::HID_EVT_SWIPE_RIGHT:
-                  ESP_LOGD("ble_hid", "SWIPE_RIGHT (mapped action)");
-                  ha_event_name = "SWIPE_RIGHT";
-                  break;
-                case ble_hid_host::HID_EVT_CAMERA:
-                  ESP_LOGD("ble_hid", "CAMERA (mapped action)");
-                  ha_event_name = "CAMERA";
-                  break;
-                case ble_hid_host::HID_EVT_CAMERA_SWITCH:
-                  ESP_LOGD("ble_hid", "CAMERA_SWITCH (mapped action)");
-                  ha_event_name = "CAMERA_SWITCH";
-                  break;
-                case ble_hid_host::HID_EVT_OK:
-                  ESP_LOGD("ble_hid", "OK (mapped action)");
-                  ha_event_name = "OK";
-                  break;
                 case ble_hid_host::HID_EVT_CONNECTED:
                   id(ble_remote_connected) = true;
                   ha_event_name = "CONNECTED";
@@ -6852,7 +7663,7 @@ interval:
                   break;
               }
               // 推送 HA 事件
-              if (ha_event_name[0] && (evt.type < 0x10 || evt.type == ble_hid_host::HID_EVT_PAUSE)) {
+              if (ha_event_name[0] && evt.type < 0x10) {
                 id(ble_hid_event_text).publish_state(ha_event_name);
               }
             }
@@ -6997,6 +7808,12 @@ interval:
               id(led_indicator)->set_level(lvl);
             }
           }
+
+          int64_t loop_elapsed_us = esp_timer_get_time() - loop_start_us;
+          float instant_load = (float)loop_elapsed_us / 500.0f;  // 50ms interval -> 500us per 1%
+          if (instant_load < 0.0f) instant_load = 0.0f;
+          if (instant_load > 100.0f) instant_load = 100.0f;
+          s_cpu_load = s_cpu_load * 0.90f + instant_load * 0.10f;
           
 
 binary_sensor:
@@ -7007,12 +7824,20 @@ binary_sensor:
       number: GPIO8
       mode:
         input: true
-        pullup: true
-      inverted: true
+      # External pulldown: released=LOW, pressed=HIGH.
+      inverted: false
     filters:
       - delayed_on: 20ms
       - delayed_off: 20ms
     internal: true
+    on_press:
+      then:
+        - lambda: |-
+            id(encoder_button_guard_until_ms) = millis() + 250;
+    on_release:
+      then:
+        - lambda: |-
+            id(encoder_button_guard_until_ms) = millis() + 250;
 
     on_multi_click:
       # 三击 → 固件版本隐藏入口 (先于双击匹配, 防止三击被拦截)
@@ -7031,28 +7856,14 @@ binary_sensor:
                   return lv_scr_act() == id(settings_page)->obj &&
                          id(settings_focus_idx) == 13;  // Row 13=固件版本
               then:
-                - lambda: |-
-                    id(debug_focus_idx) = 0;
-                    // 初始化焦点视觉: Row 0 (重校准) 高亮, Row 1 (返回) 恢复
-                    {
-                      lv_color_t hl = get_theme_accent(id(theme));
-                      lv_obj_set_style_border_width(id(dbg_row_recal), 3, LV_PART_MAIN);
-                      lv_obj_set_style_border_color(id(dbg_row_recal), hl, LV_PART_MAIN);
-                      lv_obj_set_style_border_side(id(dbg_row_recal), LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(id(dbg_row_recal), lv_color_hex(0x142033), LV_PART_MAIN);
-                      lv_obj_set_style_border_width(id(dbg_row_back), 0, LV_PART_MAIN);
-                      lv_obj_set_style_bg_color(id(dbg_row_back), lv_color_hex(0x080D16), LV_PART_MAIN);
-                    }
-                    id(style_secondary_pages)->execute();
-                    id(last_display_interaction) = millis();
-                    lv_scr_load_anim(id(debug_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+                - script.execute: show_debug_page
 
       # 双击 → 静音切换 (仅主页/频谱页有效)
       - timing:
-          - ON for at most 400ms
-          - OFF for at most 400ms
-          - ON for at most 400ms
-          - OFF for at least 300ms
+          - ON for at most 450ms
+          - OFF for at most 650ms
+          - ON for at most 450ms
+          - OFF for at least 250ms
         then:
           - if:
               condition:
@@ -7061,17 +7872,26 @@ binary_sensor:
                   return _a == id(main_page)->obj ||
                          _a == id(spectrum_page)->obj;
               then:
-                - switch.toggle: soft_mute_switch
+                - lambda: |-
+                    ESP_LOGI("ENC_BTN", "double click page=%p display_off=%d standby=%d ready=%d wifi=%d",
+                             lv_scr_act(), id(display_is_off) ? 1 : 0, id(standby) ? 1 : 0,
+                             id(system_ready) ? 1 : 0, wifi::global_wifi_component->is_connected() ? 1 : 0);
+                    id(soft_mute_switch)->toggle();
                 - script.execute: reset_idle_timer
 
       # 单击 → 唤醒屏幕 | 频谱页返回主页 | 设置页切换浏览/调节模式
       - timing:
-          - ON for at most 500ms
-          - OFF for at least 150ms
+          - ON for at most 450ms
+          - OFF for at least 700ms
         then:
+          - lambda: |-
+              ESP_LOGI("ENC_BTN", "single click page=%p display_off=%d standby=%d ready=%d wifi=%d",
+                       lv_scr_act(), id(display_is_off) ? 1 : 0, id(standby) ? 1 : 0,
+                       id(system_ready) ? 1 : 0, wifi::global_wifi_component->is_connected() ? 1 : 0);
+          - script.execute: encoder_click_action
           - if:
               condition:
-                lambda: 'return id(display_is_off);'
+                lambda: 'return true;'
               then:
                 - script.execute: reset_idle_timer
               else:
@@ -7100,27 +7920,49 @@ binary_sensor:
                             if (idx == 9) {
                               id(keymap_focus_idx) = 0;
                               id(keymap_active_idx) = -1;
+                              id(key_learn_waiting) = false;
+                              id(key_learn_target) = 0;
+                              id(key_learn_started_ms) = 0;
+                              id(key_learn_pick_mode) = false;
+                              ble_hid_host::clear_raw_event();
+                              id(refresh_keymap_values)->execute();
+                              id(refresh_keymap_learn_row)->execute();
                               lv_obj_t* rows_k[] = {
                                 id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                                 id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                                id(keymap_row_6), id(keymap_row_7), id(keymap_row_back)
+                                id(keymap_row_6), id(keymap_row_7), id(keymap_row_8),
+                                id(keymap_row_learn), id(keymap_row_reset), id(keymap_row_back)
                               };
                               lv_color_t hl = get_theme_accent(id(theme));
-                              for (int i = 0; i <= 8; i++) {
+                              for (int i = 0; i <= 11; i++) {
                                 lv_obj_set_style_border_width(rows_k[i], i == 0 ? 3 : 0, LV_PART_MAIN);
                                 if (i == 0) {
                                   lv_obj_set_style_border_color(rows_k[i], hl, LV_PART_MAIN);
                                   lv_obj_set_style_border_side(rows_k[i], LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
                                 }
                                 lv_obj_set_style_bg_color(rows_k[i],
-                                  i == 0 ? lv_color_hex(0x142033) : (i == 8 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827)), LV_PART_MAIN);
+                                  i == 0 ? lv_color_hex(0x142033) : (i == 11 ? lv_color_hex(0x080D16) : lv_color_hex(0x101827)), LV_PART_MAIN);
                               }
                               id(style_secondary_pages)->execute();
                               id(last_display_interaction) = millis();
                               lv_scr_load_anim(id(remote_keys_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                               return;
                             }
-                            if (idx == 13 || idx == 14) return;  // 只读项(固件版本/IP地址)不进调节
+                            if (idx == 13) {
+                              uint32_t now = millis();
+                              if (now - id(firmware_hidden_click_started_ms) > 1200) {
+                                id(firmware_hidden_click_started_ms) = now;
+                                id(firmware_hidden_click_count) = 0;
+                              }
+                              id(firmware_hidden_click_count)++;
+                              if (id(firmware_hidden_click_count) >= 3) {
+                                id(firmware_hidden_click_count) = 0;
+                                id(firmware_hidden_click_started_ms) = 0;
+                                id(show_debug_page)->execute();
+                              }
+                              return;
+                            }
+                            if (idx == 14) return;  // IP地址只读项不进调节
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
@@ -7128,10 +7970,12 @@ binary_sensor:
                             id(style_secondary_pages)->execute();
                           } else {
                             // 退出调节模式（确认修改，值已在调节时实时生效）
+                            int active = id(settings_active_idx);
                             id(settings_active_idx) = -1;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x142033), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::bar_base_heights[idx]);
+                            if (active == 7) id(apply_theme)->execute();
                             id(style_secondary_pages)->execute();
                           }
                       - script.execute: reset_idle_timer
@@ -7185,14 +8029,14 @@ binary_sensor:
                                   - lambda: |-
                                       int f = id(keymap_focus_idx);
                                       int act = id(keymap_active_idx);
-                                      if (f >= 0 && f <= 7) {
+                                      if (f >= 0 && f <= 8) {
                                         if (act < 0) {
                                           // 浏览→调节：记录当前行, 高亮背景
                                           id(keymap_active_idx) = f;
                                           lv_obj_t* rows_k[] = {
                                             id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                                             id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                                            id(keymap_row_6), id(keymap_row_7)
+                                            id(keymap_row_6), id(keymap_row_7), id(keymap_row_8)
                                           };
                                           lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                                           id(style_secondary_pages)->execute();
@@ -7202,13 +8046,44 @@ binary_sensor:
                                           lv_obj_t* rows_k[] = {
                                             id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                                             id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                                            id(keymap_row_6), id(keymap_row_7)
+                                            id(keymap_row_6), id(keymap_row_7), id(keymap_row_8)
                                           };
                                           lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x142033), LV_PART_MAIN);
                                           id(style_secondary_pages)->execute();
                                         }
-                                      } else if (f == 8) {
+                                      } else if (f == 9) {
+                                        if (id(key_learn_waiting)) {
+                                          id(key_learn_waiting) = false;
+                                          id(key_learn_target) = 0;
+                                          id(key_learn_started_ms) = 0;
+                                          id(key_learn_pick_mode) = false;
+                                          ble_hid_host::clear_raw_event();
+                                          id(refresh_keymap_learn_row)->execute();
+                                        } else if (id(key_learn_pick_mode)) {
+                                          int action = id(key_learn_select_idx);
+                                          if (action < 1 || action > 9) action = 1;
+                                          id(keymap_active_idx) = -1;
+                                          id(start_remote_key_learning)->execute(action);
+                                        } else {
+                                          id(key_learn_pick_mode) = true;
+                                          id(keymap_active_idx) = 9;
+                                          id(refresh_keymap_learn_row)->execute();
+                                          id(style_secondary_pages)->execute();
+                                        }
+                                      } else if (f == 10) {
                                         id(keymap_active_idx) = -1;
+                                        id(clear_learned_remote_keys)->execute();
+                                        lv_label_set_text(id(val_keymap_reset), "已清空");
+                                        id(style_secondary_pages)->execute();
+                                      } else if (f == 11) {
+                                        id(keymap_active_idx) = -1;
+                                        id(key_learn_waiting) = false;
+                                        id(key_learn_target) = 0;
+                                        id(key_learn_started_ms) = 0;
+                                        id(key_learn_pick_mode) = false;
+                                        ble_hid_host::clear_raw_event();
+                                        id(refresh_keymap_values)->execute();
+                                        id(refresh_keymap_learn_row)->execute();
                                         lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                                       }
                                   - script.execute: reset_idle_timer
@@ -7219,10 +8094,12 @@ binary_sensor:
                                       then:
                                         # 诊断页：单击 → 根据焦点执行操作
                                         - lambda: |-
+                                            ESP_LOGI("ENC_BTN", "debug click focus=%d", id(debug_focus_idx));
                                             if (id(debug_focus_idx) == 0) {
                                               // 重校准
                                               bool ok = msgeq7::recalibrate();
                                               lv_label_set_text(id(lbl_dbg_recal), ok ? "校准完成" : "校准失败");
+                                              id(style_secondary_pages)->execute();
                                             } else {
                                               lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                                             }
@@ -7283,6 +8160,10 @@ binary_sensor:
       - timing:
           - ON for at least 1500ms
         then:
+          - lambda: |-
+              ESP_LOGI("ENC_BTN", "long press page=%p display_off=%d standby=%d ready=%d wifi=%d",
+                       lv_scr_act(), id(display_is_off) ? 1 : 0, id(standby) ? 1 : 0,
+                       id(system_ready) ? 1 : 0, wifi::global_wifi_component->is_connected() ? 1 : 0);
           - if:
               condition:
                 lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj || lv_scr_act() == id(remote_keys_page)->obj;'
@@ -7301,15 +8182,22 @@ binary_sensor:
                     }
                     if (lv_scr_act() == id(remote_keys_page)->obj) {
                       int active = id(keymap_active_idx);
-                      if (active >= 0 && active <= 7) {
+                      if (active >= 0 && active <= 8) {
                         lv_obj_t* rows_k[] = {
                           id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
                           id(keymap_row_3), id(keymap_row_4), id(keymap_row_5),
-                          id(keymap_row_6), id(keymap_row_7)
+                          id(keymap_row_6), id(keymap_row_7), id(keymap_row_8)
                         };
                         lv_obj_set_style_bg_color(rows_k[active], lv_color_hex(0x142033), LV_PART_MAIN);
                       }
                       id(keymap_active_idx) = -1;
+                      id(key_learn_waiting) = false;
+                      id(key_learn_target) = 0;
+                      id(key_learn_started_ms) = 0;
+                      id(key_learn_pick_mode) = false;
+                      ble_hid_host::clear_raw_event();
+                      id(refresh_keymap_values)->execute();
+                      id(refresh_keymap_learn_row)->execute();
                     }
                 - lvgl.page.show:
                     id: main_page

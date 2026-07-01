@@ -80,6 +80,11 @@ static void set_volume(int right_vol, int left_vol) {
     if (!_initialized) return;
   }
 
+  // Safety net: if a previous interrupted transfer left CS low, release PGA2311
+  // before any early return or new frame.
+  gpio_set_level((gpio_num_t)PGA2311_CS_PIN, 1);
+  esp_rom_delay_us(1);
+
   right_vol = _clamp(right_vol, 0, 255);
   left_vol  = _clamp(left_vol,  0, 255);
 
