@@ -626,7 +626,7 @@ font:
     size: 14
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
-      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败继续按住请热"
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
@@ -634,7 +634,7 @@ font:
     size: 18
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
-      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败"
+      - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败继续按住请热"
 
   # ── Montserrat 字族 (local, 完整字体) ──
   - file: "fonts/Montserrat-Regular.ttf"
@@ -6956,6 +6956,7 @@ interval:
           {
             static uint32_t hold_start = 0;
             static bool triggered = false;
+            static bool started_from_standby = false;
             uint32_t now = millis();
             bool pressed = id(encoder_button).state;
 
@@ -6964,9 +6965,10 @@ interval:
             } else if (pressed) {
               if (hold_start == 0) {
                 hold_start = now;  // 首次检测到按下
+                started_from_standby = id(standby);  // 记住按下时是否处于待机
               }
               uint32_t elapsed = now - hold_start;
-              if (elapsed >= 10000) {
+              if (elapsed >= 10000 && started_from_standby) {
                 triggered = true;
                 id(factory_reset)->execute();
               } else if (elapsed >= 5000) {
@@ -6986,6 +6988,7 @@ interval:
               if (hold_start != 0) {
                 hold_start = 0;
                 triggered = false;
+                started_from_standby = false;
                 if (!id(standby)) {
                   lv_label_set_text(id(lbl_factory_msg), "");
                   lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
