@@ -108,14 +108,19 @@ enum NormalizedValue : uint8_t {
 struct NormalizedFingerprint {
     uint16_t handle = 0;
     uint16_t len = 0;
-    uint32_t hash = 0;
     uint8_t kind = NK_NONE;
     uint8_t value = NV_NONE;
     uint16_t aux = 0;
-    bool valid = false;
-    bool learnable = false;
-};
 
+    bool is_valid() const { return kind != NK_NONE && value != NV_NONE; }
+
+    bool match(const NormalizedFingerprint& other) const {
+        return handle == other.handle &&
+               len == other.len &&
+               kind == other.kind &&
+               value == other.value;
+    }
+};
 struct LearnedKey {
     bool enabled = false;
     uint16_t handle = 0;
@@ -382,9 +387,6 @@ static NormalizedFingerprint _make_normalized_fingerprint(uint16_t handle, uint1
     fp.kind = kind;
     fp.value = value;
     fp.aux = aux;
-    fp.valid = kind != NK_NONE && value != NV_NONE;
-    fp.learnable = fp.valid;
-    fp.hash = _encode_normalized_hash(kind, value, aux);
     return fp;
 }
 
@@ -395,17 +397,11 @@ static NormalizedFingerprint _make_raw_fallback_fingerprint(const RawFingerprint
     fp.kind = NK_RAW_FALLBACK;
     fp.value = (uint8_t)(raw.hash & 0xFF);
     fp.aux = (uint16_t)((raw.hash >> 8) & 0xFFFF);
-    fp.hash = raw.hash;
-    fp.valid = raw.valid;
-    fp.learnable = raw.learnable;
     return fp;
 }
 
 static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* data, uint16_t len) {
-    NormalizedFingerprint none;
-    none.handle = handle;
-    none.len = len;
-    if (data == nullptr || len == 0) return none;
+    if (data == nullptr || len == 0) return NormalizedFingerprint{};
 
     if (len == 2) {
         if (data[1] == 0x20) {
@@ -415,7 +411,7 @@ static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* d
             return _make_normalized_fingerprint(handle, len, NK_SHORT_KEY, NV_MUTE_TOGGLE);
         }
         RawFingerprint raw = _make_raw_fingerprint(handle, data, len);
-        if (!raw.learnable) return none;
+        if (!raw.learnable) return NormalizedFingerprint{};
         return _make_raw_fallback_fingerprint(raw);
     }
 
@@ -426,32 +422,32 @@ static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* d
         uint32_t now = millis();
         TrendWindow& trend = S().trend;
 
-        if (_abs32((int32_t)x - 0x0E46) < 160 && _abs32((int32_t)y - 0x04CA) < 160) {
+        if (_abs32((int32_t)x - 0x0E46) < 100 && _abs32((int32_t)y - 0x04CA) < 100) {
             trend.tracking = false;
             return _make_normalized_fingerprint(handle, len, NK_AXIS_POINT, NV_VOLUME_UP);
         }
 
-        if (is_active && _abs32((int32_t)x - 0x0800) < 180 && _abs32((int32_t)y - 0x0666) < 180) {
+        if (is_active && _abs32((int32_t)x - 0x0800) < 150 && _abs32((int32_t)y - 0x0666) < 150) {
             trend.tracking = false;
             return _make_normalized_fingerprint(handle, len, NK_AXIS_CENTER, NV_NAV_CENTER);
         }
 
         if (now - trend.last_trigger_time < 150) {
-            return none;
+            return NormalizedFingerprint{};
         }
 
         if (!trend.tracking) {
-            if (is_active && (_abs32((int32_t)x - 0x0800) > 180 || _abs32((int32_t)y - 0x0666) > 180)) {
+            if (is_active && (_abs32((int32_t)x - 0x0800) > 200 || _abs32((int32_t)y - 0x0666) > 200)) {
                 trend.tracking = true;
                 trend.start_x = x;
                 trend.start_y = y;
             }
-            return none;
+            return NormalizedFingerprint{};
         }
 
         if (!is_active) {
             trend.tracking = false;
-            return none;
+            return NormalizedFingerprint{};
         }
 
         int32_t dx = (int32_t)x - (int32_t)trend.start_x;
@@ -467,29 +463,28 @@ static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* d
             trend.last_trigger_time = now;
             return _make_normalized_fingerprint(handle, len, NK_AXIS_DIR, dx > 0 ? NV_NAV_LEFT : NV_NAV_RIGHT);
         }
-        return none;
+        return NormalizedFingerprint{};
     }
 
     RawFingerprint raw = _make_raw_fingerprint(handle, data, len);
-    if (!raw.learnable) return none;
+    if (!raw.learnable) return NormalizedFingerprint{};
     return _make_raw_fallback_fingerprint(raw);
 }
 
 static HidEventType _match_learned_key(const NormalizedFingerprint& fp) {
-    if (!fp.valid || !fp.learnable) return HID_EVT_NONE;
+    if (!fp.is_valid()) return HID_EVT_NONE;
     uint32_t now = millis();
     for (int action = (int)HID_EVT_VOLUME_UP; action <= (int)HID_EVT_CYCLE_INPUT; action++) {
         LearnedKey& key = S().learned[action];
         if (!key.enabled) continue;
         if (key.handle != fp.handle || key.len != fp.len) continue;
-        if (key.kind != fp.kind || key.value != fp.value || key.aux != fp.aux) continue;
-        if (key.kind == NK_RAW_FALLBACK && key.hash != fp.hash) continue;
+        if (key.kind != fp.kind || key.value != fp.value) continue;
 
         uint32_t gap_ms = (key.action == HID_EVT_VOLUME_UP || key.action == HID_EVT_VOLUME_DOWN) ? 80 : 250;
         if (now - key.last_emit_ms < gap_ms) return HID_EVT_NONE;
         key.last_emit_ms = now;
-        ESP_LOGI("ble_hid", "HID learned normalized match action=%d handle=0x%04x len=%u kind=%u value=%u hash=0x%08x",
-                 (int)key.action, fp.handle, fp.len, fp.kind, fp.value, (unsigned)fp.hash);
+        ESP_LOGI("ble_hid", "HID learned match action=%d handle=0x%04x len=%u kind=%u value=%u",
+                 (int)key.action, fp.handle, fp.len, fp.kind, fp.value);
         return key.action;
     }
     return HID_EVT_NONE;
@@ -1306,7 +1301,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
             NormalizedFingerprint fp = _normalize_report(n_handle, n_val, n_len);
             if (xSemaphoreTake(S().mux, 0)) {
                 S().has_raw_event = false;
-                if (fp.valid && fp.learnable) {
+                if (fp.is_valid()) {
                     if (S().learning_capture_active && !S().has_raw_fingerprint) {
                         S().last_raw_fingerprint = fp;
                         S().has_raw_fingerprint = true;
@@ -1867,14 +1862,14 @@ static bool get_last_normalized_fingerprint(uint16_t* handle, uint16_t* len,
         kind == nullptr || value == nullptr || aux == nullptr || hash == nullptr) return false;
     bool ok = false;
     if (xSemaphoreTake(S().mux, 0)) {
-        ok = S().has_raw_fingerprint && S().last_raw_fingerprint.valid && S().last_raw_fingerprint.learnable;
+        ok = S().has_raw_fingerprint && S().last_raw_fingerprint.is_valid();
         if (ok) {
             *handle = S().last_raw_fingerprint.handle;
             *len = S().last_raw_fingerprint.len;
             *kind = S().last_raw_fingerprint.kind;
             *value = S().last_raw_fingerprint.value;
             *aux = S().last_raw_fingerprint.aux;
-            *hash = S().last_raw_fingerprint.hash;
+            *hash = _encode_normalized_hash(S().last_raw_fingerprint.kind, S().last_raw_fingerprint.value, S().last_raw_fingerprint.aux);
             S().has_raw_fingerprint = false;
             S().learning_capture_active = false;
         }
