@@ -4,6 +4,14 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ---
 
+**34. Montserrat 字体切为本地文件**
+
+编译时 Google Fonts 在线下载 Montserrat 字体超时，导致编译失败。
+
+**修复**: 将 8 个 Montserrat 字型（8/12/16/21/24/27/30/36）从 `type: web` + `url:` 改为 `file: "fonts/Montserrat-Regular.ttf"`。
+
+改动文件: `智能前级蓝牙2.0.yaml` 中 8 处 font 定义。
+
 ## 强制性规则
 
 **每次修改代码后，必须同步更新以下项目文档：**
