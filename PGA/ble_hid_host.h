@@ -1884,6 +1884,16 @@ static void set_learned_key(HidEventType action, uint16_t handle, uint16_t len,
     int idx = (int)action;
     if (idx < (int)HID_EVT_VOLUME_UP || idx > (int)HID_EVT_CYCLE_INPUT) return;
     if (xSemaphoreTake(S().mux, 0)) {
+        // clear dup slot with same fingerprint before setting new
+        for (int i = (int)HID_EVT_VOLUME_UP; i <= (int)HID_EVT_CYCLE_INPUT; i++) {
+            if (i == idx) continue;
+            LearnedKey& ex = S().learned[i];
+            if (ex.enabled && ex.handle == handle && ex.len == len &&
+                ex.kind == kind && ex.value == value) {
+                ex = LearnedKey{};
+                ESP_LOGI("ble_hid", "clear dup learned slot action=%d (same fingerprint as action=%d)", i, idx);
+            }
+        }
         LearnedKey& key = S().learned[(int)action];
         key.enabled = (handle != 0 && len != 0 && kind != NK_NONE && value != NV_NONE);
         key.handle = handle;

@@ -716,3 +716,11 @@ esphome compile /config/esphome/20.yaml
 如果学习了一个按键（写入 learned_key_N）但 key_map_N 之前被意外修改（比如在遥控器按键页旋转编码器改变了映射值），就会导致学A得B的 bug。
 
 **修复**: save_learned_remote_key 脚本在 set_learned_key() 之后自动重置对应的 key_map_N 到恒等值 (N)。这样无论之前映射页怎么调过，只要重新学习就强制同步。
+
+**31. 学习按键时自动清除同指纹旧槽位**
+
+_match_learned_key() 从 action=1 遍历到 9，返回第一个匹配的指纹。如果之前把一个实体按键学成 action 4（播放），后来又学成 action 9（切换输入），learned[4] 和 learned[9] 会有相同的 (handle, len, kind, value) 指纹，导致 action 4 永远先匹配，按出来永远是播放。
+
+**修复**: set_learned_key() 在写入新槽位前，先遍历所有其他槽位，如果发现同指纹的旧槽位就清除。确保每个实体按键指纹唯一对应一个 action 槽。
+
+改动文件: PGA/ble_hid_host.h，set_learned_key() 函数内。
