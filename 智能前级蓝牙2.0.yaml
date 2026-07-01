@@ -4983,7 +4983,7 @@ script:
   - id: start_wifi_ap
     mode: restart
     then:
-      - lambda: 'wifi::global_wifi_component->save_wifi_sta('', '');'
+      - lambda: 'wifi::global_wifi_component->save_wifi_sta("", "");'
       - delay: 2s
       - lambda: 'App.safe_reboot();'
 
@@ -5051,7 +5051,7 @@ script:
           lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
       - delay: 3s
       - lambda: |-
-          wifi::global_wifi_component->save_wifi_sta('', '');
+          wifi::global_wifi_component->save_wifi_sta("", "");
       - delay: 500ms
       - lambda: |-
           App.safe_reboot();
