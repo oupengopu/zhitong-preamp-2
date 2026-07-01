@@ -724,3 +724,11 @@ _match_learned_key() 从 action=1 遍历到 9，返回第一个匹配的指纹�
 **修复**: set_learned_key() 在写入新槽位前，先遍历所有其他槽位，如果发现同指纹的旧槽位就清除。确保每个实体按键指纹唯一对应一个 action 槽。
 
 改动文件: PGA/ble_hid_host.h，set_learned_key() 函数内。
+
+**32. 中心键判定加趋势追踪保护**
+
+上键的方向手势从 y=0x059A 运动到 y=0x1333 时，中间会经过 y=0x0614，这个坐标落在中心定区 (0x0666 ± 150) 内。_normalize_report 先检查中心区再检查追踪延续，导致上键中途的包被误判成中间键。
+
+**修复**: 中心键判定条件加 !trend.tracking。已经在趋势追踪中的方向键跨过中心区时不再被误判为中心键。
+
+改动文件: PGA/ble_hid_host.h，_normalize_report() 函数内 line 430。

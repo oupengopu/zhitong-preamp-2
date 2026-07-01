@@ -427,7 +427,7 @@ static NormalizedFingerprint _normalize_report(uint16_t handle, const uint8_t* d
             return _make_normalized_fingerprint(handle, len, NK_AXIS_POINT, NV_VOLUME_UP);
         }
 
-        if (is_active && _abs32((int32_t)x - 0x0800) < 150 && _abs32((int32_t)y - 0x0666) < 150) {
+        if (is_active && !trend.tracking && _abs32((int32_t)x - 0x0800) < 150 && _abs32((int32_t)y - 0x0666) < 150) {
             trend.tracking = false;
             return _make_normalized_fingerprint(handle, len, NK_AXIS_CENTER, NV_NAV_CENTER);
         }
