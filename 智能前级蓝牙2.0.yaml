@@ -4983,7 +4983,7 @@ script:
   - id: start_wifi_ap
     mode: restart
     then:
-      - lambda: 'wifi::global_wifi_component->clear_sta();'
+      - lambda: 'wifi::global_wifi_component->save_wifi_sta('', '');'
       - delay: 2s
       - lambda: 'App.safe_reboot();'
 
@@ -5027,6 +5027,10 @@ script:
           id(key_map_7) = 7; id(key_map_8) = 8;
           id(key_map_9) = 9;
           id(clear_learned_remote_keys)->execute();
+          // clear BLE pairing + factory msg
+          id(ble_remote_peer_bda) = "";
+          lv_label_set_text(id(lbl_factory_msg), "");
+          lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
 
           // 同步到 HA
           id(max_volume_number)->publish_state(255.0f);
@@ -5042,11 +5046,14 @@ script:
           animation: LV_SCREEN_LOAD_ANIM_FADE_IN
           time: 200ms
       - lambda: |-
+          lv_obj_move_foreground(id(lbl_factory_msg));
           lv_label_set_text(id(lbl_factory_msg), "已重置，请连接热点");
           lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
       - delay: 3s
       - lambda: |-
-          wifi::global_wifi_component->clear_sta();
+          wifi::global_wifi_component->save_wifi_sta('', '');
+      - delay: 500ms
+      - lambda: |-
           App.safe_reboot();
 
   # ── 待机：关屏 + 静音 + 暂停 LVGL，WiFi 保持连接（HA 可远程唤醒） ──
@@ -6965,6 +6972,11 @@ interval:
               } else if (elapsed >= 5000) {
                 // 5 秒后给视觉反馈: 非待机时更新 LVGL, 待机时仅靠 LED 加速闪烁
                 if (!id(standby)) {
+                  // switch to main_page + bring to front
+                  if (lv_scr_act() != id(main_page)->obj) {
+                    lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 150, 0, false);
+                  }
+                  lv_obj_move_foreground(id(lbl_factory_msg));
                   lv_label_set_text(id(lbl_factory_msg), "继续按住恢复出厂设置...");
                   lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
                 }

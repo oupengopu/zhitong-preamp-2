@@ -1,3 +1,21 @@
+v2.1.4 - 2026-07-02
+  工厂重置修复: 长按10s WiFi 重置失效
+    - 原因: clear_sta() 只清内存 STA 配置，ESPHome 开机从 NVS 重新加载旧凭证
+    - 修复: 改用 save_wifi_sta('', '') 将空凭证持久化到 NVS，重启后设备进入 AP 配网模式
+    - 同时修复: start_wifi_ap 脚本中的相同问题
+
+  UI 修复: 长按 5s 工厂重置提示层级修复
+    - 5s 提示改为 lv_scr_load_anim + lv_obj_move_foreground 确保显示在最顶层
+    - 工厂重置时清除 BLE 配对 BDA
+  
+  编译修复: LvPageType* 与 lv_obj_t* 类型不匹配
+    - id(main_page) 改为 id(main_page)->obj 适配 ESPHome LVGL managed component
+
+改动文件:
+  智能前级蓝牙2.0.yaml
+  CHANGELOG.txt
+
+---
 v2.1.3b - 2026-07-02
   编译修复: Montserrat 字体从 Google Fonts 在线下载改为本地 fonts/Montserrat-Regular.ttf
     - 原因: Google Fonts 下载超时导致编译失败
