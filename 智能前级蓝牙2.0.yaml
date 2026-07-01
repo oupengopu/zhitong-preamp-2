@@ -714,7 +714,7 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
     size: 18
-    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏", "\U000F0581"]
+    glyphs: ["󰕽", "󰕾", "󰜉", "󰙪", "󰯍", "󰃟", "󰔛", "󰏘", "󰋽", "󰩠", "󰂯", "󰘑", "󰾝", "󰃖", "󰐊", "󰓐", "󰓏", "󰍼", "󰊏", "󰏤", "󰙒", "󰑐", "󰐕", "\U000F0581"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"

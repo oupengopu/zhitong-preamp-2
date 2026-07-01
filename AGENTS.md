@@ -4,6 +4,17 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ---
 
+## 强制性规则
+
+**每次修改代码后，必须同步更新以下项目文档：**
+  1. `CHANGELOG.txt` — 添加新版本/修改条目，写明改动内容、原因、涉及文件
+  2. `AGENTS.md` — 如果涉及架构变更、新增功能、新硬件配置，必须更新对应章节
+  3. 其他文档 — 如果 README.md 或 CLAUDE.md 有相关内容，一并更新
+
+> 任何代码改动（包括修复 bug、新增功能、重构、UI 调整）都必须有对应的文档更新。这是强制性要求，不可跳过。
+
+---
+
 # 智能前级2.0 — 项目概览
 
 ## 项目简介
@@ -732,3 +743,14 @@ _match_learned_key() 从 action=1 遍历到 9，返回第一个匹配的指纹�
 **修复**: 中心键判定条件加 !trend.tracking。已经在趋势追踪中的方向键跨过中心区时不再被误判为中心键。
 
 改动文件: PGA/ble_hid_host.h，_normalize_report() 函数内 line 430。
+**33. mdi_settings_icons_24 字体缺少图标码位**
+
+学习页的"学习按键"、"重置学习"、"暂停"图标，以及信息页的"MSGEQ7 重校准"图标使用 `mdi_settings_icons_24` 字体（18px），但该字体 glyphs 列表缺少对应的 4 个 Unicode PUA 码位，导致显示空白。
+
+**修复**: 在 `mdi_settings_icons_24` 字体的 `glyphs:` 列表中新增 4 个码位：
+  - U+F03E4 (暂停图标)
+  - U+F0652 (学习按键图标)
+  - U+F0450 (重置学习图标)
+  - U+F0415 (MSGEQ7校准/刷新图标)
+
+改动文件: `智能前级蓝牙2.0.yaml` line 717，glyphs 列表。
