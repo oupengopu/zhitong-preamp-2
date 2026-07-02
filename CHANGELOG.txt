@@ -1,3 +1,16 @@
+v2.1.7 - 2026-07-02
+  ESPHome 升级: 2026.5.3 → 2026.6.4
+    - pip install --upgrade esphome
+    - 现有代码完全兼容，无需额外适配
+  屏幕 SPI 频率提升: 40MHz → 80MHz
+     - NV3007 TFT SPI 时钟频率翻倍，提升 UI 刷新流畅度
+  固件版本号更新: v2.1.0 → v2.1.5
+改动文件:
+  AGENTS.md (ESPHome 版本号同步)
+  CHANGELOG.txt
+
+---
+
 v2.1.6 - 2026-07-02
   工厂重置逻辑修正: 仅待机状态允许 10s 重置触发
     - 新增 started_from_standby 静态变量记住按下瞬间的待机状态
