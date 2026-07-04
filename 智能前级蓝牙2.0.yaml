@@ -6575,6 +6575,7 @@ select:
           id(last_manual_input_ms) = now;   // 记录手动选择
           id(current_input) = target;
           id(sync_settings_ui)->execute();
+          id(switch_input)->execute();
           id(reset_idle_timer)->execute();
 
 # ═══════════════════════════════════════════════════════════════
