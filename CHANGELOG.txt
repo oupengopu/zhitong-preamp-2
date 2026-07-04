@@ -1,3 +1,14 @@
+v2.1.8 - 2026-07-04
+  修复: 输入切换继电器吸合两次
+    - 根因: input_select 的 set_action + 调用方各调了一次 switch_input
+    - 修复: 移除 set_action 中的 switch_input->execute()（第6578行）
+    - 调用方直接调用 switch_input 一次即可，set_action 只负责参数校验
+改动文件:
+  智能前级蓝牙2.0.yaml (input_select set_action)
+  CHANGELOG.txt
+
+---
+
 v2.1.7 - 2026-07-02
   ESPHome 升级: 2026.5.3 → 2026.6.4
     - pip install --upgrade esphome
