@@ -1,3 +1,15 @@
+v2.1.8 - 2026-07-05
+  修复: 编译编码问题导致显示屏黑屏（有背光无显示）
+    - 根因: Windows 环境下设 PYTHONIOENCODING=utf-8 后，PlatformIO 输出
+      GBK 编码字节(0xC1) 导致 esphome/util.py 的 s.decode() 抛出
+      UnicodeDecodeError，编译进程异常退出，生成的二进制显示驱动损坏
+    - 修复: 使用 python -X utf8=0 -m esphome compile 编译，禁用 UTF-8 模式
+    - 注意: 以后不要在 Windows 下设置 PYTHONIOENCODING=utf-8 编译 ESPHome
+改动文件:
+  CHANGELOG.txt, AGENTS.md (添加重要提示)
+
+---
+
 v2.1.7 - 2026-07-02
   ESPHome 升级: 2026.5.3 → 2026.6.4
     - pip install --upgrade esphome

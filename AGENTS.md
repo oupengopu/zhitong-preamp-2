@@ -12,6 +12,28 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 改动文件: `智能前级蓝牙2.0.yaml` 中 8 处 font 定义。
 
+## Windows 编译重要提示
+
+**不要设置 PYTHONIOENCODING=utf-8 环境变量后编译 ESPHome！**
+PlatformIO 输出包含 GBK 编码字节（中文系统），`esphome/util.py` 的 `s.decode()` 会抛出
+`UnicodeDecodeError`，导致编译进程异常退出，生成的二进制文件损坏。
+症状：显示屏有背光但无显示，固件其他功能正常。
+
+**正确编译方式：**
+```bash
+# 方式 1（推荐）：直接运行，不设 PYTHONIOENCODING
+esphome compile "智能前级蓝牙2.0.yaml"
+
+# 方式 2：如果必须设置编码，用 -X utf8=0 禁用 UTF-8 模式
+python -X utf8=0 -m esphome compile "智能前级蓝牙2.0.yaml"
+```
+
+> 这个 bug 在 2026.5.3 版本已验证，0xC1 字节不是有效 UTF-8 起始字节，
+> 但 GBK 编码下 0xC1 是合法字符。问题本质是 PlatformIO 输出流编码与
+> esphome/util.py 的 decode() 默认编码不匹配。
+
+---
+
 ## 强制性规则
 
 **每次修改代码后，必须同步更新以下项目文档：**
