@@ -106,8 +106,9 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 
 // ── 噪声门限 (0-255 量纲, 低于此值的频谱归零, 静音时频谱静止) ──
 //   MSGEQ7 3.3V 供电时底噪约 100-200mV, 对应 ADC ≈ 124-248 / 4095 → 8-15 / 255
-//   旧值 3 太低会导致静音时频谱跳动, 提升到 8 消除底噪
-static constexpr int NOISE_GATE = 8;
+//   旧值 8 太大会抑制弱信号 (实测 ~130mV 音频被完全干掉),
+//   降回 4 仍可抑制纯底噪, 同时保留较弱音乐信号
+static constexpr int NOISE_GATE = 4;
 static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──

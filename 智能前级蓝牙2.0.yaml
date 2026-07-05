@@ -6645,7 +6645,7 @@ interval:
               spectrum_frame_avg += std::max(frame.left[i], frame.right[i]);
             }
             spectrum_frame_avg /= 7;
-            if (spectrum_frame_peak <= 36 && spectrum_frame_avg <= 16) {
+            if (spectrum_frame_peak <= 16 && spectrum_frame_avg <= 8) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
