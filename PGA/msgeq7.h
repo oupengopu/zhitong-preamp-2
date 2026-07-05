@@ -470,6 +470,16 @@ static void read() {
   // _smooth_* 仅本函数读写, 放在锁外减少临界区时长
   memcpy(_smooth_r, new_sr, sizeof(_smooth_r));
   memcpy(_smooth_l, new_sl, sizeof(_smooth_l));
+  // ── 诊断日志: 每 50 帧 (~2.5s) 输出一次频段处理结果 ──
+  static int _diag_cnt = 0;
+  _diag_cnt++;
+  if (_diag_cnt >= 50) {
+    _diag_cnt = 0;
+    ESP_LOGI("msgeq7", "L[%d/%d/%d/%d/%d/%d/%d] R[%d/%d/%d/%d/%d/%d/%d] pk[%d] off_r0=%d adc=%d init=%d",
+      new_l[0], new_l[1], new_l[2], new_l[3], new_l[4], new_l[5], new_l[6],
+      new_r[0], new_r[1], new_r[2], new_r[3], new_r[4], new_r[5], new_r[6],
+      new_peak[0], _r_offset[0], _adc_ok, _initialized);
+  }
 }
 
 // 温度有效判定 (前向声明)

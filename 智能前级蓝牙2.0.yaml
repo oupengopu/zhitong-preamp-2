@@ -6618,6 +6618,13 @@ interval:
           if (!id(standby)) {
             msgeq7::read();
           }
+          // ── 诊断日志: MSGEQ7 就绪+信号 (每 ~20 帧 ≈ 1s) ──
+          { static int _s = 0; _s++; if (_s >= 20) { _s = 0;
+          ESP_LOGI("spc", "stby=%d mute=%d ready=%d ssa=%d",
+            (int)id(standby), (int)id(soft_mute),
+            msgeq7::is_ready() ? 1 : 0, s_signal_avg);
+          } }
+
 
           // ── NTC 温度读取 (每10秒) ──
           static int ntc_counter = 0;
@@ -6645,7 +6652,7 @@ interval:
               spectrum_frame_avg += std::max(frame.left[i], frame.right[i]);
             }
             spectrum_frame_avg /= 7;
-            if (spectrum_frame_peak <= 16 && spectrum_frame_avg <= 8) {
+            if (spectrum_frame_peak <= 2 && spectrum_frame_avg <= 1) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
@@ -6655,6 +6662,13 @@ interval:
                 frame.peak_r[i] = 0;
               }
             }
+            // ── 诊断日志 (每 ~20 帧 ≈ 1s) ──
+            { static int _d = 0; _d++; if (_d >= 20) { _d = 0;
+            ESP_LOGI("spc", "pk=%d avg=%d mute=%d stby=%d",
+              spectrum_frame_peak, spectrum_frame_avg,
+              (int)id(soft_mute), (int)id(standby));
+            } }
+
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
             lv_obj_t* bars_L[] = {
