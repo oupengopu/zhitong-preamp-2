@@ -6619,10 +6619,6 @@ interval:
             msgeq7::read();
           }
           // ── 诊断日志: MSGEQ7 就绪+信号 (每 ~20 帧 ≈ 1s) ──
-          { static int _s = 0; _s++; if (_s >= 20) { _s = 0;
-          ESP_LOGI("spc", "stby=%d mute=%d ready=%d ssa=%d",
-            (int)id(standby), (int)id(soft_mute),
-            msgeq7::is_ready() ? 1 : 0, s_signal_avg);
           } }
 
 
@@ -6663,10 +6659,6 @@ interval:
               }
             }
             // ── 诊断日志 (每 ~20 帧 ≈ 1s) ──
-            { static int _d = 0; _d++; if (_d >= 20) { _d = 0;
-            ESP_LOGI("spc", "pk=%d avg=%d mute=%d stby=%d",
-              spectrum_frame_peak, spectrum_frame_avg,
-              (int)id(soft_mute), (int)id(standby));
             } }
 
 
