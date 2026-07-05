@@ -7813,9 +7813,9 @@ interval:
                 }
                 // else lvl 保持 0.0
               } else {
-                // 待机 <1小时: 柔呼吸 3s 周期, 5%~55%
-                float t = fmod((float)n, 3000.0f) / 3000.0f;
-                lvl = 0.05f + 0.50f * (sinf(t * 2.0f * M_PI - M_PI_2) + 1.0f) * 0.5f;
+                // 待机 <1小时: 柔呼吸 4s 周期, 3%~65% (sin(t*PI) 波形更丝滑)
+                float t = fmod((float)n, 4000.0f) / 4000.0f;
+                lvl = 0.03f + 0.62f * sinf(t * M_PI);
               }
             }
             // 优先级 3: 开机闪屏期间 → 1 秒内渐亮到 70%
