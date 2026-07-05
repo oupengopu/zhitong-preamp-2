@@ -839,3 +839,11 @@ v2.1.3 - 2026-07-02
   □ SVG 图标文件在 icons/ 目录? (6个文件, ESPHome编译时读取)
   □ 图标 recolor 机制正常? (lv_obj_set_style_img_recolor + opa=COVER)
   □ lvgl_compat.h extern "C" 与当前 LVGL 版本兼容? (升级后如遇链接错误, 删除 extern "C" 块改用标准头文件)
+v2.2.0 - 2026-07-05
+  修复: BLE 遥控器按键混淆 (UP/中心键互相触发)
+    - 根因: _normalize_report() 在 BLE GATT 回调线程中读写 S().trend 趋势状态机
+      时未受互斥锁保护。主循环 begin_learning_capture() 可同时清空 trend.tracking，
+      导致 UP 键中间帧 (Y=1556, 落在中心窗口 [1476,1788] 内) 被误判为中心键。
+    - 修复: 将 _normalize_report() 移入 xSemaphoreTake(S().mux) 临界区内部，
+      合并三段独立临界区为一个原子操作。日志留在 mutex 外。
+    - 涉及文件: PGA/ble_hid_host.h (notify handler 临界区重构)
