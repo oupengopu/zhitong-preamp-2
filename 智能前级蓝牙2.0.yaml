@@ -3875,6 +3875,10 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
+  - id: last_idle_activity_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
   - id: last_manual_input_ms
     type: uint32_t
     restore_value: false
@@ -5087,6 +5091,10 @@ script:
                 id(system_ready)    = false;
                 id(standby)         = true;
                 id(standby_switch)->publish_state(false);  // HA 同步
+                id(relay_in1)->turn_off();
+                id(relay_in2)->turn_off();
+                id(relay_in3)->turn_off();
+                id(relay_in4)->turn_off();
             - lvgl.pause:
             - delay: 100ms
             - lambda: |-
@@ -5150,11 +5158,13 @@ script:
             id(display_is_off) = false;
           }
           id(last_display_interaction) = millis();
+          id(last_idle_activity_ms) = millis();
 
   - id: display_idle_timer
     mode: restart
     then:
       - lambda: 'id(last_display_interaction) = millis();'
+      - lambda: 'id(last_idle_activity_ms) = millis();'
       - while:
           condition:
             lambda: 'return !id(standby);'
@@ -5169,6 +5179,12 @@ script:
                   call.set_brightness(0.50f);
                   call.perform();
                   id(display_is_off) = true;
+                }
+                // Auto-standby: 1h no audio signal + no operation
+                uint32_t idle_activity = now - id(last_idle_activity_ms);
+                if (idle_activity >= 3600000u && !id(standby)) {
+                  ESP_LOGI("standby", "Auto-standby: no signal+operation for 1 hour");
+                  id(enter_standby)->execute();
                 }
 
   - id: save_current_input_volume
@@ -7083,6 +7099,14 @@ interval:
                   && signal_lost_ms > 0 && (now - signal_lost_ms >= 10000)) {
                 lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
               }
+            }
+          }
+
+          // === Audio signal monitor (for 1h auto-standby) ===
+          {
+            bool any_audio = id(audio_cd)->state || id(audio_dac)->state || id(audio_pc)->state || id(audio_aux)->state;
+            if (any_audio) {
+              id(last_idle_activity_ms) = millis();
             }
           }
 

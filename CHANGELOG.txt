@@ -1,3 +1,14 @@
+v2.1.9 - 2026-07-05
+  新增: 1小时无信号+无操作自动待机
+    - 新增 last_idle_activity_ms 计时器，音频信号或用户操作时自动重置
+    - display_idle_timer 循环中检测 -> 满1小时自动调用 enter_standby
+  新增: 待机时释放输入继电器 (延长继电器寿命)
+    - enter_standby 脚本中关闭 relay_in1~relay_in4
+    - exit_standby 时由 switch_input 自动恢复（无需额外逻辑）
+  改动文件:
+    智能前级蓝牙2.0.yaml
+    CHANGELOG.txt
+
 v2.1.8 - 2026-07-05
   修复: 编译编码问题导致显示屏黑屏（有背光无显示）
     - 根因: Windows 环境下设 PYTHONIOENCODING=utf-8 后，PlatformIO 输出
