@@ -7842,8 +7842,8 @@ interval:
               lvl = 0.70f;
             }
 
-            // 每 50ms 直接写入 (无阈值滤波, 避免波形最低点突变)
-            id(led_indicator)->set_level(lvl);
+            // 每 50ms 直接写入 (无阈值滤波; gamma≈2.2 人眼线性校正)
+            id(led_indicator)->set_level(lvl * lvl);
           }
 
           int64_t loop_elapsed_us = esp_timer_get_time() - loop_start_us;
