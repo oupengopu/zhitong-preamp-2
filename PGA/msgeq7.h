@@ -106,9 +106,9 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 
 // ── 噪声门限 (0-255 量纲, 低于此值的频谱归零, 静音时频谱静止) ──
 //   MSGEQ7 3.3V 供电时底噪约 100-200mV, 对应 ADC ≈ 124-248 / 4095 → 8-15 / 255
-//   旧值 8 太大会抑制弱信号 (实测 ~130mV 音频被完全干掉),
-//   降回 4 仍可抑制纯底噪, 同时保留较弱音乐信号
-static constexpr int NOISE_GATE = 4;
+//   旧值 4 对 ADC 偏移附近的弱信号 (20-40 counts) 仍然过高,
+//   降为 2 后结合"增益优先"策略, 可检出约 16mV 的弱音频信号
+static constexpr int NOISE_GATE = 2;
 static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
@@ -396,19 +396,19 @@ static void read() {
     if (r_raw < 0) r_raw = 0;
     if (l_raw < 0) l_raw = 0;
 
-    // 缩放到 0-255
-    int r_val = r_raw * 255 / 4095;
-    int l_val = l_raw * 255 / 4095;
+    // 频段增益补偿 (先于缩放, 在 ADC 原始域放大, 避免整数截断丢失弱信号)
+    int r_val = (r_raw * BAND_GAIN_Q8[i]) >> 8;
+    int l_val = (l_raw * BAND_GAIN_Q8[i]) >> 8;
 
-    // 噪声门限 (先于增益, 防止增益放大噪声)
-    if (r_val < NOISE_GATE) r_val = 0;
-    if (l_val < NOISE_GATE) l_val = 0;
-
-    // 频段增益补偿 (整数定点: ×N/256, 比 float mul 快 ~5x on ESP32-S3 FPU)
-    r_val = (r_val * BAND_GAIN_Q8[i]) >> 8;
-    l_val = (l_val * BAND_GAIN_Q8[i]) >> 8;
+    // 缩放到 0-255 (增益后数值更大, 整数截断损失更小)
+    r_val = r_val * 255 / 4095;
+    l_val = l_val * 255 / 4095;
     if (r_val > 255) r_val = 255;
     if (l_val > 255) l_val = 255;
+
+    // 噪声门限 (增益之后, 弱信号经放大后再判断, 防止 ADC 偏移附近弱信号被提前扼杀)
+    if (r_val < NOISE_GATE) r_val = 0;
+    if (l_val < NOISE_GATE) l_val = 0;
 
     // 双速率平滑: 上升快, 下降慢 (视觉更流畅)
     float sr = local_sr[i], sl = local_sl[i];
