@@ -5095,6 +5095,7 @@ script:
                 id(relay_in2)->turn_off();
                 id(relay_in3)->turn_off();
                 id(relay_in4)->turn_off();
+                if (id(output_mode)) id(relay_out)->turn_off();
             - lvgl.pause:
             - delay: 100ms
             - lambda: |-
@@ -5137,7 +5138,9 @@ script:
             - script.execute: switch_input
             - wait_until:
                 condition:
-                  lambda: 'return !id(switch_input)->is_running();'
+                 lambda: 'return !id(switch_input)->is_running();'
+            - lambda: |-
+                if (id(output_mode)) id(relay_out)->turn_on();
             - script.execute: apply_theme    # ★ 待机恢复后应用主题色
             - lvgl.page.show: main_page
             - lambda: |-
@@ -7813,9 +7816,10 @@ interval:
                 }
                 // else lvl 保持 0.0
               } else {
-                // 待机 <1小时: 柔呼吸 4s 周期, 3%~65% (sin(t*PI) 波形更丝滑)
+                // 待机 <1小时: 柔呼吸 4s 周期, 2%~65% (sin² 两端斜率归零, 缓起缓落更丝滑)
                 float t = fmod((float)n, 4000.0f) / 4000.0f;
-                lvl = 0.03f + 0.62f * sinf(t * M_PI);
+                float sv = sinf(t * M_PI);
+                lvl = 0.02f + 0.63f * sv * sv;
               }
             }
             // 优先级 3: 开机闪屏期间 → 1 秒内渐亮到 70%
