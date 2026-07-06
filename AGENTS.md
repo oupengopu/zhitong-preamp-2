@@ -12,6 +12,27 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 改动文件: `智能前级蓝牙2.0.yaml` 中 8 处 font 定义。
 
+## 首次编译「卡 Building bootloader.bin」说明
+
+首次编译时 PlatformIO 会在 Building .pioenvs/*/bootloader.bin 阶段长时间
+无进度输出（几分钟到十几分钟），这是**正常现象**，非编译卡死。
+
+**根因**: PlatformIO 首次构建需要下载完整的 ESP-IDF 工具链
+（xtensa-esp-elf-gcc/cmake/ninja 等，约 500MB）。下载 + 解压期间
+PlatformIO 不输出进度，视觉上表现为「卡在 Building bootloader.bin」。
+
+**处理方法**: 
+  1. 耐心等待 5~15 分钟，不要中断进程
+  2. 工具链缓存后（~/.platformio/packages/）第二次编译即恢复正常速度
+  3. **绝对不要删除 .platformio 或 .esphome 目录下的缓存！**
+     删除缓存只会导致下次编译重新下载工具链，再次经历无进度等待
+  4. 若确定下载卡死，删除 .platformio/penv/.espidf-*/ 下对应版本的
+     toolchain 包后重试即可，不要全删
+
+注: 每次升级 esphome/ESP-IDF 版本后第一次编译也会触发同样流程。
+
+
+
 ## Windows 编译重要提示
 
 **不要设置 PYTHONIOENCODING=utf-8 环境变量后编译 ESPHome！**

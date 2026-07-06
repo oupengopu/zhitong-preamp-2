@@ -1,5 +1,12 @@
 v2.1.12 - 2026-07-07
   修复: 防火爆音机制 - 静音/待机/变压器切换爆音
+  备注: 首次编译卡 Building bootloader.bin 是正常现象
+    - 根因: PlatformIO 首次构建需要下载完整的 ESP-IDF 工具链
+      (xtensa-esp-elf-gcc/cmake/ninja 等 ~500MB), 下载+解压期间
+      无进度输出, 视觉上表现为卡死
+    - 处理方法: 工具链缓存后第二次编译即恢复正常速度。
+      不要删除 .platformio 或 .esphome 目录下的缓存!
+      删除缓存只会导致下次编译重新下载工具链, 再次经历无进度等待
     - 静音开启爆音: soft_mute turn_on_action 中在 send_volume_to_pga 与硬件静音之间
       插入 pga2311::set_volume(0, 0) 确保 DAC 输出归零
     - 待机切入(enter_standby): 在 power_transitioning 前加入软渐变静音
