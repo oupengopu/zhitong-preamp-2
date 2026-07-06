@@ -809,6 +809,7 @@ switch:
     turn_on_action:
       - globals.set: {id: soft_mute, value: 'true'}
       - script.execute: send_volume_to_pga
+      - lambda: 'pga2311::set_volume(0, 0);'
       - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
@@ -5071,6 +5072,18 @@ script:
             - script.stop: display_idle_timer
             - script.stop: send_volume_to_pga
             - script.stop: switch_input
+          # ── ① 软渐变静音 (如未静音) ──
+          - if:
+              condition:
+                lambda: 'return !id(soft_mute);'
+              then:
+                - lambda: 'id(target_db) = -96.0f;'
+                - script.execute: send_volume_to_pga
+                - wait_until:
+                    condition:
+                      lambda: 'return id(current_db) <= -95.5f;'
+                    timeout: 1500ms
+
             - lambda: |-
                 id(power_transitioning) = true;
                 id(standby_wake_block_until_ms) = millis() + 2500;
@@ -5124,6 +5137,7 @@ script:
                 id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
+                if (id(output_mode)) id(relay_out)->turn_on();
                 id(standby_switch)->publish_state(true);  // HA 同步
             - light.turn_on:
                 id: display_backlight
@@ -5135,8 +5149,6 @@ script:
             - wait_until:
                 condition:
                  lambda: 'return !id(switch_input)->is_running();'
-            - lambda: |-
-                if (id(output_mode)) id(relay_out)->turn_on();
             - script.execute: apply_theme    # ★ 待机恢复后应用主题色
             - lvgl.page.show: main_page
             - lambda: |-
@@ -5778,6 +5790,40 @@ script:
           then:
             - script.execute: send_volume_to_pga
 
+  - id: switch_output_mode
+    mode: queued
+    max_runs: 1
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(soft_mute);'
+          then:
+            - lambda: 'id(target_db) = -96.0f;'
+            - script.execute: send_volume_to_pga
+            - wait_until:
+                condition:
+                  lambda: 'return id(current_db) <= -95.5f;'
+                timeout: 1200ms
+      - lambda: 'pga2311::set_volume(0, 0);'
+      - switch.turn_on: mute_switch
+      - delay: 30ms
+      - lambda: |-
+          bool new_mode = !id(output_mode);
+          if (new_mode) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
+          id(output_mode) = new_mode;
+          lv_label_set_text(id(val_output_mode), new_mode ? "直通" : "变压器");
+          lv_label_set_text(id(lbl_main_output_value), new_mode ? "DIRECT" : "TRANSFORMER");
+          lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
+      - delay: 100ms
+      - if:
+          condition:
+            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
+          then:
+            - switch.turn_off: mute_switch
+      - delay: 20ms
+      - script.execute: send_volume_to_pga
+
   # ══════════════════════════════════════════════════════════════
   # ★ 自动输入切换：信号丢失等 8s → 优先级切换 (CD>DAC>PC>AUX)
   #   - 当前输入信号丢失后，等待 8 秒看是否恢复（曲目间隙不误切）
@@ -6065,7 +6111,7 @@ sensor:
                     lv_label_set_text(id(lbl_main_output_value), v ? "DIRECT" : "TRANSFORMER");
                     lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
-                    if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
+                    id(switch_output_mode)->execute();
                     break;
                   }
                   case 11: { // 频谱跳转：0=禁用，5~60秒

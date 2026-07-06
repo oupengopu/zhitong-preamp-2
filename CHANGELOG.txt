@@ -1,3 +1,19 @@
+v2.1.12 - 2026-07-07
+  修复: 防火爆音机制 - 静音/待机/变压器切换爆音
+    - 静音开启爆音: soft_mute turn_on_action 中在 send_volume_to_pga 与硬件静音之间
+      插入 pga2311::set_volume(0, 0) 确保 DAC 输出归零
+    - 待机切入(enter_standby): 在 power_transitioning 前加入软渐变静音
+      (target_db=-96 → wait_until current_db<=-95.5)
+    - 待机恢复(exit_standby): relay_out.turn_on() 前移到 mute_switch ON + 
+      pga2311::set_volume(0,0) 之后执行，避开 switch_input 完成后已开声的阶段
+    - 输出模式切换(switch_output_mode): 新增专用脚本，按 switch_input 的
+      防火爆音序列执行: 软渐变→硬件归零→硬件静音→切继电器→取消静音→恢复音量
+    - 设置页输出模式切换 case 10: 从直接 toggle relay_out 改为调用
+      id(switch_output_mode)->execute()
+  变动文件:
+    智能前级蓝牙2.0.yaml
+    CHANGELOG.txt
+
 v2.1.11 - 2026-07-06
   修复: GCC 14.2 编译失败 - msgeq7.h read() 缺关闭括号 + YAML 多余括号
     - 根因1: PGA/msgeq7.h read() 函数缺 closing '}', 后面 10+ 辅助函数被解析为嵌套函数
