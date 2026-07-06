@@ -5072,17 +5072,16 @@ script:
             - script.stop: display_idle_timer
             - script.stop: send_volume_to_pga
             - script.stop: switch_input
-          # ── ① 软渐变静音 (如未静音) ──
-          - if:
-              condition:
-                lambda: 'return !id(soft_mute);'
-              then:
-                - lambda: 'id(target_db) = -96.0f;'
-                - script.execute: send_volume_to_pga
-                - wait_until:
-                    condition:
-                      lambda: 'return id(current_db) <= -95.5f;'
-                    timeout: 1500ms
+            # ── ① 软渐变静音 (如未静音) ──
+            - lambda: |-
+                if (!id(soft_mute)) {
+                  id(target_db) = -96.0f;
+                  id(send_volume_to_pga)->execute();
+                  uint32_t mute_start = millis();
+                  while (id(current_db) > -95.5f && millis() - mute_start < 1500) {
+                    delay(5);
+                  }
+                }
 
             - lambda: |-
                 id(power_transitioning) = true;
