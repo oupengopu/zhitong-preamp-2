@@ -1,4 +1,4 @@
-﻿substitutions:
+substitutions:
   device_name: zhitong-preamp-2
   friendly_name: "智能前级2.0"
   wifi_ssid: !secret wifi_ssid
@@ -6615,7 +6615,6 @@ interval:
             msgeq7::read();
           }
           // ── 诊断日志: MSGEQ7 就绪+信号 (每 ~20 帧 ≈ 1s) ──
-          } }
 
 
           // ── NTC 温度读取 (每10秒) ──
@@ -6655,7 +6654,6 @@ interval:
               }
             }
             // ── 诊断日志 (每 ~20 帧 ≈ 1s) ──
-            } }
 
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)

@@ -470,8 +470,8 @@ static void read() {
   // _smooth_* 仅本函数读写, 放在锁外减少临界区时长
   memcpy(_smooth_r, new_sr, sizeof(_smooth_r));
   memcpy(_smooth_l, new_sl, sizeof(_smooth_l));
-  // ── 诊断日志: 每 50 帧 (~2.5s) 输出一次频段处理结果 ──
-
+  // ── 诊断日志: 每 50 帧 (~2.5s) 输出一次频段处理结果 ──
+}
 // 温度有效判定 (前向声明)
 static bool is_temperature_valid(float t) { return t > -50.0f && t < 150.0f; }
 
