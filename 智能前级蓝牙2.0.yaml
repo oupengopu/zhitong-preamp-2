@@ -6104,12 +6104,6 @@ sensor:
                     break;
                   }
                   case 10: { // 输出模式（toggle 变压器/直通）
-                    bool v = !id(output_mode);
-                    id(output_mode) = v;
-                    lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
-                    lv_label_set_text(id(lbl_main_output_value), v ? "DIRECT" : "TRANSFORMER");
-                    lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
                     id(switch_output_mode)->execute();
                     break;
                   }
