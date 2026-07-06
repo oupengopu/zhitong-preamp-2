@@ -5057,6 +5057,22 @@ script:
       - lambda: |-
           App.safe_reboot();
 
+  # ── 软渐变静音 (enter_standby/switch_output_mode 共用, 非阻塞) ──
+  - id: volume_fade_to_zero
+    mode: queued
+    max_runs: 1
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(soft_mute);'
+          then:
+            - lambda: 'id(target_db) = -96.0f;'
+            - script.execute: send_volume_to_pga
+            - wait_until:
+                condition:
+                  lambda: 'return id(current_db) <= -95.5f;'
+                timeout: 1500ms
+
   # ── 待机：关屏 + 静音 + 暂停 LVGL，WiFi 保持连接（HA 可远程唤醒） ──
   - id: enter_standby
     mode: restart
@@ -5072,16 +5088,11 @@ script:
             - script.stop: display_idle_timer
             - script.stop: send_volume_to_pga
             - script.stop: switch_input
-            # ── ① 软渐变静音 (如未静音) ──
-            - lambda: |-
-                if (!id(soft_mute)) {
-                  id(target_db) = -96.0f;
-                  id(send_volume_to_pga)->execute();
-                  uint32_t mute_start = millis();
-                  while (id(current_db) > -95.5f && millis() - mute_start < 1500) {
-                    delay(5);
-                  }
-                }
+            - script.execute: volume_fade_to_zero
+            - wait_until:
+                condition:
+                  lambda: 'return !id(volume_fade_to_zero)->is_running();'
+                timeout: 2000ms
 
             - lambda: |-
                 id(power_transitioning) = true;
