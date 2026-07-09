@@ -1297,12 +1297,9 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                 break;
             }
 
-            // ── Capture raw HID event + normalize + match (all under mutex to protect S().trend) ──
-            uint32_t now = millis();
-            HidEventType evt_type = HID_EVT_NONE;
-            bool should_queue = false;
+            // ── Capture raw HID event for debug viewer ──
+            NormalizedFingerprint fp = _normalize_report(n_handle, n_val, n_len);
             if (xSemaphoreTake(S().mux, 0)) {
-                NormalizedFingerprint fp = _normalize_report(n_handle, n_val, n_len);
                 S().has_raw_event = false;
                 if (fp.is_valid()) {
                     if (S().learning_capture_active && !S().has_raw_fingerprint) {
@@ -1314,6 +1311,7 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     }
                 }
                 if (n_len == 8 || n_len == 9) {
+                    // Keyboard boot report, optionally prefixed by Report ID
                     int key_start = (n_len == 9) ? 3 : 2;
                     int key_end   = (n_len == 9) ? 9 : 8;
                     S().last_raw_page = 0x07;
@@ -1324,38 +1322,61 @@ static void _ble_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                     S().last_raw_value = S().last_raw_usage ? 1 : 0;
                     S().has_raw_event = true;
                 } else if (n_len == 2) {
+                    // 2-byte consumer report
                     S().last_raw_page = 0x0C;
                     S().last_raw_usage = n_val[0] | (n_val[1] << 8);
                     S().last_raw_value = 1;
                     S().has_raw_event = true;
                 } else if (n_len == 3) {
+                    // 3-byte consumer report (with report ID)
                     S().last_raw_page = 0x0C;
                     S().last_raw_usage = n_val[1] | (n_val[2] << 8);
                     S().last_raw_value = 1;
                     S().has_raw_event = true;
                 } else if (n_len == 4) {
+                    // 4-byte consumer report (Report ID + usage + value)
                     S().last_raw_page = 0x0C;
                     S().last_raw_usage = n_val[1] | (n_val[2] << 8);
                     S().last_raw_value = n_val[3];
                     S().has_raw_event = true;
                 } else {
+                    // Unknown/vendor report: keep enough info for field diagnostics
                     S().last_raw_page = 0xFFFF;
                     S().last_raw_usage = n_len;
                     S().last_raw_value = n_len > 0 ? n_val[0] : 0;
                     S().has_raw_event = true;
                 }
+                xSemaphoreGive(S().mux);
+            }
+
+            // ── Parse HID report ──
+            // learned-only mode: physical remote control actions must come
+            // from the user-learned raw fingerprint table. Built-in HID
+            // presets are intentionally bypassed to avoid key conflicts.
+            uint32_t now = millis();
+            HidEventType evt_type = HID_EVT_NONE;
+            bool learned_match = false;
+            if (xSemaphoreTake(S().mux, 0)) {
                 evt_type = _match_learned_key(fp);
-                if (evt_type != HID_EVT_NONE && now - S().last_key_ms >= 30) {
-                    S().last_key_ms = now;
-                    should_queue = true;
-                }
+                learned_match = evt_type != HID_EVT_NONE;
                 xSemaphoreGive(S().mux);
             }
             ESP_LOGI("ble_hid", "HID notify handle=0x%04x len=%u data=[%s]%s evt=%d",
                      n_handle, n_len, hex, n_len > 16 ? "..." : "", (int)evt_type);
-            if (should_queue) {
-                _queue_event_from_task(evt_type);
+            if (evt_type != HID_EVT_NONE) {
+                bool should_queue = false;
+                if (xSemaphoreTake(S().mux, 0)) {
+                    if (now - S().last_key_ms >= 30) {
+                        S().last_key_ms = now;
+                        should_queue = true;
+                    }
+                    xSemaphoreGive(S().mux);
+                }
+                if (should_queue) {
+                    _queue_event_from_task(evt_type);
+                }
             }
+            break;
         }
 
         case ESP_GATTC_CONNECT_EVT:

@@ -619,17 +619,13 @@ font:
     size: 36
 
   # ── NotoSansSC 中文字体 (web, 完整字体) ──
-  - file:
-      type: web
-      url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+  - file: "fonts/NotoSansSC-Regular.ttf"
     id: font_cn_small
     size: 14
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
       - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池发现个原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败继续住请热"
-  - file:
-      type: web
-      url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
+  - file: "fonts/NotoSansSC-Regular.ttf"
     id: font_cn
     size: 18
     glyphs:
@@ -3876,10 +3872,6 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
-  - id: last_idle_activity_ms
-    type: uint32_t
-    restore_value: false
-    initial_value: '0'
   - id: last_manual_input_ms
     type: uint32_t
     restore_value: false
@@ -5106,19 +5098,19 @@ script:
                 id(target_db)       = -96.0f;
                 id(current_db)      = -96.0f;
                 id(mute_switch)->turn_on();
-                auto off = id(display_backlight)->turn_off();
-                off.set_transition_length(0);
-                off.perform();
-                pga2311::set_volume(0, 0);
-                id(display_is_off)  = true;   // 同步显示状态
-                id(system_ready)    = false;
-                id(standby)         = true;
-                id(standby_switch)->publish_state(false);  // HA 同步
                 id(relay_in1)->turn_off();
                 id(relay_in2)->turn_off();
                 id(relay_in3)->turn_off();
                 id(relay_in4)->turn_off();
                 if (id(output_mode)) id(relay_out)->turn_off();
+                auto off = id(display_backlight)->turn_off();
+                off.set_transition_length(0);
+                off.perform();
+                pga2311::set_volume(0, 0);
+                id(display_is_off)  = true;
+                id(system_ready)    = false;
+                id(standby)         = true;
+                id(standby_switch)->publish_state(false);
             - lvgl.pause:
             - delay: 100ms
             - lambda: |-
@@ -5183,13 +5175,11 @@ script:
             id(display_is_off) = false;
           }
           id(last_display_interaction) = millis();
-          id(last_idle_activity_ms) = millis();
 
   - id: display_idle_timer
     mode: restart
     then:
       - lambda: 'id(last_display_interaction) = millis();'
-      - lambda: 'id(last_idle_activity_ms) = millis();'
       - while:
           condition:
             lambda: 'return !id(standby);'
@@ -5204,12 +5194,6 @@ script:
                   call.set_brightness(0.50f);
                   call.perform();
                   id(display_is_off) = true;
-                }
-                // Auto-standby: 1h no audio signal + no operation
-                uint32_t idle_activity = now - id(last_idle_activity_ms);
-                if (idle_activity >= 3600000u && !id(standby)) {
-                  ESP_LOGI("standby", "Auto-standby: no signal+operation for 1 hour");
-                  id(enter_standby)->execute();
                 }
 
   - id: save_current_input_volume
@@ -5804,6 +5788,7 @@ script:
           then:
             - script.execute: send_volume_to_pga
 
+  # ── 输出模式切换：防火爆音（渐变静音 + 切继电器 + 恢复音量）──
   - id: switch_output_mode
     mode: queued
     max_runs: 1
@@ -6668,8 +6653,6 @@ interval:
           if (!id(standby)) {
             msgeq7::read();
           }
-          // ── 诊断日志: MSGEQ7 就绪+信号 (每 ~20 帧 ≈ 1s) ──
-
 
           // ── NTC 温度读取 (每10秒) ──
           static int ntc_counter = 0;
@@ -6697,7 +6680,7 @@ interval:
               spectrum_frame_avg += std::max(frame.left[i], frame.right[i]);
             }
             spectrum_frame_avg /= 7;
-            if (spectrum_frame_peak <= 1 && spectrum_frame_avg <= 0) {
+            if (spectrum_frame_peak <= 36 && spectrum_frame_avg <= 16) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
@@ -6707,8 +6690,6 @@ interval:
                 frame.peak_r[i] = 0;
               }
             }
-            // ── 诊断日志 (每 ~20 帧 ≈ 1s) ──
-
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
             lv_obj_t* bars_L[] = {
@@ -7156,14 +7137,6 @@ interval:
                   && signal_lost_ms > 0 && (now - signal_lost_ms >= 10000)) {
                 lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
               }
-            }
-          }
-
-          // === Audio signal monitor (for 1h auto-standby) ===
-          {
-            bool any_audio = id(audio_cd)->state || id(audio_dac)->state || id(audio_pc)->state || id(audio_aux)->state;
-            if (any_audio) {
-              id(last_idle_activity_ms) = millis();
             }
           }
 
@@ -7863,19 +7836,16 @@ interval:
               uint32_t dur = n - standby_entry_ms;
               if (dur >= 3600000) {
                 // 待机 >1小时: 每5分钟平滑脉冲 2 秒, 最大 30%
-               uint32_t mod = n % 300000;
-               if (mod < 2000) {
-                 float t = (float)mod / 2000.0f;
-                  float sv = sinf(t * M_PI);
-                  lvl = 0.30f * sv * sv;
+                uint32_t mod = n % 300000;
+                if (mod < 2000) {
+                  float t = (float)mod / 2000.0f;
+                  lvl = 0.30f * (sinf(t * M_PI - M_PI_2) + 1.0f) * 0.5f;
                 }
                 // else lvl 保持 0.0
               } else {
-                // 待机 <1小时: 柔呼吸 4s 周期, 2%~65% (sin² 两端斜率归零, 缓起缓落更丝滑)
-                uint32_t mod = n % 4000;
-                float t = (float)mod / 4000.0f;
-                float sv = sinf(t * M_PI);
-                lvl = 0.02f + 0.63f * sv * sv;
+                // 待机 <1小时: 柔呼吸 3s 周期, 5%~55%
+                float t = fmod((float)n, 3000.0f) / 3000.0f;
+                lvl = 0.05f + 0.50f * (sinf(t * 2.0f * M_PI - M_PI_2) + 1.0f) * 0.5f;
               }
             }
             // 优先级 3: 开机闪屏期间 → 1 秒内渐亮到 70%
@@ -7896,8 +7866,12 @@ interval:
               lvl = 0.70f;
             }
 
-            // 每 50ms 直接写入 (无阈值滤波; gamma≈2.2 人眼线性校正)
-            id(led_indicator)->set_level(lvl * lvl);
+            // 变化检测写入 (避免每 50ms 刷输出)
+            static float last_lvl = -1.0f;
+            if (fabs(lvl - last_lvl) > 0.005f) {
+              last_lvl = lvl;
+              id(led_indicator)->set_level(lvl);
+            }
           }
 
           int64_t loop_elapsed_us = esp_timer_get_time() - loop_start_us;
@@ -8403,3 +8377,10 @@ binary_sensor:
     on_release:
       then:
         - script.execute: auto_switch_input
+
+
+
+
+
+
+
