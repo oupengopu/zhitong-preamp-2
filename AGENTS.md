@@ -33,6 +33,17 @@ PlatformIO 不输出进度，视觉上表现为「卡在 Building bootloader.bin
 
 
 
+
+**35. NotoSansSC 字体保持 web 下载，不要切为本地文件**
+
+线上编译服务器(无中文环境/Linux Docker)无本地字体目录访问权限。
+NotoSansSC-Regular.ttf (10.5 MB) 若设为 `file:` 会生成损坏字体数据，
+导致 LVGL 启动崩溃 → 黑屏有背光。
+必须使用 `type: web` + Google Fonts URL。
+
+相关提交: f1b9913 / 4288af6
+
+
 ## Windows 编译重要提示
 
 **不要设置 PYTHONIOENCODING=utf-8 环境变量后编译 ESPHome！**

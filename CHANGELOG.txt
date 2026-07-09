@@ -1,3 +1,14 @@
+v2.1.13 - 2026-07-09
+  修复: NotoSansSC 字体从本地文件切回 web 下载(线上服务器无字体目录导致黑屏)
+  根因: 将 NotoSansSC 字体从 type:web(Google Fonts URL) 改为
+    file:"fonts/NotoSansSC-Regular.ttf"后，线上 Linux 服务器找不到
+    本地字体文件(10.5 MB 未上传)，编译虽成功但生成损坏字体数据，
+    LVGL 启动时崩溃 → 黑屏有背光。
+  措施:
+    - 恢复 NotoSansSC font_cn/font_cn_small 为 web 下载 URL
+    - 保留"发现个" glyphs 追加
+    - 清理尾部多余空行
+
 v2.1.12 - 2026-07-07
   修复: 防火爆音机制 - 静音/待机/变压器切换爆音
   备注: 首次编译卡 Building bootloader.bin 是正常现象
