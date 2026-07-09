@@ -1,4 +1,4 @@
-substitutions:
+﻿substitutions:
   device_name: zhitong-preamp-2
   friendly_name: "智能前级2.0"
   wifi_ssid: !secret wifi_ssid
@@ -619,13 +619,17 @@ font:
     size: 36
 
   # ── NotoSansSC 中文字体 (web, 完整字体) ──
-  - file: "fonts/NotoSansSC-Regular.ttf"
+  - file:
+      type: web
+      url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn_small
     size: 14
     glyphs:
       - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%℃°(),_"
       - "智能前级蓝牙遥控器按键映射设置返回未连接已断开扫描停止始正在备电池发现个原事件音量静播放暂下一曲上源切换输入禁用划左右拍照镜头确定知诊信息内部堆最小空间运行时重校准单击执大机限声道平衡选择自动手屏幕亮度超分钟主题色彩翠绿赤红冰紫麦景图金嗓子柏林青孔雀南瓜橙出模式直通变压频谱跳转秒样经典柱状像点阵示波线表星火固版本地址学习功清，。；：！？（）休眠唤醒保护厂恢复双中占闲全段低水位完成失败继续住请热"
-  - file: "fonts/NotoSansSC-Regular.ttf"
+  - file:
+      type: web
+      url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn
     size: 18
     glyphs:
@@ -5158,7 +5162,7 @@ script:
             - script.execute: switch_input
             - wait_until:
                 condition:
-                 lambda: 'return !id(switch_input)->is_running();'
+                  lambda: 'return !id(switch_input)->is_running();'
             - script.execute: apply_theme    # ★ 待机恢复后应用主题色
             - lvgl.page.show: main_page
             - lambda: |-
