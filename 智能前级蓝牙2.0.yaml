@@ -932,7 +932,7 @@ display:
   - platform: mipi_spi
     model: CUSTOM
     spi_id: display_spi
-    
+    spi_mode: 0
     dc_pin: GPIO6
     reset_pin: GPIO15
     dimensions:

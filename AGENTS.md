@@ -44,6 +44,15 @@ NotoSansSC-Regular.ttf (10.5 MB) 若设为 `file:` 会生成损坏字体数据�
 相关提交: f1b9913 / 4288af6
 
 
+**36. mipi_spi CUSTOM 模型必须显式指定 spi_mode**
+
+ESPHome 2026.6.4 起，mipi_spi CUSTOM 模型在无 CS 引脚时默认 SPI mode 变为 MODE3。
+NV3007 等显示驱动芯片通常需要 MODE0。必须在 display config 中显式添加 `spi_mode: 0`，
+否则 SPI 时序不匹配导致初始化失败 -> 黑屏有背光。
+
+相关行: 智能前级蓝牙2.0.yaml:935
+
+
 ## Windows 编译重要提示
 
 **不要设置 PYTHONIOENCODING=utf-8 环境变量后编译 ESPHome！**
