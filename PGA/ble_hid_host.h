@@ -61,11 +61,21 @@ enum HidEventType : uint8_t {
     HID_EVT_VOLUME_DOWN    = 0x02,
     HID_EVT_MUTE           = 0x03,
     HID_EVT_PLAY           = 0x04,
+    // Alias for YAML compatibility
+    HID_EVT_PLAY_PAUSE = HID_EVT_PLAY,
     HID_EVT_PAUSE          = 0x05,
     HID_EVT_NEXT_TRACK     = 0x06,
     HID_EVT_PREV_TRACK     = 0x07,
     HID_EVT_POWER          = 0x08,
     HID_EVT_CYCLE_INPUT    = 0x09,
+    // Extended events (mapped via key config, not in learning table)
+    HID_EVT_SWIPE_UP      = 0x20,
+    HID_EVT_SWIPE_DOWN    = 0x21,
+    HID_EVT_SWIPE_LEFT    = 0x22,
+    HID_EVT_SWIPE_RIGHT   = 0x23,
+    HID_EVT_CAMERA        = 0x24,
+    HID_EVT_CAMERA_SWITCH = 0x25,
+    HID_EVT_OK            = 0x26,
     HID_EVT_CONNECTED      = 0x10,  // 内部事件
     HID_EVT_DISCONNECTED   = 0x11,  // 内部事件
     HID_EVT_SCAN_DONE      = 0x12,  // 内部事件
@@ -1419,18 +1429,8 @@ static bool setup(esphome::esp32_ble::ESP32BLE *ble = nullptr) {
 
     // Register callbacks
     esp_err_t ret = ESP_OK;
-    if (ble != nullptr) {
-        ble->add_gap_event_callback([](esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
-            _ble_gap_cb(event, param);
-        });
-        ble->add_gap_scan_event_callback([](const esphome::esp32_ble::BLEScanResult& result) {
-            _ble_gap_scan_cb(result);
-        });
-        ble->add_gattc_event_callback([](esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
-            _ble_gattc_cb(event, gattc_if, param);
-        });
-        ESP_LOGI("ble_hid", "BLE HID Host using ESPHome BLE dispatcher");
-    } else {
+    // Always register via ESP-IDF API directly (ESPHome wrapper callbacks
+    // require preprocessor defines not auto-generated in ESPHome 2026.6.x)
     ret = esp_ble_gap_register_callback(_ble_gap_cb);
     if (ret != ESP_OK) {
         ESP_LOGE("ble_hid", "GAP callback 注册失败: %s", esp_err_to_name(ret));
@@ -1447,8 +1447,6 @@ static bool setup(esphome::esp32_ble::ESP32BLE *ble = nullptr) {
         return false;
     }
 
-    // Register application (async — app ID assigned in ESP_GATTC_REG_EVT)
-    }
 
     if (ble == nullptr || ble->is_active()) {
         _request_gattc_app_register();
