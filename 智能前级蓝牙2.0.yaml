@@ -1,6 +1,6 @@
-ï»¿substitutions:
+substitutions:
   device_name: zhitong-preamp-2
-  friendly_name: "æ™ºèƒ½å‰çº§2.0"
+  friendly_name: "ÖÇÄÜÇ°¼¶2.0"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   ap_ssid: !secret ap_ssid
@@ -27,8 +27,8 @@ esphome:
     - PGA/remote_keys.h
 
   on_boot:
-    # priority 200 -> -100 ä¸¥æ ¼ä¸²è¡Œ: ç¡¬ä»¶åˆå§‹åŒ–å…ˆäºè½¯ä»¶æ¢å¤
-    # è‹¥é¡ºåºé¢ å€’ä¼šå¯¼è‡´ SPI/ADC æœªå°±ç»ªæ—¶å†™å…¥æ•°æ®
+    # priority 200 -> -100 ÑÏ¸ñ´®ĞĞ: Ó²¼ş³õÊ¼»¯ÏÈÓÚÈí¼ş»Ö¸´
+    # ÈôË³Ğòµßµ¹»áµ¼ÖÂ SPI/ADC Î´¾ÍĞ÷Ê±Ğ´ÈëÊı¾İ
     - priority: 200
       then:
         - lambda: |-
@@ -50,12 +50,12 @@ esphome:
       then:
         - lambda: |-
             ESP_LOGI("BOOT_DIAG", "state restore start: heap=%u", (unsigned)esp_get_free_heap_size());
-            // v2.1.0+ è¿ç§»: æ—§å›ºä»¶ volume_val æ˜¯ max_volume ç™¾åˆ†æ¯”, æ–°å›ºä»¶ç›´æ¥æ˜ å°„ PGA å¯„å­˜å™¨
-            // æ¢ç®—å…¬å¼: reg = old_val / old_max * 255
+            // v2.1.0+ Ç¨ÒÆ: ¾É¹Ì¼ş volume_val ÊÇ max_volume °Ù·Ö±È, ĞÂ¹Ì¼şÖ±½ÓÓ³Éä PGA ¼Ä´æÆ÷
+            // »»Ëã¹«Ê½: reg = old_val / old_max * 255
             //
-            // âš ï¸ é¡ºåºä¾èµ–: input_vol_0~3 çš„ scale æ¢ç®—å¿…é¡»å…ˆäºä¸‹æ–¹ switch(current_input)
-            // ä¸­ä» input_vol_* å–å€¼èµ‹ç»™ volume_valã€‚current_input è¶Šç•Œä¼šå…ˆ clamp åˆ° 0ï¼Œ
-            // ç„¶åå–å·²è¿ç§»çš„ input_vol_0ï¼Œé€»è¾‘æ­£ç¡®ä½†ä¾èµ–é¡ºåºï¼Œåˆ‡å‹¿é‡æ’ã€‚
+            // ?? Ë³ĞòÒÀÀµ: input_vol_0~3 µÄ scale »»Ëã±ØĞëÏÈÓÚÏÂ·½ switch(current_input)
+            // ÖĞ´Ó input_vol_* È¡Öµ¸³¸ø volume_val¡£current_input Ô½½ç»áÏÈ clamp µ½ 0£¬
+            // È»ºóÈ¡ÒÑÇ¨ÒÆµÄ input_vol_0£¬Âß¼­ÕıÈ·µ«ÒÀÀµË³Ğò£¬ÇĞÎğÖØÅÅ¡£
             if (!id(v210_migrated) && id(max_volume) > 0) {
               float scale = 255.0f / (float)id(max_volume);
               id(input_vol_0) = std::min((int)((float)id(input_vol_0) * scale), 255);
@@ -128,7 +128,7 @@ esphome:
             id(input_select)->publish_state(names[id(current_input)]);
             id(standby_switch)->publish_state(!id(standby));
 
-            // åˆå§‹åŒ–è¾“å‡ºç»§ç”µå™¨çŠ¶æ€ (GPA4)
+            // ³õÊ¼»¯Êä³ö¼ÌµçÆ÷×´Ì¬ (GPA4)
             if (id(output_mode))
               id(relay_out)->turn_on();
             else
@@ -155,7 +155,7 @@ esphome:
                   timeout: 5000ms
               - lambda: |-
                   ESP_LOGI("BOOT_DIAG", "switch_input complete: heap=%u", (unsigned)esp_get_free_heap_size());
-              - script.execute: apply_theme    # â˜… ä¸Šç”µååº”ç”¨ä¿å­˜çš„ä¸»é¢˜è‰²
+              - script.execute: apply_theme    # ¡ï ÉÏµçºóÓ¦ÓÃ±£´æµÄÖ÷ÌâÉ«
               - lvgl.resume:
               - lvgl.page.show: splash_page
               - lambda: |-
@@ -197,21 +197,21 @@ esp32:
       include_builtin_idf_components:
         - esp_adc
     sdkconfig_options:
-      # â•â•â• ESP32-S3 æ€§èƒ½æé™é…ç½® â•â•â•
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"       # CPU é”å®š 240MHz (é»˜è®¤å¯èƒ½é™é¢‘ 160MHz)
-      CONFIG_ESP32S3_SPIRAM_SUPPORT: "y"               # PSRAM æ”¯æŒ
-      CONFIG_SPIRAM_MODE_OCT: "y"                       # å…«çº¿ PSRAM
+      # ¨T¨T¨T ESP32-S3 ĞÔÄÜ¼«ÏŞÅäÖÃ ¨T¨T¨T
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"       # CPU Ëø¶¨ 240MHz (Ä¬ÈÏ¿ÉÄÜ½µÆµ 160MHz)
+      CONFIG_ESP32S3_SPIRAM_SUPPORT: "y"               # PSRAM Ö§³Ö
+      CONFIG_SPIRAM_MODE_OCT: "y"                       # °ËÏß PSRAM
       CONFIG_SPIRAM_SPEED_80M: "y"                      # PSRAM 80MHz
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"             # â˜… ä» PSRAM å–æŒ‡ä»¤ (é‡Šæ”¾ Flash å¸¦å®½ç»™ LVGL å­—ä½“æ¸²æŸ“)
-      CONFIG_SPIRAM_RODATA: "y"                         # â˜… ä» PSRAM è¯»å–åªè¯»æ•°æ® (å­—ä½“ glyph ä¸å†æŠ¢ Flash)
-      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"           # â˜… æ•°æ®ç¼“å­˜è¡Œ 64B (é»˜è®¤ 32B, ç¿»å€æå‡ DMA/PSRAM å‘½ä¸­ç‡)
-      CONFIG_ESP32S3_INSTRUCTION_CACHE_LINE_64B: "y"    # â˜… æŒ‡ä»¤ç¼“å­˜è¡Œ 64B (æå‡é«˜é¢‘è°ƒç”¨å‡½æ•°ç¼“å­˜å‘½ä¸­)
-      CONFIG_LV_USE_DRAW_SW_ASM: "y"                    # LVGL ä½¿ç”¨ ESP32-S3 SIMD æŒ‡ä»¤åŠ é€Ÿæ¸²æŸ“
-      CONFIG_LV_DRAW_SW_ASM_ASSUME_VFP: "y"            # ä½¿ç”¨ç¡¬ä»¶ FPU åŠ é€Ÿæµ®ç‚¹æ¸²æŸ“
-      CONFIG_SPIRAM_USE_MALLOC: "y"                     # å…è®¸ malloc ä½¿ç”¨ PSRAM (å¤§ç¼“å†²åŒºè‡ªåŠ¨è¿› PSRAM)
-      CONFIG_ESP32S3_DATA_CACHE_SIZE_64KB: "y"          # â˜… æ•°æ®ç¼“å­˜ 64KB (é»˜è®¤ 32KB, å¤§å¹…å‡å°‘ PSRAM æœªå‘½ä¸­)
-      CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE_32KB: "y"   # æŒ‡ä»¤ç¼“å­˜ 32KB (é»˜è®¤ 16KB)
-      CONFIG_GATTC_ENABLE: "y"                          # å¯ç”¨ GATT Client (BLE HID Host é¥æ§å™¨æ”¯æŒ)
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"             # ¡ï ´Ó PSRAM È¡Ö¸Áî (ÊÍ·Å Flash ´ø¿í¸ø LVGL ×ÖÌåäÖÈ¾)
+      CONFIG_SPIRAM_RODATA: "y"                         # ¡ï ´Ó PSRAM ¶ÁÈ¡Ö»¶ÁÊı¾İ (×ÖÌå glyph ²»ÔÙÇÀ Flash)
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"           # ¡ï Êı¾İ»º´æĞĞ 64B (Ä¬ÈÏ 32B, ·­±¶ÌáÉı DMA/PSRAM ÃüÖĞÂÊ)
+      CONFIG_ESP32S3_INSTRUCTION_CACHE_LINE_64B: "y"    # ¡ï Ö¸Áî»º´æĞĞ 64B (ÌáÉı¸ßÆµµ÷ÓÃº¯Êı»º´æÃüÖĞ)
+      CONFIG_LV_USE_DRAW_SW_ASM: "y"                    # LVGL Ê¹ÓÃ ESP32-S3 SIMD Ö¸Áî¼ÓËÙäÖÈ¾
+      CONFIG_LV_DRAW_SW_ASM_ASSUME_VFP: "y"            # Ê¹ÓÃÓ²¼ş FPU ¼ÓËÙ¸¡µãäÖÈ¾
+      CONFIG_SPIRAM_USE_MALLOC: "y"                     # ÔÊĞí malloc Ê¹ÓÃ PSRAM (´ó»º³åÇø×Ô¶¯½ø PSRAM)
+      CONFIG_ESP32S3_DATA_CACHE_SIZE_64KB: "y"          # ¡ï Êı¾İ»º´æ 64KB (Ä¬ÈÏ 32KB, ´ó·ù¼õÉÙ PSRAM Î´ÃüÖĞ)
+      CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE_32KB: "y"   # Ö¸Áî»º´æ 32KB (Ä¬ÈÏ 16KB)
+      CONFIG_GATTC_ENABLE: "y"                          # ÆôÓÃ GATT Client (BLE HID Host Ò£¿ØÆ÷Ö§³Ö)
 psram:
   mode: octal
   speed: 80MHz
@@ -249,12 +249,12 @@ esp32_ble_server:
                   }
                   uint8_t cmd = x[1];
                   uint8_t len = x[2];
-                  if (x.size() < 4 + len + 1) {  // +1 ç¡®ä¿CRCå­—èŠ‚å­˜åœ¨
+                  if (x.size() < 4 + len + 1) {  // +1 È·±£CRC×Ö½Ú´æÔÚ
                     return;
                   }
                   uint8_t crc = cmd ^ len;
                   for(int i=0; i<len; i++) crc ^= x[3+i];
-                  if (crc != x[3+len]) {  // x[3+len] æ˜¯ç´§æ¥ payload åçš„ CRC å­—èŠ‚
+                  if (crc != x[3+len]) {  // x[3+len] ÊÇ½ô½Ó payload ºóµÄ CRC ×Ö½Ú
                     return;
                   }
 
@@ -271,7 +271,7 @@ esp32_ble_server:
                       (uint8_t)(id(standby) ? 0x01 : 0x00),
                       (uint8_t)id(power_on_limit),
                       (uint8_t)id(display_timeout_min),
-                      (uint8_t)(id(auto_input) ? 0x01 : 0x00)  // byte 9: è‡ªåŠ¨è¾“å…¥åˆ‡æ¢
+                      (uint8_t)(id(auto_input) ? 0x01 : 0x00)  // byte 9: ×Ô¶¯ÊäÈëÇĞ»»
                     };
                     uint8_t p_len = payload.size();
                     uint8_t p_cmd = 0x80;
@@ -336,7 +336,7 @@ esp32_ble_server:
                     }
                     case 0x04: {
                       if (len < 1) break;
-                      int bal = (int)x[3] - 20;  // x[3] èŒƒå›´ 0-40 æ˜ å°„åˆ° -20~20
+                      int bal = (int)x[3] - 20;  // x[3] ·¶Î§ 0-40 Ó³Éäµ½ -20~20
                       if (bal < -20) bal = -20;
                       if (bal > 20)  bal = 20;
                       id(balance) = bal;
@@ -344,11 +344,11 @@ esp32_ble_server:
                       id(balance_number)->publish_state((float)bal);
                       id(send_volume_to_pga)->execute();
                       id(reset_idle_timer)->execute();
-                      // åŒæ­¥ LVGL è®¾ç½®é¡µ
+                      // Í¬²½ LVGL ÉèÖÃÒ³
                       lv_bar_set_value(id(bar_balance), bal + 20, LV_ANIM_OFF);
                       {
                         char buf[8];
-                        if (bal == 0) lv_label_set_text(id(val_balance), "å¹³è¡¡");
+                        if (bal == 0) lv_label_set_text(id(val_balance), "Æ½ºâ");
                         else { snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", bal < 0 ? -bal : bal);
                           lv_label_set_text(id(val_balance), buf); }
                       }
@@ -375,7 +375,7 @@ esp32_ble_server:
                       if (pct > 100.0f) pct = 100.0f;
                       id(volume_number)->publish_state(pct);
                       id(send_volume_to_pga)->execute();
-                      // åŒæ­¥ LVGL è®¾ç½®é¡µ
+                      // Í¬²½ LVGL ÉèÖÃÒ³
                       lv_bar_set_value(id(bar_max_vol), max_vol, LV_ANIM_OFF);
                       lv_label_set_text(id(val_max_vol), (std::to_string(max_vol)).c_str());
                       break;
@@ -388,22 +388,22 @@ esp32_ble_server:
                       break;
                     }
                     case 0x07: {
-                      id(media_select)->publish_state("æ’­æ”¾");
+                      id(media_select)->publish_state("²¥·Å");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x0A: {
-                      id(media_select)->publish_state("æš‚åœ");
+                      id(media_select)->publish_state("ÔİÍ£");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x08: {
-                      id(media_select)->publish_state("ä¸‹ä¸€é¦–");
+                      id(media_select)->publish_state("ÏÂÒ»Ê×");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x09: {
-                      id(media_select)->publish_state("ä¸Šä¸€é¦–");
+                      id(media_select)->publish_state("ÉÏÒ»Ê×");
                       id(media_reset)->execute();
                       break;
                     }
@@ -424,7 +424,7 @@ esp32_ble_server:
                       if (pol > id(max_volume)) pol = id(max_volume);
                       id(power_on_limit) = pol;
                       id(power_on_limit_number)->publish_state((float)pol);
-                      // åŒæ­¥ LVGL è®¾ç½®é¡µ
+                      // Í¬²½ LVGL ÉèÖÃÒ³
                       lv_bar_set_value(id(bar_power_on_limit), pol, LV_ANIM_OFF);
                       lv_label_set_text(id(val_power_on), (std::to_string(pol)).c_str());
                       break;
@@ -436,11 +436,11 @@ esp32_ble_server:
                       if (tm > 60) tm = 60;
                       id(display_timeout_min) = tm;
                       id(display_timeout_number)->publish_state((float)tm);
-                      // åŒæ­¥ LVGL è®¾ç½®é¡µ
+                      // Í¬²½ LVGL ÉèÖÃÒ³
                       lv_bar_set_value(id(bar_display_timeout), tm, LV_ANIM_OFF);
                       {
                         char buf[8];
-                        snprintf(buf, sizeof(buf), "%dåˆ†é’Ÿ", tm);
+                        snprintf(buf, sizeof(buf), "%d·ÖÖÓ", tm);
                         lv_label_set_text(id(val_timeout), buf);
                       }
                       break;
@@ -451,7 +451,7 @@ esp32_ble_server:
                       id(auto_input) = auto_en;
                       if (auto_en) id(auto_input_switch)->turn_on();
                       else         id(auto_input_switch)->turn_off();
-                      if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), auto_en ? "è‡ªåŠ¨" : "æ‰‹åŠ¨");
+                      if (id(val_auto_switch)) lv_label_set_text(id(val_auto_switch), auto_en ? "×Ô¶¯" : "ÊÖ¶¯");
                       break;
                     }
                     case 0x10: {
@@ -569,21 +569,21 @@ captive_portal:
 web_server:
   port: 80
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# SPI æ€»çº¿ â€” NV3007 TFT æ˜¾ç¤º (ESPHome SPI2_HOST, ä¸ PGA2311 SPI3_HOST æ— å†²çª)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# ESP32-S3 SPI2_HOST æ”¯æŒ DMA, 80MHz æ—¶è‡ªåŠ¨å¯ç”¨ (ä¼ è¾“æœŸé—´ CPU ç©ºé—²)
-# TFT: SDA=IO4, SCLK=IO5 (CS=GND å¸¸é€‰)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# SPI ×ÜÏß ¡ª NV3007 TFT ÏÔÊ¾ (ESPHome SPI2_HOST, Óë PGA2311 SPI3_HOST ÎŞ³åÍ»)
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ESP32-S3 SPI2_HOST Ö§³Ö DMA, 80MHz Ê±×Ô¶¯ÆôÓÃ (´«ÊäÆÚ¼ä CPU ¿ÕÏĞ)
+# TFT: SDA=IO4, SCLK=IO5 (CS=GND ³£Ñ¡)
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 spi:
   - id: display_spi
     clk_pin: GPIO5
     mosi_pin: GPIO4
     
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# I2C æ€»çº¿ â€” MCP23017 (SDA=IO38, SCL=IO40)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# I2C ×ÜÏß ¡ª MCP23017 (SDA=IO38, SCL=IO40)
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 i2c:
   sda: GPIO38
   scl: GPIO40
@@ -591,19 +591,19 @@ i2c:
   id: bus_a
   frequency: 400kHz
 
-# MCP23017 I/O æ‰©å±•èŠ¯ç‰‡ (åœ°å€ 0x27)
-#   ç»§ç”µå™¨ 1~4 : GPA0/GPA1/GPA2/GPA3 (CD/DAC/PC/AUX)
-#   ç¡¬ä»¶é™éŸ³    : GPA6
-#   éŸ³é¢‘æ£€æµ‹     : GPB0/GPB1/GPB2/GPB3 (CD/DAC/PC/AUX)
+# MCP23017 I/O À©Õ¹Ğ¾Æ¬ (µØÖ· 0x27)
+#   ¼ÌµçÆ÷ 1~4 : GPA0/GPA1/GPA2/GPA3 (CD/DAC/PC/AUX)
+#   Ó²¼ş¾²Òô    : GPA6
+#   ÒôÆµ¼ì²â     : GPB0/GPB1/GPB2/GPB3 (CD/DAC/PC/AUX)
 mcp23017:
   - id: mcp23017_hub
     address: 0x27
-    interrupt_pin: GPIO12       # INTB ä¸­æ–­ä¿¡å· (Port B éŸ³é¢‘æ£€æµ‹è¾“å…¥)
-    open_drain_interrupt: true  # å¼€æ¼ + ä½ç”µå¹³æœ‰æ•ˆ, ESP32-S3 å†…éƒ¨ä¸Šæ‹‰, é˜²ç”µå¹³å†²çª
+    interrupt_pin: GPIO12       # INTB ÖĞ¶ÏĞÅºÅ (Port B ÒôÆµ¼ì²âÊäÈë)
+    open_drain_interrupt: true  # ¿ªÂ© + µÍµçÆ½ÓĞĞ§, ESP32-S3 ÄÚ²¿ÉÏÀ­, ·ÀµçÆ½³åÍ»
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# å­—ä½“ â€” Roboto + Montserrat + MDI å›¾æ ‡
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ×ÖÌå ¡ª Roboto + Montserrat + MDI Í¼±ê
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 font:
   - file: "fonts/Roboto-Regular.ttf"
     id: font_small
@@ -618,25 +618,25 @@ font:
     id: font_xlarge
     size: 36
 
-  # â”€â”€ NotoSansSC ä¸­æ–‡å­—ä½“ (web, å®Œæ•´å­—ä½“) â”€â”€
+  # ©¤©¤ NotoSansSC ÖĞÎÄ×ÖÌå (web, ÍêÕû×ÖÌå) ©¤©¤
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn_small
     size: 14
     glyphs:
-      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%â„ƒÂ°(),_"
-      - "æ™ºèƒ½å‰çº§è“ç‰™é¥æ§å™¨æŒ‰é”®æ˜ å°„è®¾ç½®è¿”å›æœªè¿æ¥å·²æ–­å¼€æ‰«æåœæ­¢å§‹æ­£åœ¨å¤‡ç”µæ± å‘ç°ä¸ªåŸäº‹ä»¶éŸ³é‡é™æ’­æ”¾æš‚ä¸‹ä¸€æ›²ä¸Šæºåˆ‡æ¢è¾“å…¥ç¦ç”¨åˆ’å·¦å³æ‹ç…§é•œå¤´ç¡®å®šçŸ¥è¯Šä¿¡æ¯å†…éƒ¨å †æœ€å°ç©ºé—´è¿è¡Œæ—¶é‡æ ¡å‡†å•å‡»æ‰§å¤§æœºé™å£°é“å¹³è¡¡é€‰æ‹©è‡ªåŠ¨æ‰‹å±å¹•äº®åº¦è¶…åˆ†é’Ÿä¸»é¢˜è‰²å½©ç¿ ç»¿èµ¤çº¢å†°ç´«éº¦æ™¯å›¾é‡‘å—“å­æŸæ—é’å­”é›€å—ç“œæ©™å‡ºæ¨¡å¼ç›´é€šå˜å‹é¢‘è°±è·³è½¬ç§’æ ·ç»å…¸æŸ±çŠ¶åƒç‚¹é˜µç¤ºæ³¢çº¿è¡¨æ˜Ÿç«å›ºç‰ˆæœ¬åœ°å€å­¦ä¹ åŠŸæ¸…ï¼Œã€‚ï¼›ï¼šï¼ï¼Ÿï¼ˆï¼‰ä¼‘çœ å”¤é†’ä¿æŠ¤å‚æ¢å¤åŒä¸­å é—²å…¨æ®µä½æ°´ä½å®Œæˆå¤±è´¥ç»§ç»­ä½è¯·çƒ­"
+      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%¡æ¡ã(),_"
+      - "ÖÇÄÜÇ°¼¶À¶ÑÀÒ£¿ØÆ÷°´¼üÓ³ÉäÉèÖÃ·µ»ØÎ´Á¬½ÓÒÑ¶Ï¿ªÉ¨ÃèÍ£Ö¹Ê¼ÕıÔÚ±¸µç³Ø·¢ÏÖ¸öÔ­ÊÂ¼şÒôÁ¿¾²²¥·ÅÔİÏÂÒ»ÇúÉÏÔ´ÇĞ»»ÊäÈë½ûÓÃ»®×óÓÒÅÄÕÕ¾µÍ·È·¶¨ÖªÕïĞÅÏ¢ÄÚ²¿¶Ñ×îĞ¡¿Õ¼äÔËĞĞÊ±ÖØĞ£×¼µ¥»÷Ö´´ó»úÏŞÉùµÀÆ½ºâÑ¡Ôñ×Ô¶¯ÊÖÆÁÄ»ÁÁ¶È³¬·ÖÖÓÖ÷ÌâÉ«²Ê´äÂÌ³àºì±ù×ÏÂó¾°Í¼½ğÉ¤×Ó°ØÁÖÇà¿×È¸ÄÏ¹Ï³È³öÄ£Ê½Ö±Í¨±äÑ¹ÆµÆ×Ìø×ªÃëÑù¾­µäÖù×´ÏñµãÕóÊ¾²¨Ïß±íĞÇ»ğ¹Ì°æ±¾µØÖ·Ñ§Ï°¹¦Çå£¬¡££»£º£¡£¿£¨£©ĞİÃß»½ĞÑ±£»¤³§»Ö¸´Ë«ÖĞÕ¼ÏĞÈ«¶ÎµÍË®Î»Íê³ÉÊ§°Ü¼ÌĞø×¡ÇëÈÈ"
   - file:
       type: web
       url: "https://fonts.gstatic.com/s/notosanssc/v40/k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYw.ttf"
     id: font_cn
     size: 18
     glyphs:
-      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%â„ƒÂ°(),_"
-      - "æ™ºèƒ½å‰çº§è“ç‰™é¥æ§å™¨æŒ‰é”®æ˜ å°„è®¾ç½®è¿”å›æœªè¿æ¥å·²æ–­å¼€æ‰«æåœæ­¢å§‹æ­£åœ¨å¤‡ç”µæ± å‘ç°ä¸ªåŸäº‹ä»¶éŸ³é‡é™æ’­æ”¾æš‚ä¸‹ä¸€æ›²ä¸Šæºåˆ‡æ¢è¾“å…¥ç¦ç”¨åˆ’å·¦å³æ‹ç…§é•œå¤´ç¡®å®šçŸ¥è¯Šä¿¡æ¯å†…éƒ¨å †æœ€å°ç©ºé—´è¿è¡Œæ—¶é‡æ ¡å‡†å•å‡»æ‰§å¤§æœºé™å£°é“å¹³è¡¡é€‰æ‹©è‡ªåŠ¨æ‰‹å±å¹•äº®åº¦è¶…åˆ†é’Ÿä¸»é¢˜è‰²å½©ç¿ ç»¿èµ¤çº¢å†°ç´«éº¦æ™¯å›¾é‡‘å—“å­æŸæ—é’å­”é›€å—ç“œæ©™å‡ºæ¨¡å¼ç›´é€šå˜å‹é¢‘è°±è·³è½¬ç§’æ ·ç»å…¸æŸ±çŠ¶åƒç‚¹é˜µç¤ºæ³¢çº¿è¡¨æ˜Ÿç«å›ºç‰ˆæœ¬åœ°å€å­¦ä¹ åŠŸæ¸…ï¼Œã€‚ï¼›ï¼šï¼ï¼Ÿï¼ˆï¼‰ä¼‘çœ å”¤é†’ä¿æŠ¤å‚æ¢å¤åŒä¸­å é—²å…¨æ®µä½æ°´ä½å®Œæˆå¤±è´¥ç»§ç»­ä½è¯·çƒ­"
+      - " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-/:.%¡æ¡ã(),_"
+      - "ÖÇÄÜÇ°¼¶À¶ÑÀÒ£¿ØÆ÷°´¼üÓ³ÉäÉèÖÃ·µ»ØÎ´Á¬½ÓÒÑ¶Ï¿ªÉ¨ÃèÍ£Ö¹Ê¼ÕıÔÚ±¸µç³Ø·¢ÏÖ¸öÔ­ÊÂ¼şÒôÁ¿¾²²¥·ÅÔİÏÂÒ»ÇúÉÏÔ´ÇĞ»»ÊäÈë½ûÓÃ»®×óÓÒÅÄÕÕ¾µÍ·È·¶¨ÖªÕïĞÅÏ¢ÄÚ²¿¶Ñ×îĞ¡¿Õ¼äÔËĞĞÊ±ÖØĞ£×¼µ¥»÷Ö´´ó»úÏŞÉùµÀÆ½ºâÑ¡Ôñ×Ô¶¯ÊÖÆÁÄ»ÁÁ¶È³¬·ÖÖÓÖ÷ÌâÉ«²Ê´äÂÌ³àºì±ù×ÏÂó¾°Í¼½ğÉ¤×Ó°ØÁÖÇà¿×È¸ÄÏ¹Ï³È³öÄ£Ê½Ö±Í¨±äÑ¹ÆµÆ×Ìø×ªÃëÑù¾­µäÖù×´ÏñµãÕóÊ¾²¨Ïß±íĞÇ»ğ¹Ì°æ±¾µØÖ·Ñ§Ï°¹¦Çå£¬¡££»£º£¡£¿£¨£©ĞİÃß»½ĞÑ±£»¤³§»Ö¸´Ë«ÖĞÕ¼ÏĞÈ«¶ÎµÍË®Î»Íê³ÉÊ§°Ü¼ÌĞø×¡ÇëÈÈ"
 
-  # â”€â”€ Montserrat å­—æ— (local, å®Œæ•´å­—ä½“) â”€â”€
+  # ©¤©¤ Montserrat ×Ö×å (local, ÍêÕû×ÖÌå) ©¤©¤
   - file: "fonts/Montserrat-Regular.ttf"
     id: montserrat_8
     size: 8
@@ -662,25 +662,25 @@ font:
     id: montserrat_36
     size: 36
 
-  # â”€â”€ MDI å›¾æ ‡å­—ä½“ (web, å®Œæ•´å­—ä½“) â”€â”€
+  # ©¤©¤ MDI Í¼±ê×ÖÌå (web, ÍêÕû×ÖÌå) ©¤©¤
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_22
     size: 22
-    glyphs: ["ó°¥ ", "ó°˜š", "ó°Œ¢", "ó±¡¬"]
+    glyphs: ["??", "??", "??", "??"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_12
     size: 12
-    glyphs: ["ó°¥", "ó°‚¯"]
+    glyphs: ["??", "??"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_16
     size: 16
-    glyphs: ["ó°”", "ó°•½", "ó°˜¬", "ó°‘ƒ", "\U000F0581"]
+    glyphs: ["??", "??", "??", "??", "\U000F0581"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
@@ -692,109 +692,109 @@ font:
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons
     size: 16
-    glyphs: ["ó°•¾", "ó°œ‰", "ó°™ª", "ó°¯", "ó°ƒŸ", "ó°”›", "ó°˜", "ó°‹½", "ó°© "]
+    glyphs: ["??", "??", "??", "??", "??", "??", "??", "??", "??"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_settings_icons_24
     size: 18
-    glyphs: ["ó°•½", "ó°•¾", "ó°œ‰", "ó°™ª", "ó°¯", "ó°ƒŸ", "ó°”›", "ó°˜", "ó°‹½", "ó°© ", "ó°‚¯", "ó°˜‘", "ó°¾", "ó°ƒ–", "ó°Š", "ó°“", "ó°“", "ó°¼", "ó°Š", "ó°¤", "ó°™’", "ó°‘", "ó°•", "\U000F0581"]
+    glyphs: ["??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "??", "\U000F0581"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_24
     size: 24
-    glyphs: ["ó°–©"]
+    glyphs: ["??"]
   - file:
       type: web
       url: "https://cdn.jsdelivr.net/npm/@mdi/font@latest/fonts/materialdesignicons-webfont.ttf"
     id: mdi_icons_27
     size: 27
-    glyphs: ["ó°‚¯"]
+    glyphs: ["??"]
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# é¢œè‰²å®šä¹‰ â€” SquareLine ç»¿è‰²ä¸»é¢˜
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ÑÕÉ«¶¨Òå ¡ª SquareLine ÂÌÉ«Ö÷Ìâ
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 color:
-  # â•â•â• SquareLine ç»¿è‰²ä½“ç³» â•â•â•
+  # ¨T¨T¨T SquareLine ÂÌÉ«ÌåÏµ ¨T¨T¨T
   - id: color_black
-    hex: "111827"          # æ·±ç°è“ â€” ä¸»èƒŒæ™¯ (SquareLine bg)
+    hex: "111827"          # Éî»ÒÀ¶ ¡ª Ö÷±³¾° (SquareLine bg)
   - id: color_white
-    hex: "F1F5F9"          # äº®ç™½ â€” ä¸»æ–‡å­—
+    hex: "F1F5F9"          # ÁÁ°× ¡ª Ö÷ÎÄ×Ö
   - id: color_red
-    hex: "FF0000"          # LEDçº¢
+    hex: "FF0000"          # LEDºì
   - id: color_green
-    hex: "10B981"          # ç¿ ç»¿ â€” ä¸»å¼ºè°ƒè‰² (SquareLine accent)
+    hex: "10B981"          # ´äÂÌ ¡ª Ö÷Ç¿µ÷É« (SquareLine accent)
   - id: color_gray
-    hex: "8E9FB8"          # ç°è“ â€” æ¬¡è¦æ–‡å­—
+    hex: "8E9FB8"          # »ÒÀ¶ ¡ª ´ÎÒªÎÄ×Ö
   - id: color_dark
-    hex: "1A1A2E"          # æ·±è‰²é¢æ¿èƒŒæ™¯
+    hex: "1A1A2E"          # ÉîÉ«Ãæ°å±³¾°
   - id: color_accent
-    hex: "10B981"          # ç¿ ç»¿ â€” å¼ºè°ƒè‰² (ä¸ color_green ä¸€è‡´)
+    hex: "10B981"          # ´äÂÌ ¡ª Ç¿µ÷É« (Óë color_green Ò»ÖÂ)
   - id: color_muted
-    hex: "FF3300"          # é™éŸ³æŒ‡ç¤ºçº¢
+    hex: "FF3300"          # ¾²ÒôÖ¸Ê¾ºì
   - id: color_bg_light
-    hex: "E9E8E8"          # æµ…ç° â€” è¿›åº¦æ¡èƒŒæ™¯
-  # â”€â”€ é¢‘è°±æ¸å˜è‰² (ä½éŸ³æ·±ç»¿ â†’ ä¸­éŸ³äº®ç»¿ â†’ é«˜éŸ³é»„/çº¢) â”€â”€
+    hex: "E9E8E8"          # Ç³»Ò ¡ª ½ø¶ÈÌõ±³¾°
+  # ©¤©¤ ÆµÆ×½¥±äÉ« (µÍÒôÉîÂÌ ¡ú ÖĞÒôÁÁÂÌ ¡ú ¸ßÒô»Æ/ºì) ©¤©¤
   - id: color_spec_0
-    hex: "064E3B"          # 63Hz   â€” æ·±ç¿ ç»¿
+    hex: "064E3B"          # 63Hz   ¡ª Éî´äÂÌ
   - id: color_spec_1
-    hex: "065F46"          # 160Hz  â€” æš—ç»¿
+    hex: "065F46"          # 160Hz  ¡ª °µÂÌ
   - id: color_spec_2
-    hex: "047857"          # 400Hz  â€” ä¸­ç»¿
+    hex: "047857"          # 400Hz  ¡ª ÖĞÂÌ
   - id: color_spec_3
-    hex: "059669"          # 1kHz   â€” ç¿ ç»¿
+    hex: "059669"          # 1kHz   ¡ª ´äÂÌ
   - id: color_spec_4
-    hex: "10B981"          # 2.5kHz â€” äº®ç»¿ (ä¸»è‰²)
+    hex: "10B981"          # 2.5kHz ¡ª ÁÁÂÌ (Ö÷É«)
   - id: color_spec_5
-    hex: "34D399"          # 6.25kHz â€” é’ç»¿
+    hex: "34D399"          # 6.25kHz ¡ª ÇàÂÌ
   - id: color_spec_6
-    hex: "6EE7B7"          # 16kHz  â€” æµ…ç»¿
+    hex: "6EE7B7"          # 16kHz  ¡ª Ç³ÂÌ
   - id: color_peak
-    hex: "FFFFFF"          # å³°å€¼ä¿æŒçº¿ â€” ç™½è‰²
+    hex: "FFFFFF"          # ·åÖµ±£³ÖÏß ¡ª °×É«
   - id: color_track
-    hex: "1A1A2E"          # é¢‘è°±èƒŒæ™¯è½¨é“è‰²
+    hex: "1A1A2E"          # ÆµÆ×±³¾°¹ìµÀÉ«
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# è¾“å‡º
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# Êä³ö
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 output:
-  # LED æŒ‡ç¤ºç¯ PWM (IO16, æ”¯æŒå‘¼å¸/é—ªçƒ/æ¸å˜)
+  # LED Ö¸Ê¾µÆ PWM (IO16, Ö§³ÖºôÎü/ÉÁË¸/½¥±ä)
   - platform: ledc
     id: led_indicator
     pin: GPIO16
     frequency: 1000Hz
 
-  # TFT èƒŒå…‰ PWM (LEDC, IO7)
+  # TFT ±³¹â PWM (LEDC, IO7)
   - platform: ledc
     id: backlight_pwm
     pin: GPIO7
     frequency: 5000Hz
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# ç¯å…‰ â€” TFT èƒŒå…‰
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# µÆ¹â ¡ª TFT ±³¹â
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 light:
   - platform: monochromatic
     output: backlight_pwm
-    name: "æ˜¾ç¤ºå±èƒŒå…‰"
+    name: "ÏÔÊ¾ÆÁ±³¹â"
     id: display_backlight
     restore_mode: ALWAYS_ON
 
-  # LED æŒ‡ç¤ºç¯ (IO16) â€” ç”± interval lambda ç›´æ¥ PWM æ§åˆ¶ (å¾…æœºå‘¼å¸/WiFié—ªçƒ/é™éŸ³åŠäº®ç­‰)
-  # æ—  light entity â€” é¿å…ä¸ lambda äº‰æŠ¢è¾“å‡ºæ§åˆ¶
+  # LED Ö¸Ê¾µÆ (IO16) ¡ª ÓÉ interval lambda Ö±½Ó PWM ¿ØÖÆ (´ı»úºôÎü/WiFiÉÁË¸/¾²Òô°ëÁÁµÈ)
+  # ÎŞ light entity ¡ª ±ÜÃâÓë lambda ÕùÇÀÊä³ö¿ØÖÆ
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# å¼€å…³
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ¿ª¹Ø
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 switch:
-  # ç¡¬ä»¶é™éŸ³ â€” MCP23017 GPA6
-  # é‡ç‚¹: ç¡¬ä»¶é«˜ç”µå¹³=å¼€å£°, ä½ç”µå¹³=é™éŸ³ã€‚
-  # è¿™é‡Œä½¿ç”¨ invertedï¼Œè®© HA çš„â€œé™éŸ³-HWâ€å¼€å…³ ON=è¾“å‡ºä½ç”µå¹³=é™éŸ³ï¼ŒOFF=è¾“å‡ºé«˜ç”µå¹³=å¼€å£°ã€‚
+  # Ó²¼ş¾²Òô ¡ª MCP23017 GPA6
+  # ÖØµã: Ó²¼ş¸ßµçÆ½=¿ªÉù, µÍµçÆ½=¾²Òô¡£
+  # ÕâÀïÊ¹ÓÃ inverted£¬ÈÃ HA µÄ¡°¾²Òô-HW¡±¿ª¹Ø ON=Êä³öµÍµçÆ½=¾²Òô£¬OFF=Êä³ö¸ßµçÆ½=¿ªÉù¡£
   - platform: gpio
     id: mute_switch
-    name: "é™éŸ³-HW"
+    name: "¾²Òô-HW"
     icon: mdi:volume-mute
     pin:
       mcp23xxx: mcp23017_hub
@@ -805,7 +805,7 @@ switch:
     restore_mode: ALWAYS_ON
 
   - platform: template
-    name: "é™éŸ³-SW"
+    name: "¾²Òô-SW"
     id: soft_mute_switch
     icon: mdi:volume-off
     restore_mode: RESTORE_DEFAULT_OFF
@@ -813,6 +813,10 @@ switch:
     turn_on_action:
       - globals.set: {id: soft_mute, value: 'true'}
       - script.execute: send_volume_to_pga
+      - wait_until:
+          condition:
+            lambda: 'return id(current_db) <= -95.5f;'
+          timeout: 8000ms
       - lambda: 'pga2311::set_volume(0, 0);'
       - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
@@ -833,13 +837,13 @@ switch:
       - script.execute: reset_idle_timer
 
   - platform: template
-    name: "å¾…æœºæ¨¡å¼"
+    name: "´ı»úÄ£Ê½"
     id: standby_switch
     icon: mdi:power
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
-    # âš ï¸ é‡è¦: HA switch ON = è®¾å¤‡è¿è¡Œ(éå¾…æœº), OFF = å¾…æœºæ¨¡å¼
-    # turn_off = HAå…³é—­å¼€å…³ â†’ è¿›å…¥å¾…æœº, turn_on = HAæ‰“å¼€å¼€å…³ â†’ é€€å‡ºå¾…æœº
+    # ?? ÖØÒª: HA switch ON = Éè±¸ÔËĞĞ(·Ç´ı»ú), OFF = ´ı»úÄ£Ê½
+    # turn_off = HA¹Ø±Õ¿ª¹Ø ¡ú ½øÈë´ı»ú, turn_on = HA´ò¿ª¿ª¹Ø ¡ú ÍË³ö´ı»ú
     turn_off_action:
       - script.execute: enter_standby
     turn_on_action:
@@ -852,10 +856,10 @@ switch:
             - lambda: |-
                 if (id(temp_protect)) id(standby_switch)->publish_state(false);
 
-  # â”€â”€ è¾“å…¥ç»§ç”µå™¨ (MCP23017 GPA0~GPA3, CD/DAC/PC/AUX) â”€â”€
+  # ©¤©¤ ÊäÈë¼ÌµçÆ÷ (MCP23017 GPA0~GPA3, CD/DAC/PC/AUX) ©¤©¤
   - platform: gpio
     id: relay_in1
-    name: "ç»§ç”µå™¨-è¾“å…¥1"
+    name: "¼ÌµçÆ÷-ÊäÈë1"
     pin:
       mcp23xxx: mcp23017_hub
       number: 0
@@ -866,7 +870,7 @@ switch:
 
   - platform: gpio
     id: relay_in2
-    name: "ç»§ç”µå™¨-è¾“å…¥2"
+    name: "¼ÌµçÆ÷-ÊäÈë2"
     pin:
       mcp23xxx: mcp23017_hub
       number: 1
@@ -877,7 +881,7 @@ switch:
 
   - platform: gpio
     id: relay_in3
-    name: "ç»§ç”µå™¨-è¾“å…¥3"
+    name: "¼ÌµçÆ÷-ÊäÈë3"
     pin:
       mcp23xxx: mcp23017_hub
       number: 2
@@ -888,7 +892,7 @@ switch:
 
   - platform: gpio
     id: relay_in4
-    name: "ç»§ç”µå™¨-è¾“å…¥4"
+    name: "¼ÌµçÆ÷-ÊäÈë4"
     pin:
       mcp23xxx: mcp23017_hub
       number: 3
@@ -897,10 +901,10 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
 
-  # â”€â”€ è¾“å‡ºç»§ç”µå™¨ (MCP23017 GPA4, ä½=å˜å‹å™¨è¾“å‡º/å¸¸é—­, é«˜=ç›´é€šè¾“å‡º) â”€â”€
+  # ©¤©¤ Êä³ö¼ÌµçÆ÷ (MCP23017 GPA4, µÍ=±äÑ¹Æ÷Êä³ö/³£±Õ, ¸ß=Ö±Í¨Êä³ö) ©¤©¤
   - platform: gpio
     id: relay_out
-    name: "ç»§ç”µå™¨-è¾“å‡º"
+    name: "¼ÌµçÆ÷-Êä³ö"
     pin:
       mcp23xxx: mcp23017_hub
       number: 4
@@ -909,9 +913,9 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
 
-  # â”€â”€ è‡ªåŠ¨è¾“å…¥åˆ‡æ¢å¼€å…³ (HA æ§åˆ¶ + LVGL åŒæ­¥) â”€â”€
+  # ©¤©¤ ×Ô¶¯ÊäÈëÇĞ»»¿ª¹Ø (HA ¿ØÖÆ + LVGL Í¬²½) ©¤©¤
   - platform: template
-    name: "è‡ªåŠ¨è¾“å…¥åˆ‡æ¢"
+    name: "×Ô¶¯ÊäÈëÇĞ»»"
     id: auto_input_switch
     icon: mdi:swap-horizontal
     optimistic: true
@@ -925,9 +929,9 @@ switch:
       - script.execute: sync_settings_ui
       - script.execute: reset_idle_timer
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# NV3007 2.79" TFT æ˜¾ç¤º â€” ESPHome å®˜æ–¹ mipi_spi é©±åŠ¨ (CUSTOM æ¨¡å¼)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# NV3007 2.79" TFT ÏÔÊ¾ ¡ª ESPHome ¹Ù·½ mipi_spi Çı¶¯ (CUSTOM Ä£Ê½)
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 display:
   - platform: mipi_spi
     model: CUSTOM
@@ -950,9 +954,9 @@ display:
     update_interval: never
     id: tft_display
     init_sequence:
-      # â”€â”€ NV3007 è§£é” â”€â”€
+      # ©¤©¤ NV3007 ½âËø ©¤©¤
       - [0xFF, 0xA5]
-      # â”€â”€ ç”µæº/æ—¶åºé…ç½® â”€â”€
+      # ©¤©¤ µçÔ´/Ê±ĞòÅäÖÃ ©¤©¤
       - [0x9A, 0x08]
       - [0x9B, 0x08]
       - [0x9C, 0xB0]
@@ -962,14 +966,14 @@ display:
       - [0x84, 0x90]
       - [0x83, 0x7B]
       - [0x85, 0x33]
-      # â”€â”€ VBP/VFP â”€â”€
+      # ©¤©¤ VBP/VFP ©¤©¤
       - [0x60, 0x00]
       - [0x70, 0x00]
       - [0x61, 0x02]
       - [0x71, 0x02]
       - [0x62, 0x04]
       - [0x72, 0x04]
-      # â”€â”€ Gate EQ â”€â”€
+      # ©¤©¤ Gate EQ ©¤©¤
       - [0x6C, 0x29]
       - [0x7C, 0x29]
       - [0x6D, 0x31]
@@ -996,14 +1000,14 @@ display:
       - [0x7B, 0x13]
       - [0x6F, 0x00]
       - [0x7F, 0x00]
-      # â”€â”€ Source OP â”€â”€
+      # ©¤©¤ Source OP ©¤©¤
       - [0x50, 0x00]
       - [0x52, 0xD6]
       - [0x53, 0x08]
       - [0x54, 0x08]
       - [0x55, 0x1E]
       - [0x56, 0x1C]
-      # â”€â”€ GOA map â”€â”€
+      # ©¤©¤ GOA map ©¤©¤
       - [0xA0, 0x2B, 0x24, 0x00]
       - [0xA1, 0x87]
       - [0xA2, 0x86]
@@ -1013,7 +1017,7 @@ display:
       - [0xA8, 0x36]
       - [0xA9, 0x7E]
       - [0xAA, 0x7E]
-      # â”€â”€ GOA timing â”€â”€
+      # ©¤©¤ GOA timing ©¤©¤
       - [0xB9, 0x85]
       - [0xBA, 0x84]
       - [0xBB, 0x83]
@@ -1038,7 +1042,7 @@ display:
       - [0xCF, 0x6D]
       - [0xD0, 0x6E]
       - [0xD1, 0x6F]
-      # â”€â”€ Source Gamma â”€â”€
+      # ©¤©¤ Source Gamma ©¤©¤
       - [0xAB, 0x03, 0x67]
       - [0xAC, 0x03, 0x6B]
       - [0xAD, 0x03, 0x68]
@@ -1049,7 +1053,7 @@ display:
       - [0xB6, 0x32]
       - [0xB7, 0x7E]
       - [0xB8, 0x7E]
-      # â”€â”€ VCOM/Gamma â”€â”€
+      # ©¤©¤ VCOM/Gamma ©¤©¤
       - [0xE0, 0x00]
       - [0xE1, 0x03, 0x0F]
       - [0xE2, 0x04]
@@ -1069,27 +1073,27 @@ display:
       - [0xF1, 0x0E]
       - [0xF9, 0x17]
       - [0xF2, 0x2C, 0x1B, 0x0B, 0x20]
-      # â”€â”€ 1-dot inversion â”€â”€
+      # ©¤©¤ 1-dot inversion ©¤©¤
       - [0xE9, 0x29]
-      # â”€â”€ TE â”€â”€
+      # ©¤©¤ TE ©¤©¤
       - [0x35, 0x00]
       - [0x44, 0x00, 0x10]
       - [0x46, 0x10]
-      # â”€â”€ é€€å‡ºè§£é” â”€â”€
+      # ©¤©¤ ÍË³ö½âËø ©¤©¤
       - [0xFF, 0x00]
-      # â”€â”€ PIXFMT (0x3A) ç”± ESPHome 2026.4+ è‡ªåŠ¨è®¾ç½®, ä¸å†æ‰‹åŠ¨å†™ â”€â”€
-      # â”€â”€ MADCTL/rotation äº¤ç»™ LVGL + mipi_spi é©±åŠ¨è®¾ç½®ï¼Œé¿å…è¦†ç›–ç¡¬ä»¶æ—‹è½¬ â”€â”€
-      # â”€â”€ Sleep Out â”€â”€
+      # ©¤©¤ PIXFMT (0x3A) ÓÉ ESPHome 2026.4+ ×Ô¶¯ÉèÖÃ, ²»ÔÙÊÖ¶¯Ğ´ ©¤©¤
+      # ©¤©¤ MADCTL/rotation ½»¸ø LVGL + mipi_spi Çı¶¯ÉèÖÃ£¬±ÜÃâ¸²¸ÇÓ²¼şĞı×ª ©¤©¤
+      # ©¤©¤ Sleep Out ©¤©¤
       - [0x11]
       - delay 220ms
-      # â”€â”€ Display On â”€â”€
+      # ©¤©¤ Display On ©¤©¤
       - [0x29]
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# LVGL å›¾å½¢æ¡†æ¶ â€” æ€§èƒ½æé™é…ç½®
-#   buffer_size=100%: å…¨å¸§ç¼“å†² (428Ã—142Ã—2=121KB), PSRAM å®¹çº³, é›¶æ’•è£‚
-#   partial_refresh: ä»…ä¼ è¾“è„åŒº, 80MHz SPI ä¸‹è„åŒºåˆ·æ–° ~3-6ms (vs 25%ç¼“å†²å¤šæ¬¡åˆ†æ®µåˆ·æ–°)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# LVGL Í¼ĞÎ¿ò¼Ü ¡ª ĞÔÄÜ¼«ÏŞÅäÖÃ
+#   buffer_size=100%: È«Ö¡»º³å (428¡Á142¡Á2=121KB), PSRAM ÈİÄÉ, ÁãËºÁÑ
+#   partial_refresh: ½ö´«ÊäÔàÇø, 80MHz SPI ÏÂÔàÇøË¢ĞÂ ~3-6ms (vs 25%»º³å¶à´Î·Ö¶ÎË¢ĞÂ)
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 lvgl:
   displays:
     - tft_display
@@ -1097,7 +1101,7 @@ lvgl:
   encoders:
     - sensor: volume_encoder
       enter_button: encoder_button
-      long_press_time: 30000ms  # LVGL é•¿æŒ‰ç¦ç”¨: ç”± binary_sensor on_multi_click 1500ms/10000ms å¤„ç†
+      long_press_time: 30000ms  # LVGL ³¤°´½ûÓÃ: ÓÉ binary_sensor on_multi_click 1500ms/10000ms ´¦Àí
   buffer_size: 100%
   color_depth: 16
   theme:
@@ -1106,10 +1110,10 @@ lvgl:
 
   on_resume:
     then:
-      # å…ˆåˆ·æ–°æ•°æ®, å†äº®å± â€” é¿å…å”¤é†’ç¬é—´æ˜¾ç¤ºæ—§æ•°æ® (é¢‘è°±å†»ç»“/æ¸©åº¦è¿‡æ—¶)
+      # ÏÈË¢ĞÂÊı¾İ, ÔÙÁÁÆÁ ¡ª ±ÜÃâ»½ĞÑË²¼äÏÔÊ¾¾ÉÊı¾İ (ÆµÆ×¶³½á/ÎÂ¶È¹ıÊ±)
       - lambda: |-
           if (!id(standby)) {
-            // ä¸è°ƒç”¨ msgeq7::read() â€” interval 50ms ä¼šç»Ÿä¸€å¤„ç†
+            // ²»µ÷ÓÃ msgeq7::read() ¡ª interval 50ms »áÍ³Ò»´¦Àí
             msgeq7::read_ntc();
             float _ntc = msgeq7::get_temperature();
             if (msgeq7::is_temperature_valid(_ntc)) {
@@ -1127,11 +1131,11 @@ lvgl:
             - globals.set: {id: display_is_off, value: 'false'}
 
   pages:
-    # â”€â”€ å¼€æœºé—ªå±: Zhitong Audio Logo æ¸æ˜¾ (WiFi å°±ç»ªååˆ‡åˆ°ä¸»é¡µé¢) â”€â”€
+    # ©¤©¤ ¿ª»úÉÁÆÁ: Zhitong Audio Logo ½¥ÏÔ (WiFi ¾ÍĞ÷ºóÇĞµ½Ö÷Ò³Ãæ) ©¤©¤
     - id: splash_page
       bg_color: 0x050510
       widgets:
-        # Zhitong Audio å“ç‰Œæ ‡é¢˜
+        # Zhitong Audio Æ·ÅÆ±êÌâ
         - label:
             id: lbl_splash_title
             x: 0
@@ -1143,18 +1147,18 @@ lvgl:
             text_align: CENTER
             text_color: !lambda |-
               return get_theme_accent(id(theme));
-        # å‰¯æ ‡é¢˜
+        # ¸±±êÌâ
         - label:
             id: lbl_splash_sub
             x: 0
             y: 84
             width: 428
             height: 22
-            text: "æ™ºèƒ½å‰çº§2.0"
+            text: "ÖÇÄÜÇ°¼¶2.0"
             text_font: font_cn
             text_align: CENTER
             text_color: 0x8E9FB8
-        # ç‰ˆæœ¬å·åº•éƒ¨
+        # °æ±¾ºÅµ×²¿
         - label:
             id: lbl_splash_ver
             x: 0
@@ -1166,7 +1170,7 @@ lvgl:
             text_align: CENTER
             text_color: 0x4A6890
 
-    # â”€â”€ ä¸»é¡µé¢ï¼šSquareLine ç»¿è‰²é£æ ¼ 428Ã—142 â”€â”€
+    # ©¤©¤ Ö÷Ò³Ãæ£ºSquareLine ÂÌÉ«·ç¸ñ 428¡Á142 ©¤©¤
     - id: main_page
       bg_color: 0x0A1220
       widgets:
@@ -1371,11 +1375,11 @@ lvgl:
             text_align: LEFT
             text_color: !lambda |-
               return get_theme_accent(id(theme));
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        # é¡¶æ  â€” MDI è¾“å…¥æºå›¾æ ‡ + LED + æ¸©åº¦ + WiFi/BLE
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+        # ¶¥À¸ ¡ª MDI ÊäÈëÔ´Í¼±ê + LED + ÎÂ¶È + WiFi/BLE
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 
-        # â”€â”€ MDI è¾“å…¥æºå›¾æ ‡ (4ä¸ª) â”€â”€
+        # ©¤©¤ MDI ÊäÈëÔ´Í¼±ê (4¸ö) ©¤©¤
         - label:
             id: lbl_src_radio
             x: 14
@@ -1429,7 +1433,7 @@ lvgl:
         - label: { id: lbl_src_state_2, x: 39, y: 106, width: 35, height: 11, text: "IDLE", text_font: montserrat_8, text_align: LEFT, text_color: 0x64748B }
         - label: { id: lbl_src_state_3, x: 105, y: 106, width: 35, height: 11, text: "SIGNAL", text_font: montserrat_8, text_align: LEFT, text_color: !lambda "return get_theme_accent(id(theme));" }
 
-        # â”€â”€ 4é¢— LED æŒ‡ç¤ºç¯ (è¾“å…¥æº) â”€â”€
+        # ©¤©¤ 4¿Å LED Ö¸Ê¾µÆ (ÊäÈëÔ´) ©¤©¤
         - led:
             id: led_src_0
             x: 20
@@ -1467,7 +1471,7 @@ lvgl:
             bg_color: 0x444444
             radius: 9999
 
-        # â”€â”€ è‡ªåŠ¨åˆ‡æ¢å›¾æ ‡ â”€â”€
+        # ©¤©¤ ×Ô¶¯ÇĞ»»Í¼±ê ©¤©¤
         - label:
             id: lbl_auto_switch
             x: 245
@@ -1481,14 +1485,14 @@ lvgl:
               return id(auto_input) ? get_theme_accent(id(theme)) : lv_color_hex(0x444444);
             hidden: true
 
-        # â”€â”€ è¾“å‡ºæ¨¡å¼æŒ‡ç¤º (å˜å‹å™¨ / ç›´é€š) â”€â”€
+        # ©¤©¤ Êä³öÄ£Ê½Ö¸Ê¾ (±äÑ¹Æ÷ / Ö±Í¨) ©¤©¤
         - label:
             id: lbl_out_transformer
             x: 100
             y: 2
             width: 20
             height: 16
-            text: "\U000F062C"  # mdi-source-branch (å˜å‹å™¨)
+            text: "\U000F062C"  # mdi-source-branch (±äÑ¹Æ÷)
             text_font: mdi_icons_16
             text_align: CENTER
             text_color: !lambda |-
@@ -1501,7 +1505,7 @@ lvgl:
             y: 2
             width: 20
             height: 16
-            text: "\U000F0443"  # mdi-ray-start-arrow (ç›´é€š)
+            text: "\U000F0443"  # mdi-ray-start-arrow (Ö±Í¨)
             text_font: mdi_icons_16
             text_align: CENTER
             text_color: !lambda |-
@@ -1509,7 +1513,7 @@ lvgl:
             hidden: !lambda |-
               return true;
 
-        # â”€â”€ æ¸©åº¦è®¡å›¾æ ‡ + æ¸©åº¦å€¼ â”€â”€
+        # ©¤©¤ ÎÂ¶È¼ÆÍ¼±ê + ÎÂ¶ÈÖµ ©¤©¤
         - label:
             id: lbl_thermo_icon
             x: 253
@@ -1543,12 +1547,12 @@ lvgl:
             y: 16
             width: 16
             height: 11
-            text: "Â°C"
+            text: "¡ãC"
             text_color: 0x8E9FB8
             text_align: LEFT
             text_font: montserrat_8
 
-        # â”€â”€ é™éŸ³æŒ‡ç¤º â”€â”€
+        # ©¤©¤ ¾²ÒôÖ¸Ê¾ ©¤©¤
         - label:
             id: lbl_mute
             x: 318
@@ -1561,7 +1565,7 @@ lvgl:
             text_color: !lambda |-
               return id(soft_mute) ? lv_color_hex(0xEF4444) : lv_color_hex(0x6B7280);
 
-        # â”€â”€ BLE å›¾æ ‡ â”€â”€
+        # ©¤©¤ BLE Í¼±ê ©¤©¤
         - label:
             id: lbl_ble
             x: 335
@@ -1574,7 +1578,7 @@ lvgl:
             text_color: !lambda |-
               if (!id(ble_connected)) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
-        # â”€â”€ BLE Remote æŒ‡ç¤ºï¼ˆè“ç‰™é¥æ§å™¨è¿æ¥ + è€³æœºç”µé‡æ¡ï¼‰ â”€â”€
+        # ©¤©¤ BLE Remote Ö¸Ê¾£¨À¶ÑÀÒ£¿ØÆ÷Á¬½Ó + ¶ú»úµçÁ¿Ìõ£© ©¤©¤
         - label:
             id: lbl_ble_remote_indicator
             x: 352
@@ -1587,7 +1591,7 @@ lvgl:
             text_color: !lambda |-
               if (!id(ble_remote_connected)) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
-        # â”€â”€ BLE Remote ç”µæ± æ¡ï¼ˆè€³æœºç”µé‡é£æ ¼ï¼‰ â”€â”€
+        # ©¤©¤ BLE Remote µç³ØÌõ£¨¶ú»úµçÁ¿·ç¸ñ£© ©¤©¤
         - obj:
             id: ble_remote_batt_outline
             x: 365
@@ -1623,7 +1627,7 @@ lvgl:
                   min_value: 0
                   max_value: 100
                   radius: 1
-        # â”€â”€ WiFi å›¾æ ‡ â”€â”€
+        # ©¤©¤ WiFi Í¼±ê ©¤©¤
         - label:
             id: lbl_wifi
             x: 381
@@ -1637,9 +1641,9 @@ lvgl:
               if (!wifi::global_wifi_component->is_connected()) return lv_color_hex(0x64748B);
               return get_theme_accent(id(theme));
 
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        # åˆ†éš”çº¿
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+        # ·Ö¸ôÏß
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
         - obj:
             id: separator
             x: 24
@@ -1650,9 +1654,9 @@ lvgl:
               return get_theme_accent(id(theme));
             bg_opa: 25%
 
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        # éŸ³é‡å¤§æ•°å­— dB å€¼ (ç™½è‰²åŸºè°ƒ, éŸ³é‡å˜åŒ–æ—¶è½»å¾®ä¸»é¢˜è‰²è„‰å†²)
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+        # ÒôÁ¿´óÊı×Ö dB Öµ (°×É«»ùµ÷, ÒôÁ¿±ä»¯Ê±ÇáÎ¢Ö÷ÌâÉ«Âö³å)
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
         - label:
             id: lbl_vol_db
             x: 140
@@ -1684,9 +1688,9 @@ lvgl:
         - obj: { id: mini_spec_10, x: 268, y: 94, width: 9, height: 10, bg_color: 0x10B981, bg_opa: 50%, border_width: 0, radius: 1 }
         - obj: { id: mini_spec_11, x: 280, y: 92, width: 9, height: 12, bg_color: 0x10B981, bg_opa: 62%, border_width: 0, radius: 1 }
 
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        # æ°´å¹³éŸ³é‡æ¡ (ç»¿è‰², æ»¡å®½)
-        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+        # Ë®Æ½ÒôÁ¿Ìõ (ÂÌÉ«, Âú¿í)
+        # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
         - bar:
             id: bar_volume
             x: 148
@@ -1704,8 +1708,8 @@ lvgl:
             bg_opa: 60%
             radius: 1
 
-        # â•â•â• å·¦å³å£°é“å¹³è¡¡æŒ‡ç¤º â•â•â•
-        # å¹³è¡¡æ¡: L â”€â”€â”€â”€â”€â—â”€â”€â”€â”€â”€â”€ R
+        # ¨T¨T¨T ×óÓÒÉùµÀÆ½ºâÖ¸Ê¾ ¨T¨T¨T
+        # Æ½ºâÌõ: L ©¤©¤©¤©¤©¤¡ñ©¤©¤©¤©¤©¤©¤ R
         - label:
             id: lbl_bal_L
             x: 10
@@ -1768,7 +1772,7 @@ lvgl:
             height: 12
             text: !lambda |-
               int b = id(balance);
-              if (b == 0) return std::string("å¹³è¡¡");
+              if (b == 0) return std::string("Æ½ºâ");
               char buf[8];
               snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", abs(b));
               return std::string(buf);
@@ -1776,7 +1780,7 @@ lvgl:
             text_align: CENTER
             text_color: 0x4A6890
 
-        # â”€â”€ æ¢å¤å‡ºå‚è®¾ç½®æ¶ˆæ¯ (é»˜è®¤éšè—, é•¿æŒ‰ 10s æ—¶æ˜¾ç¤º) â”€â”€
+        # ©¤©¤ »Ö¸´³ö³§ÉèÖÃÏûÏ¢ (Ä¬ÈÏÒş²Ø, ³¤°´ 10s Ê±ÏÔÊ¾) ©¤©¤
         - label:
             id: lbl_factory_msg
             x: 20
@@ -1788,11 +1792,11 @@ lvgl:
             text_align: CENTER
             text_color: 0xF97316
             hidden: true
-    # â”€â”€ å…¨å±é¢‘è°±é¡µ (30ç§’æ— æ“ä½œåè‡ªåŠ¨åˆ‡æ¢, ç«‹ä½“å£°14æ¡) â”€â”€
+    # ©¤©¤ È«ÆÁÆµÆ×Ò³ (30ÃëÎŞ²Ù×÷ºó×Ô¶¯ÇĞ»», Á¢ÌåÉù14Ìõ) ©¤©¤
     - id: spectrum_page
       bg_color: 0x111827
       widgets:
-        # â”€â”€ å·¦ä¸Šè§’è¾“å…¥æºå›¾æ ‡ + åç§° â”€â”€
+        # ©¤©¤ ×óÉÏ½ÇÊäÈëÔ´Í¼±ê + Ãû³Æ ©¤©¤
         - label:
             id: lbl_spec_input_icon
             x: 4
@@ -1818,7 +1822,7 @@ lvgl:
             text_font: montserrat_21
             text_color: 0x6A9FB8
             text_align: LEFT
-        # â”€â”€ å³ä¸Šè§’æ¸©åº¦ â”€â”€
+        # ©¤©¤ ÓÒÉÏ½ÇÎÂ¶È ©¤©¤
         - label:
             id: lbl_spec_temp
             x: 308
@@ -1828,15 +1832,15 @@ lvgl:
             text: !lambda |-
               static char buf[20];
               if (id(ntc_temp)->has_state())
-                snprintf(buf, sizeof(buf), "%.1fÂ°C", id(ntc_temp)->state);
+                snprintf(buf, sizeof(buf), "%.1f¡ãC", id(ntc_temp)->state);
               else
-                snprintf(buf, sizeof(buf), "--.-Â°C");
+                snprintf(buf, sizeof(buf), "--.-¡ãC");
               return buf;
             text_font: montserrat_16
             text_color: 0x5A7090
             text_align: RIGHT
 
-        # â”€â”€ Retro VU theme overlay (hidden unless spectrum_theme == 4) â”€â”€
+        # ©¤©¤ Retro VU theme overlay (hidden unless spectrum_theme == 4) ©¤©¤
         - obj:
             id: vu_panel_l
             x: 18
@@ -1890,8 +1894,8 @@ lvgl:
         - obj: { id: vu_needle_l, x: 108, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r, x: 316, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
-        # â”€â”€ Sparkline spectrum overlay (hidden unless spectrum_theme == 5) â”€â”€
-        # çœŸæœºç‰ˆæ§åˆ¶å¯¹è±¡æ•°é‡ï¼Œé¿å… LVGL è¿è¡Œå †å‹åŠ›è¿‡é«˜å¯¼è‡´å¯åŠ¨æœŸé‡å¯ã€‚
+        # ©¤©¤ Sparkline spectrum overlay (hidden unless spectrum_theme == 5) ©¤©¤
+        # Õæ»ú°æ¿ØÖÆ¶ÔÏóÊıÁ¿£¬±ÜÃâ LVGL ÔËĞĞ¶ÑÑ¹Á¦¹ı¸ßµ¼ÖÂÆô¶¯ÆÚÖØÆô¡£
         - obj: { id: spark_bar_0, x: 18, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_1, x: 26, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_bar_2, x: 34, y: 118, width: 3, height: 2, bg_color: 0x10B981, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
@@ -1929,7 +1933,7 @@ lvgl:
         - obj: { id: spark_dot_10, x: 130, y: 50, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: spark_dot_11, x: 218, y: 67, width: 2, height: 2, bg_color: 0xF8FAFC, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
-        # â•â•â• å·¦å£°é“ 7 æ®µé¢‘è°± (w=27, gap=2) â•â•â•
+        # ¨T¨T¨T ×óÉùµÀ 7 ¶ÎÆµÆ× (w=27, gap=2) ¨T¨T¨T
         - bar:
             id: spec_L_0
             x: 8
@@ -2022,7 +2026,7 @@ lvgl:
               bg_color: color_spec_6
               bg_opa: cover
 
-        # â•â•â• å·¦å£°é“ å³°å€¼çº¿ (å¯¹åº”å·¦é¢‘è°±æ¡) â•â•â•
+        # ¨T¨T¨T ×óÉùµÀ ·åÖµÏß (¶ÔÓ¦×óÆµÆ×Ìõ) ¨T¨T¨T
         - obj:
             id: peak_L_0
             x: 8
@@ -2080,7 +2084,7 @@ lvgl:
             bg_color: color_peak
             bg_opa: 70%
 
-        # â•â•â• å³å£°é“ 7 æ®µé¢‘è°± (w=27, gap=2) â•â•â•
+        # ¨T¨T¨T ÓÒÉùµÀ 7 ¶ÎÆµÆ× (w=27, gap=2) ¨T¨T¨T
         - bar:
             id: spec_R_0
             x: 217
@@ -2173,7 +2177,7 @@ lvgl:
               bg_color: color_spec_6
               bg_opa: cover
 
-        # â•â•â• å³å£°é“ å³°å€¼çº¿ (å¯¹åº”å³é¢‘è°±æ¡) â•â•â•
+        # ¨T¨T¨T ÓÒÉùµÀ ·åÖµÏß (¶ÔÓ¦ÓÒÆµÆ×Ìõ) ¨T¨T¨T
         - obj:
             id: peak_R_0
             x: 217
@@ -2231,7 +2235,7 @@ lvgl:
             bg_color: color_peak
             bg_opa: 70%
 
-        # â•â•â• VU ç”µå¹³æ¡ (L/R å£°é“ç‹¬ç«‹) â•â•â•
+        # ¨T¨T¨T VU µçÆ½Ìõ (L/R ÉùµÀ¶ÀÁ¢) ¨T¨T¨T
         - bar:
             id: vu_meter_l
             x: 4
@@ -2263,7 +2267,7 @@ lvgl:
               bg_opa: cover
             radius: 2
 
-        # â•â•â• é¢‘ç‡æ ‡ç­¾ (åœ¨æ¯ç»„ L/R å¯¹ä¹‹é—´å±…ä¸­) â•â•â•
+        # ¨T¨T¨T ÆµÂÊ±êÇ© (ÔÚÃ¿×é L/R ¶ÔÖ®¼ä¾ÓÖĞ) ¨T¨T¨T
         - label:
             id: lbl_freq_0
             x: 120
@@ -2335,7 +2339,7 @@ lvgl:
             text_color: 0x3A5070
             text_align: CENTER
 
-    # â”€â”€ è“ç‰™é¥æ§è®¾ç½®é¡µ â”€â”€
+    # ©¤©¤ À¶ÑÀÒ£¿ØÉèÖÃÒ³ ©¤©¤
     - id: ble_remote_page
       bg_color: 0x0A1220
       layout:
@@ -2345,7 +2349,7 @@ lvgl:
         pad_column: 2
       pad_all: 4
       widgets:
-        # â”€â”€ Row 0: æ ‡é¢˜ â”€â”€
+        # ©¤©¤ Row 0: ±êÌâ ©¤©¤
         - obj:
             id: ble_row_title
             width: 420
@@ -2362,12 +2366,12 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "è“ç‰™é¥æ§"
+                  text: "À¶ÑÀÒ£¿Ø"
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
-        # â”€â”€ Row 1: è¿æ¥çŠ¶æ€ â”€â”€
+        # ©¤©¤ Row 1: Á¬½Ó×´Ì¬ ©¤©¤
         - obj:
             id: ble_row_status
             width: 420
@@ -2389,7 +2393,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 200
 
-        # â”€â”€ Row 2: æ‰«ææŒ‰é’® â”€â”€
+        # ©¤©¤ Row 2: É¨Ãè°´Å¥ ©¤©¤
         - obj:
             id: ble_row_scan
             width: 420
@@ -2405,18 +2409,18 @@ lvgl:
             widgets:
               - label:
                   id: icon_ble_scan
-                  text: "\U000F0709"  # mdi-restart (é‡æ–°æ‰«æ)
+                  text: "\U000F0709"  # mdi-restart (ÖØĞÂÉ¨Ãè)
                   text_font: mdi_settings_icons_24
                   text_color: color_accent
                   width: 24
               - label:
                   text: !lambda |-
-                    return id(ble_remote_scanning) ? std::string("åœæ­¢æ‰«æ") : std::string("å¼€å§‹æ‰«æ");
+                    return id(ble_remote_scanning) ? std::string("Í£Ö¹É¨Ãè") : std::string("¿ªÊ¼É¨Ãè");
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
-        # â”€â”€ Row 3-5: è®¾å¤‡æ§½ (3 ä¸ª, é»˜è®¤éšè—) â”€â”€
+        # ©¤©¤ Row 3-5: Éè±¸²Û (3 ¸ö, Ä¬ÈÏÒş²Ø) ©¤©¤
         - obj:
             id: ble_row_dev0
             width: 420
@@ -2501,7 +2505,7 @@ lvgl:
                   text_align: RIGHT
                   width: 60
 
-        # â”€â”€ Row 5: HID åŸå§‹äº‹ä»¶ â”€â”€
+        # ©¤©¤ Row 5: HID Ô­Ê¼ÊÂ¼ş ©¤©¤
         - label:
             id: lbl_ble_hid_event
             text: "HID: --"
@@ -2510,7 +2514,7 @@ lvgl:
             width: 420
             height: 18
             pad_all: 2
-        # â”€â”€ Row 6: è¿”å›æŒ‰é’® â”€â”€
+        # ©¤©¤ Row 6: ·µ»Ø°´Å¥ ©¤©¤
         - obj:
             id: ble_row_back
             width: 420
@@ -2533,14 +2537,14 @@ lvgl:
               - label:
                   id: lbl_ble_back
                   text: !lambda |-
-                    return id(ble_remote_connected) ? std::string("æ–­å¼€") : std::string("è¿”å›è®¾ç½®");
+                    return id(ble_remote_connected) ? std::string("¶Ï¿ª") : std::string("·µ»ØÉèÖÃ");
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
-    # â”€â”€ é¥æ§å™¨æŒ‰é”®æ˜ å°„é¡µ â”€â”€
-    # 8 ä¸ªæºæŒ‰é”® + è¿”å›è®¾ç½®
-    # äº¤äº’: æ—‹è½¬é€‰è¡Œ â†’ å•å‡»è¿›å…¥è°ƒèŠ‚ â†’ æ—‹è½¬å¾ªç¯æ˜ å°„ â†’ å•å‡»ç¡®è®¤
+    # ©¤©¤ Ò£¿ØÆ÷°´¼üÓ³ÉäÒ³ ©¤©¤
+    # 8 ¸öÔ´°´¼ü + ·µ»ØÉèÖÃ
+    # ½»»¥: Ğı×ªÑ¡ĞĞ ¡ú µ¥»÷½øÈëµ÷½Ú ¡ú Ğı×ªÑ­»·Ó³Éä ¡ú µ¥»÷È·ÈÏ
     - id: remote_keys_page
       bg_color: 0x0A1220
       layout:
@@ -2550,7 +2554,7 @@ lvgl:
         pad_column: 2
       pad_all: 4
       widgets:
-        # Row 0: æ ‡é¢˜
+        # Row 0: ±êÌâ
         - obj:
             id: keymap_row_title
             width: 420
@@ -2567,7 +2571,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "é¥æ§å™¨æŒ‰é”®"
+                  text: "Ò£¿ØÆ÷°´¼ü"
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 140
@@ -2580,7 +2584,7 @@ lvgl:
                   flex_grow: 1
                   text_align: RIGHT
 
-        # 0: éŸ³é‡+
+        # 0: ÒôÁ¿+
         - obj:
             id: keymap_row_0
             width: 420
@@ -2600,7 +2604,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "éŸ³é‡+"
+                  text: "ÒôÁ¿+"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2612,7 +2616,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 1: éŸ³é‡-
+        # 1: ÒôÁ¿-
         - obj:
             id: keymap_row_1
             width: 420
@@ -2632,7 +2636,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "éŸ³é‡-"
+                  text: "ÒôÁ¿-"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2644,7 +2648,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 2: é™éŸ³
+        # 2: ¾²Òô
         - obj:
             id: keymap_row_2
             width: 420
@@ -2664,7 +2668,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "é™éŸ³"
+                  text: "¾²Òô"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2676,7 +2680,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 3: æ’­æ”¾
+        # 3: ²¥·Å
         - obj:
             id: keymap_row_3
             width: 420
@@ -2696,7 +2700,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "æ’­æ”¾"
+                  text: "²¥·Å"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2708,7 +2712,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 4: æš‚åœ
+        # 4: ÔİÍ£
         - obj:
             id: keymap_row_4
             width: 420
@@ -2728,7 +2732,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "æš‚åœ"
+                  text: "ÔİÍ£"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2740,7 +2744,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 5: ä¸‹ä¸€æ›²
+        # 5: ÏÂÒ»Çú
         - obj:
             id: keymap_row_5
             width: 420
@@ -2760,7 +2764,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "ä¸‹ä¸€æ›²"
+                  text: "ÏÂÒ»Çú"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2772,7 +2776,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 6: ä¸Šä¸€æ›²
+        # 6: ÉÏÒ»Çú
         - obj:
             id: keymap_row_6
             width: 420
@@ -2792,7 +2796,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "ä¸Šä¸€æ›²"
+                  text: "ÉÏÒ»Çú"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2804,7 +2808,7 @@ lvgl:
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
-        # 7: ç”µæº
+        # 7: µçÔ´
         - obj:
             id: keymap_row_7
             width: 420
@@ -2824,7 +2828,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "ç”µæº"
+                  text: "µçÔ´"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2837,7 +2841,7 @@ lvgl:
                   flex_grow: 1
                   text_align: RIGHT
 
-        # 8: åˆ‡æ¢è¾“å…¥
+        # 8: ÇĞ»»ÊäÈë
         - obj:
             id: keymap_row_8
             width: 420
@@ -2857,7 +2861,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "åˆ‡æ¢è¾“å…¥"
+                  text: "ÇĞ»»ÊäÈë"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 70
@@ -2870,7 +2874,7 @@ lvgl:
                   flex_grow: 1
                   text_align: RIGHT
 
-        # 9: å­¦ä¹ æŒ‰é”®
+        # 9: Ñ§Ï°°´¼ü
         - obj:
             id: keymap_row_learn
             width: 420
@@ -2890,20 +2894,20 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "å­¦ä¹ æŒ‰é”®"
+                  text: "Ñ§Ï°°´¼ü"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 90
               - label:
                   id: val_keymap_learn
-                  text: "éŸ³é‡+"
+                  text: "ÒôÁ¿+"
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
 
-        # 10: é‡ç½®å­¦ä¹ 
+        # 10: ÖØÖÃÑ§Ï°
         - obj:
             id: keymap_row_reset
             width: 420
@@ -2923,20 +2927,20 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "é‡ç½®å­¦ä¹ "
+                  text: "ÖØÖÃÑ§Ï°"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 90
               - label:
                   id: val_keymap_reset
-                  text: "æ¸…ç©º"
+                  text: "Çå¿Õ"
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 0
                   flex_grow: 1
                   text_align: RIGHT
 
-        # Row 11: è¿”å›
+        # Row 11: ·µ»Ø
         - obj:
             id: keymap_row_back
             width: 420
@@ -2956,17 +2960,17 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "è¿”å›è®¾ç½®"
+                  text: "·µ»ØÉèÖÃ"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
-    # â”€â”€ è¯Šæ–­ä¿¡æ¯é¡µ (å†…å­˜ç›‘æ§) â”€â”€
+    # ©¤©¤ Õï¶ÏĞÅÏ¢Ò³ (ÄÚ´æ¼à¿Ø) ©¤©¤
     - id: debug_page
       bg_color: 0x0A1220
       pad_all: 0
       widgets:
-        # â”€â”€ Row 0: æ ‡é¢˜ â”€â”€
+        # ©¤©¤ Row 0: ±êÌâ ©¤©¤
         - obj:
             id: dbg_row_title
             width: 420
@@ -2983,12 +2987,12 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "è¯Šæ–­ä¿¡æ¯"
+                  text: "Õï¶ÏĞÅÏ¢"
                   text_font: font_cn_small
                   text_color: 0xF1F5F9
                   width: 120
 
-        # â”€â”€ Row 1A: CPU Usage â”€â”€
+        # ©¤©¤ Row 1A: CPU Usage ©¤©¤
         - obj:
             id: dbg_row_cpu
             width: 206
@@ -3001,12 +3005,12 @@ lvgl:
             widgets:
               - label:
                   id: lbl_dbg_cpu
-                  text: "CPU å ç”¨: --"
+                  text: "CPU Õ¼ÓÃ: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 1B: Free Internal Heap â”€â”€
+        # ©¤©¤ Row 1B: Free Internal Heap ©¤©¤
         - obj:
             id: dbg_row_heap
             width: 206
@@ -3019,12 +3023,12 @@ lvgl:
             widgets:
               - label:
                   id: lbl_dbg_heap
-                  text: "å†…éƒ¨å †: --"
+                  text: "ÄÚ²¿¶Ñ: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 2A: Min Free Heap â”€â”€
+        # ©¤©¤ Row 2A: Min Free Heap ©¤©¤
         - obj:
             id: dbg_row_minheap
             width: 206
@@ -3037,12 +3041,12 @@ lvgl:
             widgets:
               - label:
                   id: lbl_dbg_minheap
-                  text: "æœ€å°ç©ºé—²: --"
+                  text: "×îĞ¡¿ÕÏĞ: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 2B: Free PSRAM â”€â”€
+        # ©¤©¤ Row 2B: Free PSRAM ©¤©¤
         - obj:
             id: dbg_row_psram
             width: 206
@@ -3060,7 +3064,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 3A: Min Free PSRAM â”€â”€
+        # ©¤©¤ Row 3A: Min Free PSRAM ©¤©¤
         - obj:
             id: dbg_row_minpsram
             width: 206
@@ -3073,12 +3077,12 @@ lvgl:
             widgets:
               - label:
                   id: lbl_dbg_minpsram
-                  text: "PSRAMæœ€å°ç©ºé—²: --"
+                  text: "PSRAM×îĞ¡¿ÕÏĞ: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 3B: è¿è¡Œæ—¶é—´ â”€â”€
+        # ©¤©¤ Row 3B: ÔËĞĞÊ±¼ä ©¤©¤
         - obj:
             id: dbg_row_uptime
             width: 206
@@ -3091,12 +3095,12 @@ lvgl:
             widgets:
               - label:
                   id: lbl_dbg_uptime
-                  text: "è¿è¡Œæ—¶é—´: --"
+                  text: "ÔËĞĞÊ±¼ä: --"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 190
 
-        # â”€â”€ Row 4A: MSGEQ7 é‡æ ¡å‡† â”€â”€
+        # ©¤©¤ Row 4A: MSGEQ7 ÖØĞ£×¼ ©¤©¤
         - obj:
             id: dbg_row_recal
             width: 206
@@ -3117,12 +3121,12 @@ lvgl:
                   width: 24
               - label:
                   id: lbl_dbg_recal
-                  text: "MSGEQ7 é‡æ ¡å‡† (å•å‡»æ‰§è¡Œ)"
+                  text: "MSGEQ7 ÖØĞ£×¼ (µ¥»÷Ö´ĞĞ)"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 168
 
-        # â”€â”€ Row 4B: è¿”å›æŒ‰é’® â”€â”€
+        # ©¤©¤ Row 4B: ·µ»Ø°´Å¥ ©¤©¤
         - obj:
             id: dbg_row_back
             width: 206
@@ -3142,12 +3146,12 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "è¿”å›è®¾ç½®"
+                  text: "·µ»ØÉèÖÃ"
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   width: 120
 
-    # â”€â”€ è®¾ç½®é¡µé¢ (å•åˆ—åˆ—è¡¨ï¼Œé€‰ä¸­â†’è¿›å…¥â†’è°ƒèŠ‚â†’ç¡®è®¤) â”€â”€
+    # ©¤©¤ ÉèÖÃÒ³Ãæ (µ¥ÁĞÁĞ±í£¬Ñ¡ÖĞ¡ú½øÈë¡úµ÷½Ú¡úÈ·ÈÏ) ©¤©¤
     - id: settings_page
       bg_color: 0x0A1220
       layout:
@@ -3156,7 +3160,7 @@ lvgl:
         pad_row: 2
       pad_all: 4
       widgets:
-        # â”€â”€ Row 0: æœ€å¤§éŸ³é‡ â”€â”€
+        # ©¤©¤ Row 0: ×î´óÒôÁ¿ ©¤©¤
         - obj:
             id: row_max_vol
             width: 420
@@ -3177,7 +3181,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "æœ€å¤§éŸ³é‡"
+                  text: "×î´óÒôÁ¿"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3201,7 +3205,7 @@ lvgl:
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
-        # â”€â”€ Row 1: å¼€æœºä¸Šé™ â”€â”€
+        # ©¤©¤ Row 1: ¿ª»úÉÏÏŞ ©¤©¤
         - obj:
             id: row_power_on
             width: 420
@@ -3222,7 +3226,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "å¼€æœºä¸Šé™"
+                  text: "¿ª»úÉÏÏŞ"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3246,7 +3250,7 @@ lvgl:
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
-        # â”€â”€ Row 2: å£°é“å¹³è¡¡ â”€â”€
+        # ©¤©¤ Row 2: ÉùµÀÆ½ºâ ©¤©¤
         - obj:
             id: row_balance
             width: 420
@@ -3267,7 +3271,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "å£°é“å¹³è¡¡"
+                  text: "ÉùµÀÆ½ºâ"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3285,7 +3289,7 @@ lvgl:
                   width: 58
                   text: !lambda |-
                     int b = id(balance);
-                    if (b == 0) return std::string("å¹³è¡¡");
+                    if (b == 0) return std::string("Æ½ºâ");
                     static char buf[8];
                     snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", b < 0 ? -b : b);
                     return std::string(buf);
@@ -3293,7 +3297,7 @@ lvgl:
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
-        # â”€â”€ Row 3: è¾“å…¥é€‰æ‹© â”€â”€
+        # ©¤©¤ Row 3: ÊäÈëÑ¡Ôñ ©¤©¤
         - obj:
             id: row_input
             width: 420
@@ -3314,7 +3318,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "è¾“å…¥é€‰æ‹©"
+                  text: "ÊäÈëÑ¡Ôñ"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3328,7 +3332,7 @@ lvgl:
                   text_align: RIGHT
                   width: 50
 
-        # â”€â”€ Row 4: è¾“å…¥è‡ªåŠ¨åˆ‡æ¢ â”€â”€
+        # ©¤©¤ Row 4: ÊäÈë×Ô¶¯ÇĞ»» ©¤©¤
         - obj:
             id: row_auto_switch
             width: 420
@@ -3349,20 +3353,20 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "è¾“å…¥è‡ªåŠ¨åˆ‡æ¢"
+                  text: "ÊäÈë×Ô¶¯ÇĞ»»"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 110
               - label:
                   id: val_auto_switch
                   text: !lambda |-
-                    return id(auto_input) ? std::string("è‡ªåŠ¨") : std::string("æ‰‹åŠ¨");
+                    return id(auto_input) ? std::string("×Ô¶¯") : std::string("ÊÖ¶¯");
                   text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 50
 
-        # â”€â”€ Row 5: å±å¹•äº®åº¦ â”€â”€
+        # ©¤©¤ Row 5: ÆÁÄ»ÁÁ¶È ©¤©¤
         - obj:
             id: row_brightness
             width: 420
@@ -3383,7 +3387,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "å±å¹•äº®åº¦"
+                  text: "ÆÁÄ»ÁÁ¶È"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3407,7 +3411,7 @@ lvgl:
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
-        # â”€â”€ Row 6: æ¯å±è¶…æ—¶ â”€â”€
+        # ©¤©¤ Row 6: Ï¢ÆÁ³¬Ê± ©¤©¤
         - obj:
             id: row_timeout
             width: 420
@@ -3428,7 +3432,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "æ¯å±è¶…æ—¶"
+                  text: "Ï¢ÆÁ³¬Ê±"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3446,13 +3450,13 @@ lvgl:
                   width: 70
                   text: !lambda |-
                     static char buf[8];
-                    snprintf(buf, sizeof(buf), "%dåˆ†é’Ÿ", id(display_timeout_min));
+                    snprintf(buf, sizeof(buf), "%d·ÖÖÓ", id(display_timeout_min));
                     return buf;
                   text_font: font_cn_small
                   text_align: RIGHT
                   text_color: 0x8E9FB8
 
-        # â”€â”€ Row 7: ä¸»é¢˜è‰²å½© â”€â”€
+        # ©¤©¤ Row 7: Ö÷ÌâÉ«²Ê ©¤©¤
         - obj:
             id: row_theme
             width: 420
@@ -3473,7 +3477,7 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "ä¸»é¢˜è‰²å½©"
+                  text: "Ö÷ÌâÉ«²Ê"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3494,7 +3498,7 @@ lvgl:
                   text_align: RIGHT
                   width: 120
 
-        # â”€â”€ Row 8: è“ç‰™é¥æ§ (å¯¼èˆªé¡¹) â”€â”€
+        # ©¤©¤ Row 8: À¶ÑÀÒ£¿Ø (µ¼º½Ïî) ©¤©¤
         - obj:
             id: row_ble_remote
             width: 420
@@ -3515,20 +3519,20 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "è“ç‰™é¥æ§"
+                  text: "À¶ÑÀÒ£¿Ø"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: lbl_ble_status_nav
                   text: !lambda |-
-                    return id(ble_remote_connected) ? std::string("å·²è¿æ¥") : std::string("æœªè¿æ¥");
+                    return id(ble_remote_connected) ? std::string("ÒÑÁ¬½Ó") : std::string("Î´Á¬½Ó");
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   text_align: RIGHT
                   width: 72
 
-        # â”€â”€ Row 9: é¥æ§å™¨æŒ‰é”® (å¯¼èˆªé¡¹) â”€â”€
+        # ©¤©¤ Row 9: Ò£¿ØÆ÷°´¼ü (µ¼º½Ïî) ©¤©¤
         - obj:
             id: row_keymap
             width: 420
@@ -3549,20 +3553,20 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "é¥æ§å™¨æŒ‰é”®"
+                  text: "Ò£¿ØÆ÷°´¼ü"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 104
               - label:
                   id: val_keymap_status
                   text: !lambda |-
-                    return std::string("å·²æ˜ å°„");
+                    return std::string("ÒÑÓ³Éä");
                   text_font: font_cn_small
                   text_color: 0x8E9FB8
                   text_align: RIGHT
                   width: 72
 
-        # â”€â”€ Row 10: è¾“å‡ºæ¨¡å¼ â”€â”€
+        # ©¤©¤ Row 10: Êä³öÄ£Ê½ ©¤©¤
         - obj:
             id: row_output_mode
             width: 420
@@ -3583,20 +3587,20 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "è¾“å‡ºæ¨¡å¼"
+                  text: "Êä³öÄ£Ê½"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: val_output_mode
                   text: !lambda |-
-                    return std::string(id(output_mode) ? "ç›´é€š" : "å˜å‹å™¨");
+                    return std::string(id(output_mode) ? "Ö±Í¨" : "±äÑ¹Æ÷");
                   text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 72
 
-        # â”€â”€ Row 11: é¢‘è°±è·³è½¬ â”€â”€
+        # ©¤©¤ Row 11: ÆµÆ×Ìø×ª ©¤©¤
         - obj:
             id: row_spectrum_auto
             width: 420
@@ -3617,23 +3621,23 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "é¢‘è°±è·³è½¬"
+                  text: "ÆµÆ×Ìø×ª"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: val_spectrum_auto
                   text: !lambda |-
-                    if (id(spectrum_auto_seconds) <= 0) return std::string("ç¦ç”¨");
+                    if (id(spectrum_auto_seconds) <= 0) return std::string("½ûÓÃ");
                     char buf[12];
-                    snprintf(buf, sizeof(buf), "%dç§’", id(spectrum_auto_seconds));
+                    snprintf(buf, sizeof(buf), "%dÃë", id(spectrum_auto_seconds));
                     return std::string(buf);
                   text_font: font_cn_small
                   text_color: 0xE2E8F0
                   text_align: RIGHT
                   width: 70
 
-        # â”€â”€ Row 12: é¢‘è°±æ ·å¼ â”€â”€
+        # ©¤©¤ Row 12: ÆµÆ×ÑùÊ½ ©¤©¤
         - obj:
             id: row_spectrum_theme
             width: 420
@@ -3654,14 +3658,14 @@ lvgl:
                   text_color: color_accent
                   width: 24
               - label:
-                  text: "é¢‘è°±æ ·å¼"
+                  text: "ÆµÆ×ÑùÊ½"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
               - label:
                   id: val_spectrum_theme
                   text: !lambda |-
-                    const char* names[] = {"ç»å…¸æŸ±çŠ¶", "é•œåƒé¢‘è°±", "LEDç‚¹é˜µ", "ç¤ºæ³¢çº¿", "è“è¡¨VU", "æ˜Ÿç‚¹ç«çº¿"};
+                    const char* names[] = {"¾­µäÖù×´", "¾µÏñÆµÆ×", "LEDµãÕó", "Ê¾²¨Ïß", "À¶±íVU", "ĞÇµã»ğÏß"};
                     int v = id(spectrum_theme);
                     if (v < 0 || v > 5) v = 2;
                     return std::string(names[v]);
@@ -3670,7 +3674,7 @@ lvgl:
                   text_align: RIGHT
                   width: 90
 
-        # â”€â”€ Row 13: å›ºä»¶ç‰ˆæœ¬ (read-only) â”€â”€
+        # ©¤©¤ Row 13: ¹Ì¼ş°æ±¾ (read-only) ©¤©¤
         - obj:
             id: row_firmware
             width: 420
@@ -3688,7 +3692,7 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "å›ºä»¶ç‰ˆæœ¬"
+                  text: "¹Ì¼ş°æ±¾"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3702,7 +3706,7 @@ lvgl:
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
-        # â”€â”€ Row 14: IPåœ°å€ (read-only) â”€â”€
+        # ©¤©¤ Row 14: IPµØÖ· (read-only) ©¤©¤
         - obj:
             id: row_ip
             width: 420
@@ -3720,7 +3724,7 @@ lvgl:
                   text_color: 0x6B7280
                   width: 24
               - label:
-                  text: "IPåœ°å€"
+                  text: "IPµØÖ·"
                   text_font: font_cn_small
                   text_color: color_gray
                   width: 80
@@ -3734,9 +3738,9 @@ lvgl:
                   text_color: 0x8E9FB8
                   text_align: RIGHT
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# å…¨å±€å˜é‡
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# È«¾Ö±äÁ¿
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 globals:
   - id: v210_migrated
     type: bool
@@ -3763,7 +3767,7 @@ globals:
     restore_value: false
     initial_value: 'false'
 
-  # â”€â”€ V6/V17 fade å†…æ ¸å˜é‡ â”€â”€
+  # ©¤©¤ V6/V17 fade ÄÚºË±äÁ¿ ©¤©¤
   - id: current_db
     type: float
     restore_value: false
@@ -3773,7 +3777,7 @@ globals:
     restore_value: false
     initial_value: '-96.0'
 
-  # â”€â”€ V7 è¾“å…¥æºæ–­ç”µè®°å¿† â”€â”€
+  # ©¤©¤ V7 ÊäÈëÔ´¶Ïµç¼ÇÒä ©¤©¤
   - id: switching_input
     type: bool
     restore_value: false
@@ -3831,7 +3835,7 @@ globals:
     restore_value: true
     initial_value: '2'
 
-  # â”€â”€ é˜²æŠ–ä¸åŸå­é” â”€â”€
+  # ©¤©¤ ·À¶¶ÓëÔ­×ÓËø ©¤©¤
   - id: last_saved_vol_0
     type: int
     restore_value: false
@@ -3880,7 +3884,7 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
-  # â”€â”€ ç³»ç»ŸçŠ¶æ€ â”€â”€
+  # ©¤©¤ ÏµÍ³×´Ì¬ ©¤©¤
   - id: system_ready
     type: bool
     restore_value: false
@@ -3946,13 +3950,13 @@ globals:
     restore_value: true
     initial_value: 'true'
 
-  # â”€â”€ è¾“å‡ºæ¨¡å¼: false=å˜å‹å™¨è¾“å‡º(ä½ç”µå¹³/å¸¸é—­), true=ç›´é€šè¾“å‡º(é«˜ç”µå¹³) â”€â”€
+  # ©¤©¤ Êä³öÄ£Ê½: false=±äÑ¹Æ÷Êä³ö(µÍµçÆ½/³£±Õ), true=Ö±Í¨Êä³ö(¸ßµçÆ½) ©¤©¤
   - id: output_mode
     type: bool
     restore_value: true
     initial_value: 'false'
 
-  # â”€â”€ è®¾ç½®é¡µèœå•å¯¼èˆª â”€â”€
+  # ©¤©¤ ÉèÖÃÒ³²Ëµ¥µ¼º½ ©¤©¤
   - id: settings_focus_idx
     type: int
     restore_value: false
@@ -3962,7 +3966,7 @@ globals:
     restore_value: false
     initial_value: '-1'
 
-  # â”€â”€ BLE HID Remote â”€â”€
+  # ©¤©¤ BLE HID Remote ©¤©¤
   - id: ble_remote_scanning
     type: bool
     restore_value: false
@@ -3990,7 +3994,7 @@ globals:
   - id: ble_remote_scan_status
     type: std::string
     restore_value: false
-    initial_value: '"æœªè¿æ¥"'
+    initial_value: '"Î´Á¬½Ó"'
   - id: keymap_focus_idx
     type: int
     restore_value: false
@@ -4011,7 +4015,7 @@ globals:
   - id: debug_focus_idx
     type: int
     restore_value: false
-    initial_value: '0'   # 0=é‡æ ¡å‡†, 1=è¿”å›è®¾ç½®
+    initial_value: '0'   # 0=ÖØĞ£×¼, 1=·µ»ØÉèÖÃ
   - id: firmware_hidden_click_count
     type: int
     restore_value: false
@@ -4021,7 +4025,7 @@ globals:
     restore_value: false
     initial_value: '0'
 
-  # â”€â”€ BLE é¥æ§å™¨æŒ‰é”®æ˜ å°„ (å¯é…ç½®, é»˜è®¤æ’ç­‰æ˜ å°„) â”€â”€
+  # ©¤©¤ BLE Ò£¿ØÆ÷°´¼üÓ³Éä (¿ÉÅäÖÃ, Ä¬ÈÏºãµÈÓ³Éä) ©¤©¤
   - id: key_map_1
     type: int
     restore_value: true
@@ -4059,7 +4063,7 @@ globals:
     restore_value: true
     initial_value: '9'
 
-  # â”€â”€ BLE é¥æ§å™¨åŸå§‹ç å­¦ä¹ è¡¨ (1~9 æ ¸å¿ƒåŠ¨ä½œ, handle+len+hash) â”€â”€
+  # ©¤©¤ BLE Ò£¿ØÆ÷Ô­Ê¼ÂëÑ§Ï°±í (1~9 ºËĞÄ¶¯×÷, handle+len+hash) ©¤©¤
   - id: key_learn_waiting
     type: bool
     restore_value: false
@@ -4297,9 +4301,9 @@ globals:
     restore_value: true
     initial_value: '0'
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# è„šæœ¬
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ½Å±¾
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 script:
   - id: register_learned_remote_keys
     mode: restart
@@ -4397,7 +4401,7 @@ script:
           lv_label_set_text(id(val_keymap_6), remote_keys::get_action_name(id(key_map_7)).c_str());
           lv_label_set_text(id(val_keymap_7), remote_keys::get_action_name(id(key_map_8)).c_str());
           lv_label_set_text(id(val_keymap_8), remote_keys::get_action_name(id(key_map_9)).c_str());
-          lv_label_set_text(id(val_keymap_reset), "æ¸…ç©º");
+          lv_label_set_text(id(val_keymap_reset), "Çå¿Õ");
 
   - id: refresh_keymap_learn_row
     mode: restart
@@ -4407,12 +4411,12 @@ script:
           if (action < 1 || action > 9) action = 1;
           std::string label = remote_keys::get_action_name(action);
           if (id(key_learn_waiting)) {
-            label = "å­¦ä¹ ä¸­: " + label;
+            label = "Ñ§Ï°ÖĞ: " + label;
           } else if (id(key_learn_feedback_idx) == action - 1 &&
                      (int32_t)(millis() - id(key_learn_feedback_until_ms)) < 0) {
-            label = "å·²å­¦ä¹ : " + label;
+            label = "ÒÑÑ§Ï°: " + label;
           } else if (id(key_learn_pick_mode)) {
-            label = "é€‰æ‹©: " + label;
+            label = "Ñ¡Ôñ: " + label;
           }
           lv_label_set_text(id(val_keymap_learn), label.c_str());
 
@@ -4457,7 +4461,7 @@ script:
             id(key_learn_pick_mode) = false;
             ble_hid_host::clear_raw_event();
             id(refresh_keymap_values)->execute();
-            std::string text = "è¶…æ—¶: " + remote_keys::get_action_name(id(key_learn_select_idx));
+            std::string text = "³¬Ê±: " + remote_keys::get_action_name(id(key_learn_select_idx));
             lv_label_set_text(id(val_keymap_learn), text.c_str());
             ESP_LOGI("ble_hid", "remote key learn timeout");
             return;
@@ -4691,7 +4695,7 @@ script:
               if (idx == 8) {
                 id(ble_remote_focus_idx) = 0;
                 id(ble_remote_device_count) = 0;
-                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "å·²è¿æ¥: " + ble_hid_host::get_connected_name() : "æœªè¿æ¥";
+                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name() : "Î´Á¬½Ó";
                 id(ble_remote_connected) = ble_hid_host::is_connected();
                 id(style_secondary_pages)->execute();
                 id(last_display_interaction) = millis();
@@ -4750,18 +4754,18 @@ script:
               if (id(ble_remote_scanning)) {
                 ble_hid_host::stop_scan();
                 id(ble_remote_scanning) = false;
-                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "å·²è¿æ¥: " + ble_hid_host::get_connected_name() : "æœªè¿æ¥";
+                id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name() : "Î´Á¬½Ó";
               } else {
                 ble_hid_host::start_scan();
                 id(ble_remote_scanning) = true;
                 id(ble_remote_device_count) = 0;
-                id(ble_remote_scan_status) = "æ‰«æä¸­...";
+                id(ble_remote_scan_status) = "É¨ÃèÖĞ...";
               }
             } else if (f >= 1 && f <= 3) {
               int dev_idx = f - 1;
               int count = id(ble_remote_device_count);
               if (dev_idx < count) {
-                id(ble_remote_scan_status) = "æ­£åœ¨è¿æ¥...";
+                id(ble_remote_scan_status) = "ÕıÔÚÁ¬½Ó...";
                 ble_hid_host::connect(dev_idx);
               }
             } else if (f == 4) {
@@ -4770,7 +4774,7 @@ script:
                 id(ble_remote_peer_bda) = "\"\"";
                 id(ble_remote_battery) = -1;
                 id(ble_remote_connected) = false;
-                id(ble_remote_scan_status) = "æœªè¿æ¥";
+                id(ble_remote_scan_status) = "Î´Á¬½Ó";
               } else {
                 lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
               }
@@ -4807,7 +4811,7 @@ script:
             } else if (f == 10) {
               id(keymap_active_idx) = -1;
               id(clear_learned_remote_keys)->execute();
-              lv_label_set_text(id(val_keymap_reset), "å·²æ¸…ç©º");
+              lv_label_set_text(id(val_keymap_reset), "ÒÑÇå¿Õ");
               id(style_secondary_pages)->execute();
             } else if (f == 11) {
               id(keymap_active_idx) = -1;
@@ -4828,7 +4832,7 @@ script:
             ESP_LOGI("ENC_BTN", "debug click focus=%d", id(debug_focus_idx));
             if (id(debug_focus_idx) == 0) {
               bool ok = msgeq7::recalibrate();
-              lv_label_set_text(id(lbl_dbg_recal), ok ? "æ ¡å‡†å®Œæˆ" : "æ ¡å‡†å¤±è´¥");
+              lv_label_set_text(id(lbl_dbg_recal), ok ? "Ğ£×¼Íê³É" : "Ğ£×¼Ê§°Ü");
               id(style_secondary_pages)->execute();
             } else {
               lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -4979,7 +4983,7 @@ script:
     then:
       - delay: 300ms
       - lambda: |-
-          id(media_select)->publish_state("ç©ºé—²");
+          id(media_select)->publish_state("¿ÕÏĞ");
 
   - id: start_wifi_ap
     mode: restart
@@ -4988,17 +4992,17 @@ script:
       - delay: 2s
       - lambda: 'App.safe_reboot();'
 
-  # â”€â”€ æ¢å¤å‡ºå‚è®¾ç½®: é‡ç½®æ‰€æœ‰å­˜å‚¨å€¼ + æ¸…é™¤ WiFi + é‡å¯ â”€â”€
-  # è§¦å‘æ–¹å¼: å¾…æœºæˆ–å·¥ä½œçŠ¶æ€ä¸‹é•¿æŒ‰ç¼–ç å™¨æŒ‰é”® 10 ç§’
-  # æµç¨‹: é‡ç½®å˜é‡ â†’ å±å¹•æ˜¾ç¤ºæç¤º â†’ æ¸…é™¤ WiFi â†’ é‡å¯è¿›å…¥ AP é…ç½‘æ¨¡å¼
+  # ©¤©¤ »Ö¸´³ö³§ÉèÖÃ: ÖØÖÃËùÓĞ´æ´¢Öµ + Çå³ı WiFi + ÖØÆô ©¤©¤
+  # ´¥·¢·½Ê½: ´ı»ú»ò¹¤×÷×´Ì¬ÏÂ³¤°´±àÂëÆ÷°´¼ü 10 Ãë
+  # Á÷³Ì: ÖØÖÃ±äÁ¿ ¡ú ÆÁÄ»ÏÔÊ¾ÌáÊ¾ ¡ú Çå³ı WiFi ¡ú ÖØÆô½øÈë AP ÅäÍøÄ£Ê½
   - id: factory_reset
     mode: restart
     then:
       - lambda: |-
-          // é‡ç½®æ‰€æœ‰ restore_value å…¨å±€å˜é‡åˆ°å®‰å…¨é»˜è®¤å€¼
+          // ÖØÖÃËùÓĞ restore_value È«¾Ö±äÁ¿µ½°²È«Ä¬ÈÏÖµ
           id(volume_val)          = 160;
-          id(v210_migrated)       = true;  // é‡ç½®åæ ‡è®°å·²è¿ç§», ä¸å†äºŒæ¬¡ç¼©æ”¾
-          id(v211_balance_migrated) = true;  // é‡ç½®åæ ‡è®°å·²è¿ç§», ä¸å†å¤åˆ¶æ—§å¹³è¡¡
+          id(v210_migrated)       = true;  // ÖØÖÃºó±ê¼ÇÒÑÇ¨ÒÆ, ²»ÔÙ¶ş´ÎËõ·Å
+          id(v211_balance_migrated) = true;  // ÖØÖÃºó±ê¼ÇÒÑÇ¨ÒÆ, ²»ÔÙ¸´ÖÆ¾ÉÆ½ºâ
           id(current_input)       = 0;
           id(balance)             = 0;
           id(max_volume)          = 255;
@@ -5022,7 +5026,7 @@ script:
           id(input_bal_3)         = 0;
           id(soft_mute)           = false;
           id(relay_out)->turn_off();
-          // é‡ç½®æŒ‰é”®æ˜ å°„ä¸ºæ’ç­‰æ˜ å°„
+          // ÖØÖÃ°´¼üÓ³ÉäÎªºãµÈÓ³Éä
           id(key_map_1) = 1; id(key_map_2) = 2; id(key_map_3) = 3;
           id(key_map_4) = 4; id(key_map_5) = 5; id(key_map_6) = 6;
           id(key_map_7) = 7; id(key_map_8) = 8;
@@ -5033,7 +5037,7 @@ script:
           lv_label_set_text(id(lbl_factory_msg), "");
           lv_obj_add_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
 
-          // åŒæ­¥åˆ° HA
+          // Í¬²½µ½ HA
           id(max_volume_number)->publish_state(255.0f);
           id(power_on_limit_number)->publish_state(192.0f);
           id(balance_number)->publish_state(0.0f);
@@ -5048,7 +5052,7 @@ script:
           time: 200ms
       - lambda: |-
           lv_obj_move_foreground(id(lbl_factory_msg));
-          lv_label_set_text(id(lbl_factory_msg), "å·²é‡ç½®ï¼Œè¯·è¿æ¥çƒ­ç‚¹");
+          lv_label_set_text(id(lbl_factory_msg), "ÒÑÖØÖÃ£¬ÇëÁ¬½ÓÈÈµã");
           lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
       - delay: 3s
       - lambda: |-
@@ -5057,23 +5061,30 @@ script:
       - lambda: |-
           App.safe_reboot();
 
-  # â”€â”€ è½¯æ¸å˜é™éŸ³ (enter_standby/switch_output_mode å…±ç”¨, éé˜»å¡) â”€â”€
+ # ©¤©¤ Èí½¥±ä¾²Òô (enter_standby/switch_output_mode ¹²ÓÃ, ·Ç×èÈû) ©¤©¤
+  # ×Ô°üº¬½¥±äµ½¾²Òô£¬²»ÒÀÀµ send_volume_to_pga£¨±ÜÃâÆä target_db ¸²¸ÇÂß¼­£©
   - id: volume_fade_to_zero
     mode: queued
     max_runs: 1
     then:
-      - if:
+      - lambda: |-
+          id(target_db) = -96.0f;
+      - while:
           condition:
-            lambda: 'return !id(soft_mute);'
+            lambda: |-
+              return fabs(id(target_db) - id(current_db)) > 0.09f;
           then:
-            - lambda: 'id(target_db) = -96.0f;'
-            - script.execute: send_volume_to_pga
-            - wait_until:
-                condition:
-                  lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1500ms
+            - lambda: |-
+                float diff = id(target_db) - id(current_db);
+                float speed = fabs(diff) > 10.0f ? 0.12f : (fabs(diff) > 3.0f ? 0.08f : 0.18f);
+                id(current_db) += diff * speed;
+                int reg = (int)roundf(192.0f + id(current_db) * 2.0f);
+                if (reg < 0) reg = 0;
+                if (reg > 255) reg = 255;
+                pga2311::set_volume(reg, reg);
+            - delay: 15ms
 
-  # â”€â”€ å¾…æœºï¼šå…³å± + é™éŸ³ + æš‚åœ LVGLï¼ŒWiFi ä¿æŒè¿æ¥ï¼ˆHA å¯è¿œç¨‹å”¤é†’ï¼‰ â”€â”€
+  # ©¤©¤ ´ı»ú£º¹ØÆÁ + ¾²Òô + ÔİÍ£ LVGL£¬WiFi ±£³ÖÁ¬½Ó£¨HA ¿ÉÔ¶³Ì»½ĞÑ£© ©¤©¤
   - id: enter_standby
     mode: restart
     then:
@@ -5092,7 +5103,7 @@ script:
             - wait_until:
                 condition:
                   lambda: 'return !id(volume_fade_to_zero)->is_running();'
-                timeout: 2000ms
+                timeout: 8000ms
 
             - lambda: |-
                 id(power_transitioning) = true;
@@ -5120,7 +5131,7 @@ script:
             - lambda: |-
                 id(power_transitioning) = false;
 
-  # â”€â”€ é€€å‡ºå¾…æœº â”€â”€
+  # ©¤©¤ ÍË³ö´ı»ú ©¤©¤
   - id: exit_standby
     mode: restart
     then:
@@ -5139,7 +5150,7 @@ script:
             - lambda: |-
                 id(power_transitioning) = true;
                 id(standby)    = false;
-                id(last_manual_input_ms) = 0;   // é€€å‡ºå¾…æœº â†’ é‡æ–°å¯ç”¨è‡ªåŠ¨é€‰æ‹©
+                id(last_manual_input_ms) = 0;   // ÍË³ö´ı»ú ¡ú ÖØĞÂÆôÓÃ×Ô¶¯Ñ¡Ôñ
                 id(soft_mute)  = id(saved_soft_mute);
                 id(current_db) = -96.0f;
                 id(target_db)  = -96.0f;
@@ -5148,7 +5159,7 @@ script:
                 pga2311::set_volume(0, 0);
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
                 if (id(output_mode)) id(relay_out)->turn_on();
-                id(standby_switch)->publish_state(true);  // HA åŒæ­¥
+                id(standby_switch)->publish_state(true);  // HA Í¬²½
             - light.turn_on:
                 id: display_backlight
                 transition_length: 800ms
@@ -5159,7 +5170,7 @@ script:
             - wait_until:
                 condition:
                   lambda: 'return !id(switch_input)->is_running();'
-            - script.execute: apply_theme    # â˜… å¾…æœºæ¢å¤ååº”ç”¨ä¸»é¢˜è‰²
+            - script.execute: apply_theme    # ¡ï ´ı»ú»Ö¸´ºóÓ¦ÓÃÖ÷ÌâÉ«
             - lvgl.page.show: main_page
             - lambda: |-
                 id(power_transitioning) = false;
@@ -5258,9 +5269,9 @@ script:
           ESP_LOGI("input_bal", "save input=%d bal=%d slots=%d/%d/%d/%d",
                    cur, bal, id(input_bal_0), id(input_bal_1), id(input_bal_2), id(input_bal_3));
 
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  # â˜… V17 å·…å³°å†…æ ¸ï¼šåŒåŒºé—´é€Ÿåº¦æ¸å˜ + è½¯é”é‡Šæ”¾
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+  # ¡ï V17 áÛ·åÄÚºË£ºË«Çø¼äËÙ¶È½¥±ä + ÈíËøÊÍ·Å
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
   - id: send_volume_to_pga
     mode: restart
     then:
@@ -5320,18 +5331,18 @@ script:
                 if (bal < -20) bal = -20;
                 if (bal > 20)  bal = 20;
 
-                // balance > 0 = åå³ï¼šåªè¡°å‡å·¦å£°é“
-                // balance < 0 = åå·¦ï¼šåªè¡°å‡å³å£°é“
+                // balance > 0 = Æ«ÓÒ£ºÖ»Ë¥¼õ×óÉùµÀ
+                // balance < 0 = Æ«×ó£ºÖ»Ë¥¼õÓÒÉùµÀ
                 int l_reg = base_reg;
                 int r_reg = base_reg;
 
                 if (bal > 0) {
                  l_reg -= bal;
                 } else if (bal < 0) {
-                 r_reg += bal;   // bal ä¸ºè´Ÿæ•°ï¼Œæ‰€ä»¥è¿™é‡Œç­‰ä»·äº r_reg - abs(bal)
+                 r_reg += bal;   // bal Îª¸ºÊı£¬ËùÒÔÕâÀïµÈ¼ÛÓÚ r_reg - abs(bal)
                 }
 
-                // å®Œæ•´é™å¹…ï¼Œé˜²æ­¢æœªæ¥ç®—æ³•è°ƒæ•´åè¶Šç•Œ
+                // ÍêÕûÏŞ·ù£¬·ÀÖ¹Î´À´Ëã·¨µ÷ÕûºóÔ½½ç
                 if (l_reg < 0)   l_reg = 0;
                 if (l_reg > 255) l_reg = 255;
                 if (r_reg < 0)   r_reg = 0;
@@ -5359,18 +5370,18 @@ script:
                 if (bal < -20) bal = -20;
                 if (bal > 20)  bal = 20;
 
-                // balance > 0 = åå³ï¼šåªè¡°å‡å·¦å£°é“
-                // balance < 0 = åå·¦ï¼šåªè¡°å‡å³å£°é“
+                // balance > 0 = Æ«ÓÒ£ºÖ»Ë¥¼õ×óÉùµÀ
+                // balance < 0 = Æ«×ó£ºÖ»Ë¥¼õÓÒÉùµÀ
                 int l_reg = base_reg;
                 int r_reg = base_reg;
 
                 if (bal > 0) {
                  l_reg -= bal;
                 } else if (bal < 0) {
-                 r_reg += bal;   // bal ä¸ºè´Ÿæ•°ï¼Œæ‰€ä»¥è¿™é‡Œç­‰ä»·äº r_reg - abs(bal)
+                 r_reg += bal;   // bal Îª¸ºÊı£¬ËùÒÔÕâÀïµÈ¼ÛÓÚ r_reg - abs(bal)
                 }
 
-                // å®Œæ•´é™å¹…ï¼Œé˜²æ­¢æœªæ¥ç®—æ³•è°ƒæ•´åè¶Šç•Œ
+                // ÍêÕûÏŞ·ù£¬·ÀÖ¹Î´À´Ëã·¨µ÷ÕûºóÔ½½ç
                 if (l_reg < 0)   l_reg = 0;
                 if (l_reg > 255) l_reg = 255;
                 if (r_reg < 0)   r_reg = 0;
@@ -5386,9 +5397,9 @@ script:
           if (media_pct > 1.0f) media_pct = 1.0f;
           id(media_volume)->publish_state(media_pct * 100.0f);
 
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  # ä¸»é¢˜åˆ‡æ¢ï¼šæ›´æ–°æ‰€æœ‰ç•Œé¢æ§ä»¶é¢œè‰²
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+  # Ö÷ÌâÇĞ»»£º¸üĞÂËùÓĞ½çÃæ¿Ø¼şÑÕÉ«
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
   - id: apply_theme
     mode: single
     then:
@@ -5399,7 +5410,7 @@ script:
           lv_led_set_color(id(led_src_1), accent);
           lv_led_set_color(id(led_src_2), accent);
           lv_led_set_color(id(led_src_3), accent);
-          // åˆ†éš”çº¿
+          // ·Ö¸ôÏß
           lv_obj_set_style_bg_color(id(separator), accent, LV_PART_MAIN);
           lv_obj_t* mini_specs[] = {
             id(mini_spec_0), id(mini_spec_1), id(mini_spec_2), id(mini_spec_3),
@@ -5407,27 +5418,27 @@ script:
             id(mini_spec_8), id(mini_spec_9), id(mini_spec_10), id(mini_spec_11)
           };
           for (auto *o : mini_specs) lv_obj_set_style_bg_color(o, accent, LV_PART_MAIN);
-          // dB æ ‡ç­¾ä¿æŒç™½è‰²åŸºè°ƒ, éŸ³é‡å˜åŒ–æ—¶ç”± UI åˆ·æ–°æ®µåšè½»å¾®ä¸»é¢˜è‰²è„‰å†²
+          // dB ±êÇ©±£³Ö°×É«»ùµ÷, ÒôÁ¿±ä»¯Ê±ÓÉ UI Ë¢ĞÂ¶Î×öÇáÎ¢Ö÷ÌâÉ«Âö³å
           lv_obj_set_style_text_color(id(lbl_vol_db), lv_color_hex(0xF8FAFC), LV_PART_MAIN);
-          // éŸ³é‡æ¡æŒ‡ç¤ºå™¨
+          // ÒôÁ¿ÌõÖ¸Ê¾Æ÷
           lv_obj_set_style_bg_color(id(bar_volume), accent, LV_PART_INDICATOR);
-          // æ¸©åº¦è®¡å›¾æ ‡
+          // ÎÂ¶È¼ÆÍ¼±ê
           lv_obj_set_style_text_color(id(lbl_thermo_icon), accent, LV_PART_MAIN);
-          // æ¸©åº¦æ•°å€¼
+          // ÎÂ¶ÈÊıÖµ
           lv_obj_set_style_text_color(id(lbl_temp_value), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_temp_unit), accent, LV_PART_MAIN);
-          // è¾“å‡ºæ¨¡å¼å›¾æ ‡ (å§‹ç»ˆè·Ÿéšä¸»é¢˜è‰²)
+          // Êä³öÄ£Ê½Í¼±ê (Ê¼ÖÕ¸úËæÖ÷ÌâÉ«)
           lv_obj_set_style_text_color(id(lbl_out_transformer), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_out_direct), accent, LV_PART_MAIN);
-          // é¢‘è°±é¡µæ¸©åº¦
+          // ÆµÆ×Ò³ÎÂ¶È
           lv_obj_set_style_text_color(id(lbl_spec_temp), accent, LV_PART_MAIN);
-          // æ‰‹æœº APP BLE å›¾æ ‡ (ä»…è¿æ¥æ—¶è·Ÿéšä¸»é¢˜)
+          // ÊÖ»ú APP BLE Í¼±ê (½öÁ¬½ÓÊ±¸úËæÖ÷Ìâ)
           if (id(ble_connected))
             lv_obj_set_style_text_color(id(lbl_ble), accent, LV_PART_MAIN);
-          // è“ç‰™é¥æ§å™¨æŒ‡ç¤ºå›¾æ ‡ (ä»…è¿æ¥æ—¶è·Ÿéšä¸»é¢˜)
+          // À¶ÑÀÒ£¿ØÆ÷Ö¸Ê¾Í¼±ê (½öÁ¬½ÓÊ±¸úËæÖ÷Ìâ)
           if (id(ble_remote_connected))
             lv_obj_set_style_text_color(id(lbl_ble_remote_indicator), accent, LV_PART_MAIN);
-          // WiFi å›¾æ ‡ (ä»…è¿æ¥æ—¶è·Ÿéšä¸»é¢˜)
+          // WiFi Í¼±ê (½öÁ¬½ÓÊ±¸úËæÖ÷Ìâ)
           if (wifi::global_wifi_component->is_connected())
             lv_obj_set_style_text_color(id(lbl_wifi), accent, LV_PART_MAIN);
           {
@@ -5481,18 +5492,18 @@ script:
               lv_obj_set_style_text_color(states_lbl[i], state_color, LV_PART_MAIN);
             }
           }
-          // è®¾ç½®é¡µè¿›åº¦æ¡æŒ‡ç¤ºå™¨
+          // ÉèÖÃÒ³½ø¶ÈÌõÖ¸Ê¾Æ÷
           lv_obj_set_style_bg_color(id(bar_max_vol), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_power_on_limit), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_balance), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_brightness), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(bar_display_timeout), accent, LV_PART_INDICATOR);
-          // VU ç”µå¹³è¡¨æŒ‡ç¤ºå™¨ (ä¹‹å‰æ¼æ‰ï¼Œå¯¼è‡´ä¸»é¢˜åˆ‡æ¢æ—¶ VU è¡¨ä¸å˜è‰²)
+          // VU µçÆ½±íÖ¸Ê¾Æ÷ (Ö®Ç°Â©µô£¬µ¼ÖÂÖ÷ÌâÇĞ»»Ê± VU ±í²»±äÉ«)
           lv_obj_set_style_bg_color(id(vu_meter_l), accent, LV_PART_INDICATOR);
           lv_obj_set_style_bg_color(id(vu_meter_r), accent, LV_PART_INDICATOR);
-          // ä¸»é¢˜è‰²ç‚¹
+          // Ö÷ÌâÉ«µã
           lv_obj_set_style_bg_color(id(theme_dot), accent, LV_PART_MAIN);
-          // è®¾ç½®é¡µå›¾æ ‡ (rows 0-7 è·Ÿéšä¸»é¢˜, 10 è¾“å‡ºæ¨¡å¼è·Ÿéšä¸»é¢˜, 8-9 è“ç‰™/æŒ‰é”®å¯¼èˆª, 11-12 å›ºå®šç°)
+          // ÉèÖÃÒ³Í¼±ê (rows 0-7 ¸úËæÖ÷Ìâ, 10 Êä³öÄ£Ê½¸úËæÖ÷Ìâ, 8-9 À¶ÑÀ/°´¼üµ¼º½, 11-12 ¹Ì¶¨»Ò)
           lv_obj_set_style_text_color(id(icon_max_vol), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_power_on), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_balance), accent, LV_PART_MAIN);
@@ -5508,19 +5519,19 @@ script:
           lv_obj_set_style_text_color(id(icon_keymap), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_firmware), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(icon_ip), accent, LV_PART_MAIN);
-          // å¹³è¡¡æŒ‡ç¤ºç‚¹
+          // Æ½ºâÖ¸Ê¾µã
           lv_obj_set_style_bg_color(id(balance_dot), accent, LV_PART_MAIN);
           lv_obj_set_style_border_color(id(balance_dot), accent, LV_PART_MAIN);
           lv_obj_set_style_bg_color(id(balance_dot_stem), accent, LV_PART_MAIN);
-          // é¢‘è°±é¡µè¾“å…¥æºå›¾æ ‡
+          // ÆµÆ×Ò³ÊäÈëÔ´Í¼±ê
           lv_obj_set_style_text_color(id(lbl_spec_input_icon), accent, LV_PART_MAIN);
           lv_obj_set_style_text_color(id(lbl_spec_input), accent, LV_PART_MAIN);
 
-          // â•â•â• é¢‘è°±æ¡é¢œè‰² â€” 7æ®µæ¸å˜è·Ÿéšä¸»é¢˜ â•â•â•
+          // ¨T¨T¨T ÆµÆ×ÌõÑÕÉ« ¡ª 7¶Î½¥±ä¸úËæÖ÷Ìâ ¨T¨T¨T
           {
             lv_color_t spec_colors[7];
             switch (id(theme)) {
-              case 1: // èµ¤çº¢
+              case 1: // ³àºì
                 spec_colors[0] = lv_color_hex(0x4E0606);
                 spec_colors[1] = lv_color_hex(0x5F0E0E);
                 spec_colors[2] = lv_color_hex(0x781A1A);
@@ -5529,7 +5540,7 @@ script:
                 spec_colors[5] = lv_color_hex(0xD36060);
                 spec_colors[6] = lv_color_hex(0xE79494);
                 break;
-              case 2: // å†°è“
+              case 2: // ±ùÀ¶
                 spec_colors[0] = lv_color_hex(0x0B2532);
                 spec_colors[1] = lv_color_hex(0x12384A);
                 spec_colors[2] = lv_color_hex(0x1C5269);
@@ -5538,7 +5549,7 @@ script:
                 spec_colors[5] = lv_color_hex(0x7DD3FC);
                 spec_colors[6] = lv_color_hex(0xBAE6FD);
                 break;
-              case 3: // ç´«è‰²
+              case 3: // ×ÏÉ«
                 spec_colors[0] = lv_color_hex(0x2E0E4E);
                 spec_colors[1] = lv_color_hex(0x3E1A5F);
                 spec_colors[2] = lv_color_hex(0x4E2878);
@@ -5547,7 +5558,7 @@ script:
                 spec_colors[5] = lv_color_hex(0x9A78D3);
                 spec_colors[6] = lv_color_hex(0xC0A8E7);
                 break;
-              case 4: // éº¦æ™¯å›¾è“
+              case 4: // Âó¾°Í¼À¶
                 spec_colors[0] = lv_color_hex(0x002D5C);
                 spec_colors[1] = lv_color_hex(0x003D7A);
                 spec_colors[2] = lv_color_hex(0x004D99);
@@ -5556,7 +5567,7 @@ script:
                 spec_colors[5] = lv_color_hex(0x3B94F7);
                 spec_colors[6] = lv_color_hex(0x7BB8FF);
                 break;
-              case 5: // é‡‘å—“å­é‡‘
+              case 5: // ½ğÉ¤×Ó½ğ
                 spec_colors[0] = lv_color_hex(0x4A3720);
                 spec_colors[1] = lv_color_hex(0x6B4F2E);
                 spec_colors[2] = lv_color_hex(0x8C683C);
@@ -5565,7 +5576,7 @@ script:
                 spec_colors[5] = lv_color_hex(0xDDB56A);
                 spec_colors[6] = lv_color_hex(0xEED49A);
                 break;
-              case 6: // å­”é›€é’
+              case 6: // ¿×È¸Çà
                 spec_colors[0] = lv_color_hex(0x052E2B);
                 spec_colors[1] = lv_color_hex(0x064E45);
                 spec_colors[2] = lv_color_hex(0x0F766E);
@@ -5574,7 +5585,7 @@ script:
                 spec_colors[5] = lv_color_hex(0x5EEAD4);
                 spec_colors[6] = lv_color_hex(0x99F6E4);
                 break;
-              case 7: // å—ç“œæ©™
+              case 7: // ÄÏ¹Ï³È
                 spec_colors[0] = lv_color_hex(0x5C2800);
                 spec_colors[1] = lv_color_hex(0x7A3600);
                 spec_colors[2] = lv_color_hex(0x994400);
@@ -5583,7 +5594,7 @@ script:
                 spec_colors[5] = lv_color_hex(0xFA9540);
                 spec_colors[6] = lv_color_hex(0xFBB570);
                 break;
-              default: // ç¿ ç»¿
+              default: // ´äÂÌ
                 spec_colors[0] = lv_color_hex(0x064E3B);
                 spec_colors[1] = lv_color_hex(0x065F46);
                 spec_colors[2] = lv_color_hex(0x047857);
@@ -5605,9 +5616,9 @@ script:
           }
       - script.execute: style_secondary_pages
 
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  # è®¾ç½®é¡µçŠ¶æ€åŒæ­¥ï¼šHA/ç¼–ç å™¨/BLE ä¿®æ”¹å…¨å±€å˜é‡åï¼Œç»Ÿä¸€åˆ·æ–° LVGL è¡Œå€¼
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+  # ÉèÖÃÒ³×´Ì¬Í¬²½£ºHA/±àÂëÆ÷/BLE ĞŞ¸ÄÈ«¾Ö±äÁ¿ºó£¬Í³Ò»Ë¢ĞÂ LVGL ĞĞÖµ
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
   - id: sync_settings_ui
     mode: restart
     then:
@@ -5625,7 +5636,7 @@ script:
           {
             char buf[8];
             if (bal == 0) {
-              lv_label_set_text(id(val_balance), "å¹³è¡¡");
+              lv_label_set_text(id(val_balance), "Æ½ºâ");
             } else {
               snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", abs(bal));
               lv_label_set_text(id(val_balance), buf);
@@ -5639,7 +5650,7 @@ script:
             lv_label_set_text(id(val_input), names[cur]);
           }
 
-          lv_label_set_text(id(val_auto_switch), id(auto_input) ? "è‡ªåŠ¨" : "æ‰‹åŠ¨");
+          lv_label_set_text(id(val_auto_switch), id(auto_input) ? "×Ô¶¯" : "ÊÖ¶¯");
 
           lv_bar_set_value(id(bar_brightness), id(display_brightness), LV_ANIM_OFF);
           {
@@ -5651,7 +5662,7 @@ script:
           lv_bar_set_value(id(bar_display_timeout), id(display_timeout_min), LV_ANIM_OFF);
           {
             char buf[12];
-            snprintf(buf, sizeof(buf), "%dåˆ†é’Ÿ", id(display_timeout_min));
+            snprintf(buf, sizeof(buf), "%d·ÖÖÓ", id(display_timeout_min));
             lv_label_set_text(id(val_timeout), buf);
           }
 
@@ -5662,21 +5673,21 @@ script:
             lv_obj_set_style_bg_color(id(theme_dot), get_theme_accent(th), LV_PART_MAIN);
           }
 
-          lv_label_set_text(id(val_output_mode), id(output_mode) ? "ç›´é€š" : "å˜å‹å™¨");
+          lv_label_set_text(id(val_output_mode), id(output_mode) ? "Ö±Í¨" : "±äÑ¹Æ÷");
           lv_label_set_text(id(lbl_main_output_value), id(output_mode) ? "DIRECT" : "TRANSFORMER");
           lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
 
           if (id(spectrum_auto_seconds) <= 0) {
-            lv_label_set_text(id(val_spectrum_auto), "ç¦ç”¨");
+            lv_label_set_text(id(val_spectrum_auto), "½ûÓÃ");
           } else {
             char buf[12];
-            snprintf(buf, sizeof(buf), "%dç§’", id(spectrum_auto_seconds));
+            snprintf(buf, sizeof(buf), "%dÃë", id(spectrum_auto_seconds));
             lv_label_set_text(id(val_spectrum_auto), buf);
           }
 
           {
-            const char* names[] = {"ç»å…¸æŸ±çŠ¶", "é•œåƒé¢‘è°±", "LEDç‚¹é˜µ", "ç¤ºæ³¢çº¿", "è“è¡¨VU", "æ˜Ÿç‚¹ç«çº¿"};
+            const char* names[] = {"¾­µäÖù×´", "¾µÏñÆµÆ×", "LEDµãÕó", "Ê¾²¨Ïß", "À¶±íVU", "ĞÇµã»ğÏß"};
             int st = id(spectrum_theme);
             if (st < 0 || st > 5) st = 2;
             lv_label_set_text(id(val_spectrum_theme), names[st]);
@@ -5717,7 +5728,7 @@ script:
             - wait_until:
                 condition:
                   lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1200ms
+                timeout: 8000ms
 
       - lambda: 'pga2311::set_volume(0, 0);'
       - switch.turn_on: mute_switch
@@ -5792,7 +5803,7 @@ script:
           then:
             - script.execute: send_volume_to_pga
 
-  # â”€â”€ è¾“å‡ºæ¨¡å¼åˆ‡æ¢ï¼šé˜²ç«çˆ†éŸ³ï¼ˆæ¸å˜é™éŸ³ + åˆ‡ç»§ç”µå™¨ + æ¢å¤éŸ³é‡ï¼‰â”€â”€
+  # ©¤©¤ Êä³öÄ£Ê½ÇĞ»»£º·À»ğ±¬Òô£¨½¥±ä¾²Òô + ÇĞ¼ÌµçÆ÷ + »Ö¸´ÒôÁ¿£©©¤©¤
   - id: switch_output_mode
     mode: queued
     max_runs: 1
@@ -5801,12 +5812,11 @@ script:
           condition:
             lambda: 'return !id(soft_mute);'
           then:
-            - lambda: 'id(target_db) = -96.0f;'
-            - script.execute: send_volume_to_pga
+            - script.execute: volume_fade_to_zero
             - wait_until:
                 condition:
-                  lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1200ms
+                  lambda: 'return !id(volume_fade_to_zero)->is_running();'
+                timeout: 8000ms
       - lambda: 'pga2311::set_volume(0, 0);'
       - switch.turn_on: mute_switch
       - delay: 30ms
@@ -5814,7 +5824,7 @@ script:
           bool new_mode = !id(output_mode);
           if (new_mode) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
           id(output_mode) = new_mode;
-          lv_label_set_text(id(val_output_mode), new_mode ? "ç›´é€š" : "å˜å‹å™¨");
+          lv_label_set_text(id(val_output_mode), new_mode ? "Ö±Í¨" : "±äÑ¹Æ÷");
           lv_label_set_text(id(lbl_main_output_value), new_mode ? "DIRECT" : "TRANSFORMER");
           lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
@@ -5827,23 +5837,23 @@ script:
       - delay: 20ms
       - script.execute: send_volume_to_pga
 
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  # â˜… è‡ªåŠ¨è¾“å…¥åˆ‡æ¢ï¼šä¿¡å·ä¸¢å¤±ç­‰ 8s â†’ ä¼˜å…ˆçº§åˆ‡æ¢ (CD>DAC>PC>AUX)
-  #   - å½“å‰è¾“å…¥ä¿¡å·ä¸¢å¤±åï¼Œç­‰å¾… 8 ç§’çœ‹æ˜¯å¦æ¢å¤ï¼ˆæ›²ç›®é—´éš™ä¸è¯¯åˆ‡ï¼‰
-  #   - 8 ç§’å†…ä¿¡å·æ¢å¤ â†’ ä¿æŒå½“å‰è¾“å…¥ï¼Œä¸åˆ‡æ¢
-  #   - 8 ç§’åä»æœªæ¢å¤ â†’ æŒ‰ä¼˜å…ˆçº§åˆ‡æ¢åˆ°æœ‰ä¿¡å·çš„è¾“å…¥
-  #   - æ‰€æœ‰è¾“å…¥å‡æ— ä¿¡å· â†’ ä¿æŒå½“å‰ä¸åŠ¨
-  #   - mode: restart ç¡®ä¿ 8s ç­‰å¾…æœŸå†…ä¼ æ„Ÿå™¨å†æ¬¡å˜åŒ–æ—¶é‡ç½®è®¡æ—¶
-  # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+  # ¡ï ×Ô¶¯ÊäÈëÇĞ»»£ºĞÅºÅ¶ªÊ§µÈ 8s ¡ú ÓÅÏÈ¼¶ÇĞ»» (CD>DAC>PC>AUX)
+  #   - µ±Ç°ÊäÈëĞÅºÅ¶ªÊ§ºó£¬µÈ´ı 8 Ãë¿´ÊÇ·ñ»Ö¸´£¨ÇúÄ¿¼äÏ¶²»ÎóÇĞ£©
+  #   - 8 ÃëÄÚĞÅºÅ»Ö¸´ ¡ú ±£³Öµ±Ç°ÊäÈë£¬²»ÇĞ»»
+  #   - 8 ÃëºóÈÔÎ´»Ö¸´ ¡ú °´ÓÅÏÈ¼¶ÇĞ»»µ½ÓĞĞÅºÅµÄÊäÈë
+  #   - ËùÓĞÊäÈë¾ùÎŞĞÅºÅ ¡ú ±£³Öµ±Ç°²»¶¯
+  #   - mode: restart È·±£ 8s µÈ´ıÆÚÄÚ´«¸ĞÆ÷ÔÙ´Î±ä»¯Ê±ÖØÖÃ¼ÆÊ±
+  # ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
   - id: auto_switch_input
     mode: restart
     then:
-      - delay: 200ms   # ç­‰å¾…æ‰€æœ‰ä¼ æ„Ÿå™¨ç¨³å®š, é¿å…å¤šä¸ªä¿¡å·äº¤å‰è§¦å‘
+      - delay: 200ms   # µÈ´ıËùÓĞ´«¸ĞÆ÷ÎÈ¶¨, ±ÜÃâ¶à¸öĞÅºÅ½»²æ´¥·¢
       - lambda: |-
           id(auto_switch_pending) = false;
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
-          // æ£€æŸ¥å½“å‰è¾“å…¥æ˜¯å¦è¿˜æœ‰ä¿¡å·
+          // ¼ì²éµ±Ç°ÊäÈëÊÇ·ñ»¹ÓĞĞÅºÅ
           bool cur_has_signal = false;
           switch (id(current_input)) {
             case 0: cur_has_signal = id(audio_cd)->state; break;
@@ -5851,20 +5861,20 @@ script:
             case 2: cur_has_signal = id(audio_pc)->state; break;
             case 3: cur_has_signal = id(audio_aux)->state; break;
           }
-          // å½“å‰è¾“å…¥è¿˜æœ‰ä¿¡å· â†’ æ— éœ€å¤„ç†ï¼ˆå¯èƒ½æ˜¯å…¶ä»–è¾“å…¥è§¦å‘å¯¼è‡´è„šæœ¬å¯åŠ¨ï¼‰
+          // µ±Ç°ÊäÈë»¹ÓĞĞÅºÅ ¡ú ÎŞĞè´¦Àí£¨¿ÉÄÜÊÇÆäËûÊäÈë´¥·¢µ¼ÖÂ½Å±¾Æô¶¯£©
           if (cur_has_signal) return;
 
           id(auto_switch_pending) = true;
-          ESP_LOGI("auto_input", "ä¿¡å·ä¸¢å¤±ï¼Œç­‰å¾… 8s çœ‹æ˜¯å¦æ¢å¤...");
+          ESP_LOGI("auto_input", "ĞÅºÅ¶ªÊ§£¬µÈ´ı 8s ¿´ÊÇ·ñ»Ö¸´...");
 
-      - delay: 8s   # ä¿¡å·ä¸¢å¤±ç­‰å¾…æœŸï¼ˆmode:restart â†’ ä¿¡å·æ¢å¤æ—¶ä¼ æ„Ÿå™¨è§¦å‘ï¼Œè„šæœ¬é‡æ–°å¼€å§‹ï¼‰
+      - delay: 8s   # ĞÅºÅ¶ªÊ§µÈ´ıÆÚ£¨mode:restart ¡ú ĞÅºÅ»Ö¸´Ê±´«¸ĞÆ÷´¥·¢£¬½Å±¾ÖØĞÂ¿ªÊ¼£©
 
       - lambda: |-
           if (!id(auto_switch_pending)) return;
           id(auto_switch_pending) = false;
           if (!id(auto_input) || !id(system_ready) || id(switching_input) || id(standby)) return;
 
-          // â”€â”€ 8s åå†æ¬¡æ£€æŸ¥å½“å‰è¾“å…¥æ˜¯å¦æ¢å¤ â”€â”€
+          // ©¤©¤ 8s ºóÔÙ´Î¼ì²éµ±Ç°ÊäÈëÊÇ·ñ»Ö¸´ ©¤©¤
           {
             bool cur_has_signal = false;
             switch (id(current_input)) {
@@ -5874,45 +5884,45 @@ script:
               case 3: cur_has_signal = id(audio_aux)->state; break;
             }
             if (cur_has_signal) {
-              ESP_LOGI("auto_input", "ä¿¡å·å·²åœ¨ 8s å†…æ¢å¤ï¼Œä¿æŒå½“å‰è¾“å…¥");
+              ESP_LOGI("auto_input", "ĞÅºÅÒÑÔÚ 8s ÄÚ»Ö¸´£¬±£³Öµ±Ç°ÊäÈë");
               return;
             }
           }
 
-          // â”€â”€ æ‰‹åŠ¨é€‰æ‹©ä¿æŠ¤ï¼šç”¨æˆ·æ‰‹åŠ¨é€‰è¿‡æŸè¾“å…¥åï¼Œåªåœ¨è¯¥è¾“å…¥å¤±å»ä¿¡å·æ—¶æ‰è‡ªåŠ¨åˆ‡æ¢ â”€â”€
+          // ©¤©¤ ÊÖ¶¯Ñ¡Ôñ±£»¤£ºÓÃ»§ÊÖ¶¯Ñ¡¹ıÄ³ÊäÈëºó£¬Ö»ÔÚ¸ÃÊäÈëÊ§È¥ĞÅºÅÊ±²Å×Ô¶¯ÇĞ»» ©¤©¤
           if (id(last_manual_input_ms) != 0) {
             id(last_manual_input_ms) = 0;
-            ESP_LOGI("auto_input", "æ‰‹åŠ¨é€‰æ‹©ä¿¡å·ä¸¢å¤±ï¼Œæ¢å¤è‡ªåŠ¨åˆ‡æ¢");
+            ESP_LOGI("auto_input", "ÊÖ¶¯Ñ¡ÔñĞÅºÅ¶ªÊ§£¬»Ö¸´×Ô¶¯ÇĞ»»");
           }
 
-          // ä¼˜å…ˆçº§: CD(0) > DAC(1) > PC(2) > AUX(3)
+          // ÓÅÏÈ¼¶: CD(0) > DAC(1) > PC(2) > AUX(3)
           int target = -1;
           if (id(audio_cd)->state)  target = 0;
           else if (id(audio_dac)->state) target = 1;
           else if (id(audio_pc)->state)  target = 2;
           else if (id(audio_aux)->state) target = 3;
 
-          // æ‰€æœ‰é€šé“æ— ä¿¡å· â†’ ä¿æŒå½“å‰è¾“å…¥ï¼ˆå®ç•™æ— å£°ä¹Ÿä¸ç›²ç›®åˆ‡æ¢ï¼‰
+          // ËùÓĞÍ¨µÀÎŞĞÅºÅ ¡ú ±£³Öµ±Ç°ÊäÈë£¨ÄşÁôÎŞÉùÒ²²»Ã¤Ä¿ÇĞ»»£©
           if (target < 0) {
-            ESP_LOGI("auto_input", "æ— å…¶ä»–å¯ç”¨ä¿¡å·ï¼Œä¿æŒå½“å‰è¾“å…¥");
+            ESP_LOGI("auto_input", "ÎŞÆäËû¿ÉÓÃĞÅºÅ£¬±£³Öµ±Ç°ÊäÈë");
             return;
           }
 
-          // å·²ç»åœ¨ç›®æ ‡é€šé“ â€” æ— éœ€åˆ‡æ¢
+          // ÒÑ¾­ÔÚÄ¿±êÍ¨µÀ ¡ª ÎŞĞèÇĞ»»
           if (id(current_input) == target) return;
 
-          ESP_LOGI("auto_input", "è‡ªåŠ¨åˆ‡æ¢: %d -> %d", id(current_input), target);
+          ESP_LOGI("auto_input", "×Ô¶¯ÇĞ»»: %d -> %d", id(current_input), target);
           id(current_input) = target;
           const char* names[] = {"CD", "DAC", "PC", "AUX"};
           id(input_select)->publish_state(names[target]);
           id(switch_input)->execute();
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# ä¼ æ„Ÿå™¨
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ´«¸ĞÆ÷
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
 sensor:
   - platform: rotary_encoder
-    name: "éŸ³é‡ç¼–ç å™¨"
+    name: "ÒôÁ¿±àÂëÆ÷"
     id: volume_encoder
     pin_a:
       number: GPIO17
@@ -5934,7 +5944,7 @@ sensor:
             static int last_enc = 0;
             int cur = (int)x;
             int diff = cur - last_enc;
-            if (diff < -10) diff = -10;  // é˜²ç¼–ç å™¨è®¡æ•°å™¨ç¿»è½¬å¯¼è‡´çš„éŸ³é‡çªå˜
+            if (diff < -10) diff = -10;  // ·À±àÂëÆ÷¼ÆÊıÆ÷·­×ªµ¼ÖÂµÄÒôÁ¿Í»±ä
             if (diff > 10) diff = 10;
             last_enc = cur;
             if (diff == 0) return;
@@ -5946,19 +5956,19 @@ sensor:
             if (now - id(last_control_ms) < 30) return;
             id(last_control_ms) = now;
 
-            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            // è®¾ç½®é¡µå¯¼èˆªï¼ˆå•åˆ—åˆ—è¡¨ï¼šé€‰ä¸­â†’è¿›å…¥â†’è°ƒèŠ‚â†’ç¡®è®¤ï¼‰
-            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            // ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+            // ÉèÖÃÒ³µ¼º½£¨µ¥ÁĞÁĞ±í£ºÑ¡ÖĞ¡ú½øÈë¡úµ÷½Ú¡úÈ·ÈÏ£©
+            // ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
             if (active == id(settings_page)->obj) {
               lv_obj_t** rows = settings_ui::rows();
               lv_obj_t** bars = settings_ui::bars();
               int idx = id(settings_focus_idx);
               int act = id(settings_active_idx);
 
-              // â”€â”€ å½“å‰ä¸»é¢˜é«˜äº®è‰² â”€â”€
+              // ©¤©¤ µ±Ç°Ö÷Ìâ¸ßÁÁÉ« ©¤©¤
               lv_color_t hl_color = get_theme_accent(id(theme));
 
-              // â”€â”€ æ›´æ–°ç„¦ç‚¹æŒ‡ç¤ºï¼ˆå·¦è¾¹ç•Œ + èƒŒæ™¯ï¼‰ â”€â”€
+              // ©¤©¤ ¸üĞÂ½¹µãÖ¸Ê¾£¨×ó±ß½ç + ±³¾°£© ©¤©¤
               auto set_focus = [&](int i) {
                 for (int j = 0; j < settings_ui::N; j++) {
                   if (j <= 12) {
@@ -5982,7 +5992,7 @@ sensor:
               };
 
               if (act < 0) {
-                // â”€â”€ æµè§ˆæ¨¡å¼ï¼šç§»åŠ¨ç„¦ç‚¹ï¼ˆåˆ°å¤´åœæ­¢ï¼‰ â”€â”€
+                // ©¤©¤ ä¯ÀÀÄ£Ê½£ºÒÆ¶¯½¹µã£¨µ½Í·Í£Ö¹£© ©¤©¤
                 int new_idx = idx + diff;
                 if (new_idx < 0) new_idx = 0;
                 if (new_idx >= settings_ui::N) new_idx = settings_ui::N - 1;
@@ -5993,10 +6003,10 @@ sensor:
                   lv_obj_scroll_to_view(rows[new_idx], LV_ANIM_ON);
                 }
               } else {
-                // â”€â”€ è°ƒèŠ‚æ¨¡å¼ï¼šä¿®æ”¹æ•°å€¼ â”€â”€
+                // ©¤©¤ µ÷½ÚÄ£Ê½£ºĞŞ¸ÄÊıÖµ ©¤©¤
                 int step = diff;
                 switch (act) {
-                  case 0: { // æœ€å¤§éŸ³é‡
+                  case 0: { // ×î´óÒôÁ¿
                     int v = id(max_volume) + step;
                     if (v < 10) v = 10; if (v > 255) v = 255;
                     id(max_volume) = v;
@@ -6014,7 +6024,7 @@ sensor:
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 1: { // å¼€æœºä¸Šé™
+                  case 1: { // ¿ª»úÉÏÏŞ
                     int v = id(power_on_limit) + step;
                     if (v < 10) v = 10; if (v > id(max_volume)) v = id(max_volume);
                     id(power_on_limit) = v;
@@ -6026,7 +6036,7 @@ sensor:
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 2: { // å£°é“å¹³è¡¡
+                  case 2: { // ÉùµÀÆ½ºâ
                     int v = id(balance) + step;
                     if (v < -20) v = -20; if (v > 20) v = 20;
                     id(balance) = v;
@@ -6034,7 +6044,7 @@ sensor:
                     lv_bar_set_value(id(bar_balance), v + 20, LV_ANIM_OFF);
                     {
                       char buf[8];
-                      if (v == 0) lv_label_set_text(id(val_balance), "å¹³è¡¡");
+                      if (v == 0) lv_label_set_text(id(val_balance), "Æ½ºâ");
                       else { snprintf(buf, sizeof(buf), "%s%d", v < 0 ? "L" : "R", v < 0 ? -v : v);
                         lv_label_set_text(id(val_balance), buf); }
                     }
@@ -6042,7 +6052,7 @@ sensor:
                     id(send_volume_to_pga)->execute();
                     break;
                   }
-                  case 3: { // è¾“å…¥é€‰æ‹©ï¼ˆå¾ªç¯, æ¨¡è¿ç®—é˜²å¿«æ—‹è·³è¿‡ä¸­é—´å€¼ï¼‰
+                  case 3: { // ÊäÈëÑ¡Ôñ£¨Ñ­»·, Ä£ÔËËã·À¿ìĞıÌø¹ıÖĞ¼äÖµ£©
                     int v = ((id(current_input) + step) % 4 + 4) % 4;
                     if (v != id(current_input)) {
                       uint32_t _n = millis();
@@ -6057,14 +6067,14 @@ sensor:
                     }
                     break;
                   }
-                  case 4: { // è¾“å…¥è‡ªåŠ¨åˆ‡æ¢ï¼ˆtoggleï¼‰
+                  case 4: { // ÊäÈë×Ô¶¯ÇĞ»»£¨toggle£©
                     bool v = !id(auto_input);
                     id(auto_input) = v;
-                    lv_label_set_text(id(val_auto_switch), v ? "è‡ªåŠ¨" : "æ‰‹åŠ¨");
+                    lv_label_set_text(id(val_auto_switch), v ? "×Ô¶¯" : "ÊÖ¶¯");
                     id(auto_input_switch)->publish_state(v);
                     break;
                   }
-                  case 5: { // å±å¹•äº®åº¦
+                  case 5: { // ÆÁÄ»ÁÁ¶È
                     int v = id(display_brightness) + step;
                     if (v < 0) v = 0; if (v > 100) v = 100;
                     id(display_brightness) = v;
@@ -6082,21 +6092,21 @@ sensor:
                     id(display_brightness_number)->publish_state((float)v);
                     break;
                   }
-                  case 6: { // æ¯å±è¶…æ—¶
+                  case 6: { // Ï¢ÆÁ³¬Ê±
                     int v = id(display_timeout_min) + step;
                     if (v < 1) v = 1; if (v > 60) v = 60;
                     id(display_timeout_min) = v;
                     lv_bar_set_value(id(bar_display_timeout), v, LV_ANIM_OFF);
                     {
                       char buf[8];
-                      snprintf(buf, sizeof(buf), "%dåˆ†é’Ÿ", v);
+                      snprintf(buf, sizeof(buf), "%d·ÖÖÓ", v);
                       lv_label_set_text(id(val_timeout), buf);
                     }
                     id(last_display_interaction) = now;
                     id(display_timeout_number)->publish_state((float)v);
                     break;
                   }
-                  case 7: { // ä¸»é¢˜è‰²å½©ï¼ˆå¾ªç¯ï¼‰
+                  case 7: { // Ö÷ÌâÉ«²Ê£¨Ñ­»·£©
                     int v = id(theme) + step;
                     if (v < 0) v = 7; if (v > 7) v = 0;
                     id(theme) = v;
@@ -6107,11 +6117,11 @@ sensor:
                     id(theme_number)->publish_state((float)v);
                     break;
                   }
-                  case 10: { // è¾“å‡ºæ¨¡å¼ï¼ˆtoggle å˜å‹å™¨/ç›´é€šï¼‰
+                  case 10: { // Êä³öÄ£Ê½£¨toggle ±äÑ¹Æ÷/Ö±Í¨£©
                     id(switch_output_mode)->execute();
                     break;
                   }
-                  case 11: { // é¢‘è°±è·³è½¬ï¼š0=ç¦ç”¨ï¼Œ5~60ç§’
+                  case 11: { // ÆµÆ×Ìø×ª£º0=½ûÓÃ£¬5~60Ãë
                     int v = id(spectrum_auto_seconds);
                     if (v <= 0 && step > 0) v = 5;
                     else if (v <= 5 && step < 0) v = 0;
@@ -6120,20 +6130,20 @@ sensor:
                     if (v > 60) v = 60;
                     id(spectrum_auto_seconds) = v;
                     if (v <= 0) {
-                      lv_label_set_text(id(val_spectrum_auto), "ç¦ç”¨");
+                      lv_label_set_text(id(val_spectrum_auto), "½ûÓÃ");
                     } else {
                       char buf[12];
-                      snprintf(buf, sizeof(buf), "%dç§’", v);
+                      snprintf(buf, sizeof(buf), "%dÃë", v);
                       lv_label_set_text(id(val_spectrum_auto), buf);
                     }
                     break;
                   }
-                  case 12: { // é¢‘è°±æ ·å¼
+                  case 12: { // ÆµÆ×ÑùÊ½
                     int v = id(spectrum_theme) + step;
                     while (v < 0) v += 6;
                     while (v > 5) v -= 6;
                     id(spectrum_theme) = v;
-                    const char* names[] = {"ç»å…¸æŸ±çŠ¶", "é•œåƒé¢‘è°±", "LEDç‚¹é˜µ", "ç¤ºæ³¢çº¿", "è“è¡¨VU", "æ˜Ÿç‚¹ç«çº¿"};
+                    const char* names[] = {"¾­µäÖù×´", "¾µÏñÆµÆ×", "LEDµãÕó", "Ê¾²¨Ïß", "À¶±íVU", "ĞÇµã»ğÏß"};
                     lv_label_set_text(id(val_spectrum_theme), names[v]);
                     break;
                   }
@@ -6143,33 +6153,33 @@ sensor:
               return;
             }
 
-            // â•â•â• è“ç‰™é¥æ§é¡µå¯¼èˆªï¼ˆåˆ°å¤´åœæ­¢ï¼Œè·³è¿‡éšè—è¡Œï¼š0=æ‰«æ, 1-3=è®¾å¤‡æ§½, 4=è¿”å›ï¼‰â•â•â•
+            // ¨T¨T¨T À¶ÑÀÒ£¿ØÒ³µ¼º½£¨µ½Í·Í£Ö¹£¬Ìø¹ıÒş²ØĞĞ£º0=É¨Ãè, 1-3=Éè±¸²Û, 4=·µ»Ø£©¨T¨T¨T
             if (active == id(ble_remote_page)->obj) {
               int count = id(ble_remote_device_count);
               int cur = id(ble_remote_focus_idx);
-              // æ„å»ºæœ‰æ•ˆç„¦ç‚¹ç´¢å¼•æ•°ç»„ï¼šæ‰«æ(0) + è®¾å¤‡æ§½(1~count) + è¿”å›(4)
+              // ¹¹½¨ÓĞĞ§½¹µãË÷ÒıÊı×é£ºÉ¨Ãè(0) + Éè±¸²Û(1~count) + ·µ»Ø(4)
               int valid[5];
               int valid_count = 1;
-              valid[0] = 0;  // æ‰«æå§‹ç»ˆæœ‰æ•ˆ
+              valid[0] = 0;  // É¨ÃèÊ¼ÖÕÓĞĞ§
               for (int i = 0; i < count && i < 3; i++) {
                 valid[valid_count++] = i + 1;
               }
-              valid[valid_count++] = 4;  // è¿”å›å§‹ç»ˆå¯è¾¾
-              // æ‰¾åˆ°å½“å‰ä½ç½®
+              valid[valid_count++] = 4;  // ·µ»ØÊ¼ÖÕ¿É´ï
+              // ÕÒµ½µ±Ç°Î»ÖÃ
               int pos = 0;
               for (int i = 0; i < valid_count; i++) {
                 if (valid[i] == cur) { pos = i; break; }
               }
-              // åˆ°å¤´åœæ­¢
+              // µ½Í·Í£Ö¹
               pos += diff;
               if (pos < 0) pos = 0;
               if (pos >= valid_count) pos = valid_count - 1;
               int new_idx = valid[pos];
               if (new_idx != cur) {
                 id(ble_remote_focus_idx) = new_idx;
-                // æ›´æ–°ç„¦ç‚¹é«˜äº®
-                // è¡Œ list: ble_row_scan(0), ble_row_dev0/1/2(1-3), ble_row_back(4)
-                // ä¸»é¢˜è‰²
+                // ¸üĞÂ½¹µã¸ßÁÁ
+                // ĞĞ list: ble_row_scan(0), ble_row_dev0/1/2(1-3), ble_row_back(4)
+                // Ö÷ÌâÉ«
                 lv_color_t hl_color = get_theme_accent(id(theme));
                 auto ble_set_focus = [&](lv_obj_t* row, bool focused) {
                   if (focused) {
@@ -6188,7 +6198,7 @@ sensor:
                 ble_set_focus(id(ble_row_dev2), new_idx == 3);
                 ble_set_focus(id(ble_row_back), new_idx == 4);
                 id(style_secondary_pages)->execute();
-                // è‡ªåŠ¨æ»šåŠ¨åˆ°ç„¦ç‚¹
+                // ×Ô¶¯¹ö¶¯µ½½¹µã
                 lv_obj_t* focus_rows[] = {id(ble_row_scan), id(ble_row_dev0), id(ble_row_dev1), id(ble_row_dev2), id(ble_row_back)};
                 lv_obj_scroll_to_view(focus_rows[new_idx], LV_ANIM_ON);
               }
@@ -6196,7 +6206,7 @@ sensor:
               return;
             }
 
-            // â•â•â• é¥æ§å™¨æŒ‰é”®é¡µå¯¼èˆªï¼ˆ12è¡Œï¼š0-8=æŒ‰é”®, 9=å­¦ä¹ , 10=é‡ç½®å­¦ä¹ , 11=è¿”å›ï¼‰â•â•â•
+            // ¨T¨T¨T Ò£¿ØÆ÷°´¼üÒ³µ¼º½£¨12ĞĞ£º0-8=°´¼ü, 9=Ñ§Ï°, 10=ÖØÖÃÑ§Ï°, 11=·µ»Ø£©¨T¨T¨T
             if (active == id(remote_keys_page)->obj) {
               int act = id(keymap_active_idx);
               if (act == 9) {
@@ -6208,7 +6218,7 @@ sensor:
                 id(refresh_keymap_learn_row)->execute();
                 id(style_secondary_pages)->execute();
               } else if (act >= 0 && act <= 8) {
-                // â”€â”€ è°ƒèŠ‚æ¨¡å¼ï¼šæ—‹è½¬å¾ªç¯æ˜ å°„ 0=ç¦ç”¨, 1-9=æ ¸å¿ƒåŠ¨ä½œ â”€â”€
+                // ©¤©¤ µ÷½ÚÄ£Ê½£ºĞı×ªÑ­»·Ó³Éä 0=½ûÓÃ, 1-9=ºËĞÄ¶¯×÷ ©¤©¤
                 int cur = 0;
                 switch (act) {
                   case 0: cur = id(key_map_1); break; case 1: cur = id(key_map_2); break;
@@ -6232,7 +6242,7 @@ sensor:
                   case 8: id(key_map_9) = next; lv_label_set_text(id(val_keymap_8), remote_keys::get_action_name(next).c_str()); break;
                 }
               } else {
-                // â”€â”€ æµè§ˆæ¨¡å¼ï¼šç§»åŠ¨ç„¦ç‚¹ â”€â”€
+                // ©¤©¤ ä¯ÀÀÄ£Ê½£ºÒÆ¶¯½¹µã ©¤©¤
                 int cur = id(keymap_focus_idx);
                 int new_idx = cur + diff;
                 if (new_idx < 0) new_idx = 0;
@@ -6267,7 +6277,7 @@ sensor:
               return;
             }
 
-            // â•â•â• è¯Šæ–­é¡µå¯¼èˆªï¼ˆ2è¡Œï¼š0=é‡æ ¡å‡†, 1=è¿”å›è®¾ç½®ï¼‰â•â•â•
+            // ¨T¨T¨T Õï¶ÏÒ³µ¼º½£¨2ĞĞ£º0=ÖØĞ£×¼, 1=·µ»ØÉèÖÃ£©¨T¨T¨T
             if (active == id(debug_page)->obj) {
               int cur = id(debug_focus_idx);
               int new_idx = (cur + diff) > 1 ? 1 : ((cur + diff) < 0 ? 0 : (cur + diff));
@@ -6279,10 +6289,10 @@ sensor:
               return;
             }
 
-            // â•â•â• éŸ³é‡è°ƒèŠ‚ï¼ˆä»…ä¸»/é¢‘è°±é¡µï¼Œé¢‘è°±é¡µæ—‹è½¬åŒæ­¥è¿”å›ä¸»é¡µï¼‰â•â•â•
+            // ¨T¨T¨T ÒôÁ¿µ÷½Ú£¨½öÖ÷/ÆµÆ×Ò³£¬ÆµÆ×Ò³Ğı×ªÍ¬²½·µ»ØÖ÷Ò³£©¨T¨T¨T
             if (active != id(main_page)->obj && active != id(spectrum_page)->obj) return;
             if (id(standby) || id(temp_protect) || !id(system_ready)) return;
-            // å±å¹•ä¼‘çœ æ—¶æ¢å¤äº®åº¦
+            // ÆÁÄ»ĞİÃßÊ±»Ö¸´ÁÁ¶È
             if (id(display_is_off)) {
               auto call = id(display_backlight)->turn_on();
               call.set_brightness(id(display_brightness) / 100.0f);
@@ -6306,10 +6316,10 @@ sensor:
             }
             id(reset_idle_timer)->execute();
   - platform: template
-    name: "æœºç®±æ¸©åº¦"
+    name: "»úÏäÎÂ¶È"
     id: ntc_temp
     icon: mdi:thermometer
-    unit_of_measurement: "Â°C"
+    unit_of_measurement: "¡ãC"
     accuracy_decimals: 1
     update_interval: never
     on_value:
@@ -6318,7 +6328,7 @@ sensor:
             condition:
               lambda: 'return x > 72.0f && !id(temp_protect);'
             then:
-              - logger.log: "æ¸©åº¦è¶…é™(>72)ï¼Œè§¦å‘ä¿æŠ¤æ€§é™éŸ³"
+              - logger.log: "ÎÂ¶È³¬ÏŞ(>72)£¬´¥·¢±£»¤ĞÔ¾²Òô"
               - lambda: |-
                   id(temp_protect_forced_standby) = !id(standby);
                   id(temp_protect) = true;
@@ -6331,7 +6341,7 @@ sensor:
             condition:
               lambda: 'return x < 55.0f && id(temp_protect);'
             then:
-              - logger.log: "æ¸©åº¦æ¢å¤(<55)ï¼Œè§£é™¤ä¿æŠ¤å±‚"
+              - logger.log: "ÎÂ¶È»Ö¸´(<55)£¬½â³ı±£»¤²ã"
               - lambda: |-
                   bool wake_from_protect = id(temp_protect_forced_standby);
                   id(temp_protect) = false;
@@ -6344,18 +6354,18 @@ sensor:
                   }
 
   - platform: wifi_signal
-    name: "WiFiä¿¡å·"
+    name: "WiFiĞÅºÅ"
     update_interval: 60s
 
   - platform: template
-    name: "åª’ä½“æ’­æ”¾å™¨éŸ³é‡"
+    name: "Ã½Ìå²¥·ÅÆ÷ÒôÁ¿"
     id: media_volume
     icon: mdi:volume-high
     unit_of_measurement: "%"
     internal: false
 
   - platform: template
-    name: "MEM å†…éƒ¨ç©ºé—²å †å†…å­˜"
+    name: "MEM ÄÚ²¿¿ÕÏĞ¶ÑÄÚ´æ"
     id: free_heap_sensor
     icon: mdi:memory
     unit_of_measurement: "B"
@@ -6365,7 +6375,7 @@ sensor:
       return (float)esp_get_free_heap_size();
 
   - platform: template
-    name: "MEM å†…éƒ¨æœ€å°ç©ºé—²å †å†…å­˜"
+    name: "MEM ÄÚ²¿×îĞ¡¿ÕÏĞ¶ÑÄÚ´æ"
     id: min_free_heap_sensor
     icon: mdi:memory
     unit_of_measurement: "B"
@@ -6375,7 +6385,7 @@ sensor:
       return (float)esp_get_minimum_free_heap_size();
 
   - platform: template
-    name: "ç©ºé—² PSRAM"
+    name: "¿ÕÏĞ PSRAM"
     id: free_psram_sensor
     icon: mdi:chip
     unit_of_measurement: "B"
@@ -6385,7 +6395,7 @@ sensor:
       return (float)heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 
   - platform: template
-    name: "æœ€å°ç©ºé—² PSRAM"
+    name: "×îĞ¡¿ÕÏĞ PSRAM"
     id: min_free_psram_sensor
     icon: mdi:chip
     unit_of_measurement: "B"
@@ -6397,11 +6407,11 @@ sensor:
 text_sensor:
   - platform: wifi_info
     ip_address:
-      name: "è®¾å¤‡IP"
+      name: "Éè±¸IP"
       id: device_ip
 
   - platform: template
-    name: "BLE HID æŒ‰é”®äº‹ä»¶"
+    name: "BLE HID °´¼üÊÂ¼ş"
     id: ble_hid_event_text
     update_interval: never
     on_value:
@@ -6413,7 +6423,7 @@ text_sensor:
 
 number:
   - platform: template
-    name: "ä¸»éŸ³é‡ Volume"
+    name: "Ö÷ÒôÁ¿ Volume"
     id: volume_number
     icon: mdi:volume-high
     min_value: 0
@@ -6435,7 +6445,7 @@ number:
           id(reset_idle_timer)->execute();
 
   - platform: template
-    name: "å£°é“å¹³è¡¡ Balance"
+    name: "ÉùµÀÆ½ºâ Balance"
     id: balance_number
     icon: mdi:scale-balance
     min_value: -20
@@ -6447,7 +6457,7 @@ number:
           if (!id(system_ready) || id(switching_input)) return;
           id(balance) = (int)x;
           id(save_current_input_balance)->execute(id(current_input), id(balance));
-          // éŸ³é‡ç¨³æ€æ—¶ï¼Œç›´æ¥åŒæ­¥ L/R å£°é“åˆ° PGA
+          // ÒôÁ¿ÎÈÌ¬Ê±£¬Ö±½ÓÍ¬²½ L/R ÉùµÀµ½ PGA
           if (fabs(id(target_db) - id(current_db)) <= 0.09f) {
             float db = id(current_db);
             int base_reg;
@@ -6463,18 +6473,18 @@ number:
                 if (bal < -20) bal = -20;
                 if (bal > 20)  bal = 20;
 
-                // balance > 0 = åå³ï¼šåªè¡°å‡å·¦å£°é“
-                // balance < 0 = åå·¦ï¼šåªè¡°å‡å³å£°é“
+                // balance > 0 = Æ«ÓÒ£ºÖ»Ë¥¼õ×óÉùµÀ
+                // balance < 0 = Æ«×ó£ºÖ»Ë¥¼õÓÒÉùµÀ
                 int l_reg = base_reg;
                 int r_reg = base_reg;
 
                 if (bal > 0) {
                  l_reg -= bal;
                 } else if (bal < 0) {
-                 r_reg += bal;   // bal ä¸ºè´Ÿæ•°ï¼Œæ‰€ä»¥è¿™é‡Œç­‰ä»·äº r_reg - abs(bal)
+                 r_reg += bal;   // bal Îª¸ºÊı£¬ËùÒÔÕâÀïµÈ¼ÛÓÚ r_reg - abs(bal)
                 }
 
-                // å®Œæ•´é™å¹…ï¼Œé˜²æ­¢æœªæ¥ç®—æ³•è°ƒæ•´åè¶Šç•Œ
+                // ÍêÕûÏŞ·ù£¬·ÀÖ¹Î´À´Ëã·¨µ÷ÕûºóÔ½½ç
                 if (l_reg < 0)   l_reg = 0;
                 if (l_reg > 255) l_reg = 255;
                 if (r_reg < 0)   r_reg = 0;
@@ -6486,7 +6496,7 @@ number:
           id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
   - platform: template
-    name: "æœ€å¤§éŸ³é‡ä¸Šé™ Max"
+    name: "×î´óÒôÁ¿ÉÏÏŞ Max"
     id: max_volume_number
     icon: mdi:volume-high
     min_value: 10
@@ -6517,7 +6527,7 @@ number:
           id(reset_idle_timer)->execute();
 
   - platform: template
-    name: "å¼€æœºéŸ³é‡é™åˆ¶ Limit"
+    name: "¿ª»úÒôÁ¿ÏŞÖÆ Limit"
     id: power_on_limit_number
     icon: mdi:volume-low
     min_value: 10
@@ -6537,7 +6547,7 @@ number:
       - script.execute: reset_idle_timer
 
   - platform: template
-    name: "å±å¹•äº®åº¦ Brightness"
+    name: "ÆÁÄ»ÁÁ¶È Brightness"
     id: display_brightness_number
     icon: mdi:brightness-6
     min_value: 0
@@ -6559,7 +6569,7 @@ number:
           id(reset_idle_timer)->execute();
 
   - platform: template
-    name: "æ¯å±è¶…æ—¶ Timeout"
+    name: "Ï¢ÆÁ³¬Ê± Timeout"
     id: display_timeout_number
     icon: mdi:monitor-off
     min_value: 1
@@ -6576,7 +6586,7 @@ number:
           id(reset_idle_timer)->execute();
 
   - platform: template
-    name: "ä¸»é¢˜è‰²å½© Theme"
+    name: "Ö÷ÌâÉ«²Ê Theme"
     id: theme_number
     icon: mdi:palette
     min_value: 0
@@ -6594,27 +6604,27 @@ number:
 
 select:
   - platform: template
-    name: "åª’ä½“æ§åˆ¶ Media"
+    name: "Ã½Ìå¿ØÖÆ Media"
     id: media_select
     icon: mdi:play-circle
-    options: ["ç©ºé—²", "æ’­æ”¾", "æš‚åœ", "ä¸‹ä¸€é¦–", "ä¸Šä¸€é¦–", "å¼€æœº", "å…³æœº"]
-    initial_option: "ç©ºé—²"
+    options: ["¿ÕÏĞ", "²¥·Å", "ÔİÍ£", "ÏÂÒ»Ê×", "ÉÏÒ»Ê×", "¿ª»ú", "¹Ø»ú"]
+    initial_option: "¿ÕÏĞ"
     optimistic: true
     set_action:
       - lambda: |-
           id(media_select)->publish_state(x);
-          if (x == "å¼€æœº") {
+          if (x == "¿ª»ú") {
             if (id(standby)) id(standby_switch)->turn_on();
             else id(media_reset)->execute();
-          } else if (x == "å…³æœº") {
+          } else if (x == "¹Ø»ú") {
             if (!id(standby)) id(standby_switch)->turn_off();
             else id(media_reset)->execute();
-          } else if (x != "ç©ºé—²") {
+          } else if (x != "¿ÕÏĞ") {
             id(media_reset)->execute();
           }
 
   - platform: template
-    name: "è¾“å…¥æºé€‰æ‹© Input"
+    name: "ÊäÈëÔ´Ñ¡Ôñ Input"
     id: input_select
     icon: mdi:music-circle
     options: ["CD", "DAC", "PC", "AUX"]
@@ -6630,35 +6640,35 @@ select:
           else if (x == "AUX") target = 3;
           if (target < 0) return;
           id(last_switch_ms) = now;
-          id(last_manual_input_ms) = now;   // è®°å½•æ‰‹åŠ¨é€‰æ‹©
+          id(last_manual_input_ms) = now;   // ¼ÇÂ¼ÊÖ¶¯Ñ¡Ôñ
           id(current_input) = target;
           id(sync_settings_ui)->execute();
           id(switch_input)->execute();
           id(reset_idle_timer)->execute();
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# å®šæ—¶è¯»å– â€” MSGEQ7 é¢‘è°± + NTC æ¸©åº¦ + LVGL æ›´æ–°
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# æ€§èƒ½ä¼˜åŒ–è¦ç‚¹:
-#   1. å…¨éƒ¨åˆå¹¶åˆ°å•æ¬¡ lambda â€” æ¶ˆé™¤ 8 æ¬¡ ESPHome action è°ƒåº¦å¼€é”€
-#   2. get_frame() ä¸€æ¬¡å¿«ç…§ â€” 1 æ¬¡åŠ é”æ›¿ä»£ 14 æ¬¡ get_combined/get_peak
-#   3. ç›´æ¥ LVGL API â€” ç»•è¿‡ ESPHome widget wrapper, æ—  float è½¬æ¢, æ— åŠ¨ç”»
-#   4. ä»…æ›´æ–°å˜åŒ–çš„é¢‘æ®µ â€” é¿å…ç›¸åŒå€¼è§¦å‘ LVGL é‡ç»˜
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ¶¨Ê±¶ÁÈ¡ ¡ª MSGEQ7 ÆµÆ× + NTC ÎÂ¶È + LVGL ¸üĞÂ
+# ¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T
+# ĞÔÄÜÓÅ»¯Òªµã:
+#   1. È«²¿ºÏ²¢µ½µ¥´Î lambda ¡ª Ïû³ı 8 ´Î ESPHome action µ÷¶È¿ªÏú
+#   2. get_frame() Ò»´Î¿ìÕÕ ¡ª 1 ´Î¼ÓËøÌæ´ú 14 ´Î get_combined/get_peak
+#   3. Ö±½Ó LVGL API ¡ª ÈÆ¹ı ESPHome widget wrapper, ÎŞ float ×ª»», ÎŞ¶¯»­
+#   4. ½ö¸üĞÂ±ä»¯µÄÆµ¶Î ¡ª ±ÜÃâÏàÍ¬Öµ´¥·¢ LVGL ÖØ»æ
 interval:
   - interval: 50ms
     then:
       - lambda: |-
           int64_t loop_start_us = esp_timer_get_time();
           static float s_cpu_load = 0.0f;
-          // ä¿¡å·å¼ºåº¦ (è·¨å—å…±äº«: é¢‘è°±å—å†™å…¥, LED å—è¯»å–)
+          // ĞÅºÅÇ¿¶È (¿ç¿é¹²Ïí: ÆµÆ×¿éĞ´Èë, LED ¿é¶ÁÈ¡)
           static int s_signal_avg = 0;
 
-          // â”€â”€ MSGEQ7 é¢‘è°±è¯»å– (20Hz, ä»…éå¾…æœºæ—¶) â”€â”€
+          // ©¤©¤ MSGEQ7 ÆµÆ×¶ÁÈ¡ (20Hz, ½ö·Ç´ı»úÊ±) ©¤©¤
           if (!id(standby)) {
             msgeq7::read();
           }
 
-          // â”€â”€ NTC æ¸©åº¦è¯»å– (æ¯10ç§’) â”€â”€
+          // ©¤©¤ NTC ÎÂ¶È¶ÁÈ¡ (Ã¿10Ãë) ©¤©¤
           static int ntc_counter = 0;
           ntc_counter++;
           if (ntc_counter >= 200) {
@@ -6670,11 +6680,11 @@ interval:
             }
           }
 
-          // â•â•â• LVGL é¢‘è°± + å³°å€¼æ›´æ–° (ç›´æ¥ API, å•æ¬¡åŠ é”å¿«ç…§) â•â•â•
-          // é™éŸ³æ—¶é¢‘è°±å†»ç»“ä¸æ›´æ–°ï¼Œé¿å…è·³åŠ¨å‰²è£‚æ„Ÿ
+          // ¨T¨T¨T LVGL ÆµÆ× + ·åÖµ¸üĞÂ (Ö±½Ó API, µ¥´Î¼ÓËø¿ìÕÕ) ¨T¨T¨T
+          // ¾²ÒôÊ±ÆµÆ×¶³½á²»¸üĞÂ£¬±ÜÃâÌø¶¯¸îÁÑ¸Ğ
           if (!id(soft_mute)) {
-            // get_frame() ä¸€æ¬¡åŠ é”æ‹·è´ combined[7] + peak[7] + temperature
-            // æ›¿ä»£åŸæ¥çš„ 7Ã—get_combined() + 7Ã—get_peak() = 14 æ¬¡åŠ é”
+            // get_frame() Ò»´Î¼ÓËø¿½±´ combined[7] + peak[7] + temperature
+            // Ìæ´úÔ­À´µÄ 7¡Áget_combined() + 7¡Áget_peak() = 14 ´Î¼ÓËø
             msgeq7::SpectrumFrame frame;
             msgeq7::get_frame(&frame);
             int spectrum_frame_peak = 0;
@@ -6695,7 +6705,7 @@ interval:
               }
             }
 
-            // é¢‘è°±æ¡å’Œå³°å€¼çº¿çš„ LVGL å¯¹è±¡æŒ‡é’ˆ (14æ¡: 7å·¦ + 7å³)
+            // ÆµÆ×ÌõºÍ·åÖµÏßµÄ LVGL ¶ÔÏóÖ¸Õë (14Ìõ: 7×ó + 7ÓÒ)
             lv_obj_t* bars_L[] = {
               id(spec_L_0), id(spec_L_1), id(spec_L_2),
               id(spec_L_3), id(spec_L_4), id(spec_L_5), id(spec_L_6)
@@ -6854,7 +6864,7 @@ interval:
             const int peak_h = 2;
 
             for (int i = 0; i < 7; i++) {
-              // å·¦å£°é“
+              // ×óÉùµÀ
               int l_val = frame.left[i];
               if (style == 3) {
                 int ly = 102 - l_val * 58 / 255;
@@ -6868,7 +6878,7 @@ interval:
                                    : (bar_top + bar_h - l_pk * bar_h / 255 - peak_h);
               if (peaks_L[i] && style != 3) lv_obj_set_y(peaks_L[i], l_y);
 
-              // å³å£°é“
+              // ÓÒÉùµÀ
               int r_val = frame.right[i];
               if (style == 3) {
                 int ry = 102 - r_val * 58 / 255;
@@ -6883,7 +6893,7 @@ interval:
               if (peaks_R[i] && style != 3) lv_obj_set_y(peaks_R[i], r_y);
             }
 
-            // â•â•â• VU ç”µå¹³æ¡ (L/R å£°é“ç‹¬ç«‹) â•â•â•
+            // ¨T¨T¨T VU µçÆ½Ìõ (L/R ÉùµÀ¶ÀÁ¢) ¨T¨T¨T
             {
               if (style == 5) {
                 static int last_spark_h[24] = {
@@ -6994,7 +7004,7 @@ interval:
               }
             }
 
-            // â•â•â• ä¿¡å·å¼ºåº¦ (ä¾› LED å‘¼å¸ç”¨, å– L/R è¾ƒå¤§å€¼) â•â•â•
+            // ¨T¨T¨T ĞÅºÅÇ¿¶È (¹© LED ºôÎüÓÃ, È¡ L/R ½Ï´óÖµ) ¨T¨T¨T
             {
               int sum_l = 0, sum_r = 0;
               for (int i = 0; i < 7; i++) {
@@ -7006,11 +7016,11 @@ interval:
               s_signal_avg = (l_avg > r_avg) ? l_avg : r_avg;
             }
           }  // end if (!id(soft_mute))
-          // é™éŸ³æ—¶ä¿æŒä¸Šæ¬¡ä¿¡å·å€¼, é˜²æ­¢é¢‘è°±é¡µå› ä¿¡å·å½’é›¶è€Œæå‰é€€å‡º
+          // ¾²ÒôÊ±±£³ÖÉÏ´ÎĞÅºÅÖµ, ·ÀÖ¹ÆµÆ×Ò³ÒòĞÅºÅ¹éÁã¶øÌáÇ°ÍË³ö
 
-          // â•â•â• æ¢å¤å‡ºå‚è®¾ç½®: ç¼–ç å™¨æŒ‰é”® 10 ç§’æ£€æµ‹ â•â•â•
-          //   å¾…æœºæˆ–å·¥ä½œçŠ¶æ€ä¸‹, é•¿æŒ‰ç¼–ç å™¨æŒ‰é”® 10 ç§’è§¦å‘ã€‚
-          //   LVGL æ¢å¤å (exit_standby åœ¨ 800ms é•¿æŒ‰åå”¤é†’) æ˜¾ç¤ºå€’è®¡æ—¶ã€‚
+          // ¨T¨T¨T »Ö¸´³ö³§ÉèÖÃ: ±àÂëÆ÷°´¼ü 10 Ãë¼ì²â ¨T¨T¨T
+          //   ´ı»ú»ò¹¤×÷×´Ì¬ÏÂ, ³¤°´±àÂëÆ÷°´¼ü 10 Ãë´¥·¢¡£
+          //   LVGL »Ö¸´ºó (exit_standby ÔÚ 800ms ³¤°´ºó»½ĞÑ) ÏÔÊ¾µ¹¼ÆÊ±¡£
           {
             static uint32_t hold_start = 0;
             static bool triggered = false;
@@ -7019,30 +7029,30 @@ interval:
             bool pressed = id(encoder_button).state;
 
             if (triggered) {
-              // å·²è§¦å‘, ç­‰å¾… factory_reset è„šæœ¬æ‰§è¡Œ
+              // ÒÑ´¥·¢, µÈ´ı factory_reset ½Å±¾Ö´ĞĞ
             } else if (pressed) {
               if (hold_start == 0) {
-                hold_start = now;  // é¦–æ¬¡æ£€æµ‹åˆ°æŒ‰ä¸‹
-                started_from_standby = id(standby);  // è®°ä½æŒ‰ä¸‹æ—¶æ˜¯å¦å¤„äºå¾…æœº
+                hold_start = now;  // Ê×´Î¼ì²âµ½°´ÏÂ
+                started_from_standby = id(standby);  // ¼Ç×¡°´ÏÂÊ±ÊÇ·ñ´¦ÓÚ´ı»ú
               }
               uint32_t elapsed = now - hold_start;
               if (elapsed >= 10000 && started_from_standby) {
                 triggered = true;
                 id(factory_reset)->execute();
               } else if (elapsed >= 5000) {
-                // 5 ç§’åç»™è§†è§‰åé¦ˆ: éå¾…æœºæ—¶æ›´æ–° LVGL, å¾…æœºæ—¶ä»…é  LED åŠ é€Ÿé—ªçƒ
+                // 5 Ãëºó¸øÊÓ¾õ·´À¡: ·Ç´ı»úÊ±¸üĞÂ LVGL, ´ı»úÊ±½ö¿¿ LED ¼ÓËÙÉÁË¸
                 if (!id(standby)) {
                   // switch to main_page + bring to front
                   if (lv_scr_act() != id(main_page)->obj) {
                     lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 150, 0, false);
                   }
                   lv_obj_move_foreground(id(lbl_factory_msg));
-                  lv_label_set_text(id(lbl_factory_msg), "ç»§ç»­æŒ‰ä½æ¢å¤å‡ºå‚è®¾ç½®...");
+                  lv_label_set_text(id(lbl_factory_msg), "¼ÌĞø°´×¡»Ö¸´³ö³§ÉèÖÃ...");
                   lv_obj_remove_flag(id(lbl_factory_msg), LV_OBJ_FLAG_HIDDEN);
                 }
               }
             } else {
-              // æŒ‰é”®æ¾å¼€ â†’ é‡ç½®è·Ÿè¸ª, éšè—æ¶ˆæ¯
+              // °´¼üËÉ¿ª ¡ú ÖØÖÃ¸ú×Ù, Òş²ØÏûÏ¢
               if (hold_start != 0) {
                 hold_start = 0;
                 triggered = false;
@@ -7055,10 +7065,10 @@ interval:
             }
           }
 
-          // â•â•â• å¼€æœºé—ªå±: Logo æ¸æ˜¾ â†’ ä¸»é¡µé¢è¿‡æ¸¡ â•â•â•
-          //   å¼€æœºå splash_page ä¸ºåˆå§‹é¡µé¢, æ–‡å­—æ¸æ˜¾ 500msã€‚
-          //   æ»¡è¶³æœ€çŸ­å±•ç¤º 3 ç§’ä¸” WiFi å·²è¿æ¥ (æˆ– 10 ç§’è¶…æ—¶) å,
-          //   ä»¥ FADE_IN åŠ¨ç”»åˆ‡æ¢åˆ°ä¸»é¡µé¢ã€‚
+          // ¨T¨T¨T ¿ª»úÉÁÆÁ: Logo ½¥ÏÔ ¡ú Ö÷Ò³Ãæ¹ı¶É ¨T¨T¨T
+          //   ¿ª»úºó splash_page Îª³õÊ¼Ò³Ãæ, ÎÄ×Ö½¥ÏÔ 500ms¡£
+          //   Âú×ã×î¶ÌÕ¹Ê¾ 3 ÃëÇÒ WiFi ÒÑÁ¬½Ó (»ò 10 Ãë³¬Ê±) ºó,
+          //   ÒÔ FADE_IN ¶¯»­ÇĞ»»µ½Ö÷Ò³Ãæ¡£
           {
             static bool splash_done = false;
             static bool splash_forced = false;
@@ -7073,7 +7083,7 @@ interval:
             }
 
             if (!splash_done && lv_scr_act() == id(splash_page)->obj) {
-              // Logo æ¸æ˜¾: 11 å¸§ (0=å¾®å…‰â†’10=å…¨äº®, 550ms @ 50ms interval)
+              // Logo ½¥ÏÔ: 11 Ö¡ (0=Î¢¹â¡ú10=È«ÁÁ, 550ms @ 50ms interval)
               if (fade_frame <= 10) {
                 lv_opa_t opa = (fade_frame == 0) ? 15 : (fade_frame == 10) ? 255 : (fade_frame * 24 + 15);
                 lv_obj_set_style_opa(id(lbl_splash_title), opa, LV_PART_MAIN);
@@ -7083,7 +7093,7 @@ interval:
                 fade_frame++;
               }
 
-              // è¿‡æ¸¡æ¡ä»¶: æœ€çŸ­ 3 ç§’ + (WiFi å·²è¿æ¥ æˆ– 10 ç§’è¶…æ—¶)
+              // ¹ı¶ÉÌõ¼ş: ×î¶Ì 3 Ãë + (WiFi ÒÑÁ¬½Ó »ò 10 Ãë³¬Ê±)
               if (now >= 3000) {
                 bool wifi_ok = wifi::global_wifi_component->is_connected();
                 if (wifi_ok || now >= 10000) {
@@ -7094,21 +7104,21 @@ interval:
                 }
               }
             } else if (!splash_done && now >= 12000) {
-              // splash_page æœªæ¿€æ´» (ä¾‹å¦‚è°ƒè¯•æ¨¡å¼), æ ‡è®°ä¸ºå®Œæˆ
+              // splash_page Î´¼¤»î (ÀıÈçµ÷ÊÔÄ£Ê½), ±ê¼ÇÎªÍê³É
               splash_done = true;
               ESP_LOGW("BOOT_DIAG", "splash fallback -> main: active=%p now=%u heap=%u", lv_scr_act(), (unsigned)now, (unsigned)esp_get_free_heap_size());
               id(show_main_boot)->execute();
             }
           }
 
-          // â•â•â• é¢‘è°±é¡µè‡ªåŠ¨åˆ‡æ¢ (åŸºäº MSGEQ7 çœŸå®é¢‘è°±ä¿¡å·) â•â•â•
-          //   å–ä»£æ—§ on_idle çš„ 30s/35s è¶…æ—¶ (ä½¿ç”¨ MCP23017 audio_cd/dac/pc/aux çš„æ—§é€»è¾‘)
+          // ¨T¨T¨T ÆµÆ×Ò³×Ô¶¯ÇĞ»» (»ùÓÚ MSGEQ7 ÕæÊµÆµÆ×ĞÅºÅ) ¨T¨T¨T
+          //   È¡´ú¾É on_idle µÄ 30s/35s ³¬Ê± (Ê¹ÓÃ MCP23017 audio_cd/dac/pc/aux µÄ¾ÉÂß¼­)
           {
             static bool was_signal = false;
             static uint32_t signal_lost_ms = 0;
             static uint32_t signal_stable_ms = 0;
 
-            bool has_signal = s_signal_avg > 8;  // é˜ˆå€¼ç•¥é«˜äº NOISE_GATE (8)
+            bool has_signal = s_signal_avg > 8;  // ãĞÖµÂÔ¸ßÓÚ NOISE_GATE (8)
 
             uint32_t now = millis();
             if (has_signal) {
@@ -7120,7 +7130,7 @@ interval:
             }
             was_signal = has_signal;
 
-            // å¾…æœºã€é™éŸ³æˆ–ç³»ç»Ÿæœªå°±ç»ªæ—¶ä¸è‡ªåŠ¨è·³è½¬ï¼ˆä½†ä¸ returnï¼Œç»§ç»­æ‰§è¡Œåç»­æ›´æ–°ï¼‰
+            // ´ı»ú¡¢¾²Òô»òÏµÍ³Î´¾ÍĞ÷Ê±²»×Ô¶¯Ìø×ª£¨µ«²» return£¬¼ÌĞøÖ´ĞĞºóĞø¸üĞÂ£©
             if (!id(standby) && !id(soft_mute) && id(system_ready)) {
               lv_obj_t* active = lv_scr_act();
               bool auto_suppressed = now < id(spectrum_auto_suppress_until_ms);
@@ -7128,7 +7138,7 @@ interval:
                 signal_stable_ms = now;
               }
 
-              // 1. ä¸»é¡µé¢ â†’ é¢‘è°±é¡µï¼šä¿¡å·å­˜åœ¨ä¸”ç¨³å®šè¾¾åˆ°ç”¨æˆ·è®¾ç½®æ—¶é—´ï¼ˆ0=ç¦ç”¨ï¼‰
+              // 1. Ö÷Ò³Ãæ ¡ú ÆµÆ×Ò³£ºĞÅºÅ´æÔÚÇÒÎÈ¶¨´ïµ½ÓÃ»§ÉèÖÃÊ±¼ä£¨0=½ûÓÃ£©
               if (active == id(main_page)->obj && has_signal
                   && !auto_suppressed
                   && id(spectrum_auto_seconds) > 0
@@ -7136,7 +7146,7 @@ interval:
                   && (now - signal_stable_ms >= (uint32_t)id(spectrum_auto_seconds) * 1000UL)) {
                 lv_scr_load_anim(id(spectrum_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
               }
-              // 2. é¢‘è°±é¡µ â†’ ä¸»é¡µé¢ï¼šä¿¡å·æ¶ˆå¤± â‰¥10 ç§’
+              // 2. ÆµÆ×Ò³ ¡ú Ö÷Ò³Ãæ£ºĞÅºÅÏûÊ§ ¡İ10 Ãë
               else if (active == id(spectrum_page)->obj && !has_signal
                   && signal_lost_ms > 0 && (now - signal_lost_ms >= 10000)) {
                 lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -7144,7 +7154,7 @@ interval:
             }
           }
 
-          // â•â•â• é¡µé¢ç©ºé—²è‡ªåŠ¨è¿”å›ä¸»é¡µï¼ˆè®¾ç½®é¡µ/BLEé¡µ 10s, è¯Šæ–­é¡µ 30sï¼‰â•â•â•
+          // ¨T¨T¨T Ò³Ãæ¿ÕÏĞ×Ô¶¯·µ»ØÖ÷Ò³£¨ÉèÖÃÒ³/BLEÒ³ 10s, Õï¶ÏÒ³ 30s£©¨T¨T¨T
           if (id(system_ready) && !id(standby)) {
             lv_obj_t* active = lv_scr_act();
             uint32_t now = millis();
@@ -7155,7 +7165,7 @@ interval:
             bool is_debug    = (active == id(debug_page)->obj);
             if (is_settings || is_ble || is_keymap) {
               if (idle_ms >= 10000) {
-                // æ¸…ç†è®¾ç½®é¡µè°ƒèŠ‚çŠ¶æ€ï¼Œé˜²æ­¢å†æ¬¡è¿›å…¥æ—¶ bar é«˜åº¦æ®‹ç•™
+                // ÇåÀíÉèÖÃÒ³µ÷½Ú×´Ì¬£¬·ÀÖ¹ÔÙ´Î½øÈëÊ± bar ¸ß¶È²ĞÁô
                 if (is_settings) {
                   int active = id(settings_active_idx);
                   if (active >= 0) {
@@ -7178,7 +7188,7 @@ interval:
                   id(keymap_active_idx) = -1;
                 }
                 lv_scr_load_anim(id(main_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
-                id(last_display_interaction) = now;  // é˜²é‡å¤è§¦å‘
+                id(last_display_interaction) = now;  // ·ÀÖØ¸´´¥·¢
               }
             } else if (is_debug) {
               if (idle_ms >= 30000) {
@@ -7188,7 +7198,7 @@ interval:
             }
           }
 
-          // â•â•â• éŸ³é‡ dB æ ‡ç­¾æ›´æ–° (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÒôÁ¿ dB ±êÇ©¸üĞÂ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static float last_db = -999.0f;
             float reg_f = (float)id(volume_val);
@@ -7202,7 +7212,7 @@ interval:
             lv_obj_move_foreground(id(lbl_vol_db));
           }
 
-          // â•â•â• æ°´å¹³éŸ³é‡æ¡æ›´æ–° â•â•â•
+          // ¨T¨T¨T Ë®Æ½ÒôÁ¿Ìõ¸üĞÂ ¨T¨T¨T
           {
             int bar_val = (int)((float)id(volume_val) * 100.0f / (float)id(max_volume));
             if (bar_val > 100) bar_val = 100;
@@ -7211,7 +7221,7 @@ interval:
             }
           }
 
-          // â•â•â• ä¸»é¢˜å¼ºè°ƒè‰² â•â•â•
+          // ¨T¨T¨T Ö÷ÌâÇ¿µ÷É« ¨T¨T¨T
           lv_color_t _accent = get_theme_accent(id(theme));
           {
             static int last_runtime_theme = -999;
@@ -7272,7 +7282,7 @@ interval:
             }
           }
 
-          // â•â•â• å¹³è¡¡æ¡æ›´æ–° â•â•â•
+          // ¨T¨T¨T Æ½ºâÌõ¸üĞÂ ¨T¨T¨T
           {
             static int last_bal = 999;
             int bal = id(balance);
@@ -7286,7 +7296,7 @@ interval:
               lv_obj_set_style_text_color(id(lbl_bal_R), _accent, LV_PART_MAIN);
               lv_obj_set_style_text_color(id(lbl_balance_val), _accent, LV_PART_MAIN);
               if (bal == 0) {
-                lv_label_set_text(id(lbl_balance_val), "å¹³è¡¡");
+                lv_label_set_text(id(lbl_balance_val), "Æ½ºâ");
               } else {
                 char buf[8];
                 snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", abs(bal));
@@ -7295,10 +7305,10 @@ interval:
             }
           }
 
-          // â•â•â• è¾“å…¥æºå¡ç‰‡çŠ¶æ€æ‹†åˆ† â•â•â•
-          // MCP23017: åªæ§åˆ¶å›¾æ ‡/åç§°/SIGNAL/IDLE æ˜æš—
-          // current_input: åªæ§åˆ¶å¤–æ¡†/é€‰ä¸­èƒŒæ™¯
-          // MSGEQ7: åªæ§åˆ¶å½“å‰è¾“å…¥å¡ç‰‡é‡Œçš„å° LED ç‚¹/æ¡
+          // ¨T¨T¨T ÊäÈëÔ´¿¨Æ¬×´Ì¬²ğ·Ö ¨T¨T¨T
+          // MCP23017: Ö»¿ØÖÆÍ¼±ê/Ãû³Æ/SIGNAL/IDLE Ã÷°µ
+          // current_input: Ö»¿ØÖÆÍâ¿ò/Ñ¡ÖĞ±³¾°
+          // MSGEQ7: Ö»¿ØÖÆµ±Ç°ÊäÈë¿¨Æ¬ÀïµÄĞ¡ LED µã/Ìõ
           {
             static int last_input = -1;
             static int last_theme = -1;
@@ -7366,7 +7376,7 @@ interval:
             }
           }
 
-          // â•â•â• æ¸©åº¦å€¼æ›´æ–° (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÎÂ¶ÈÖµ¸üĞÂ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static float last_temp = -999.0f;
             float cur_temp = id(ntc_temp)->has_state() ? id(ntc_temp)->state : -999.0f;
@@ -7381,7 +7391,7 @@ interval:
             }
           }
 
-          // â•â•â• æ¸©åº¦ä¿æŠ¤æç¤º (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÎÂ¶È±£»¤ÌáÊ¾ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static bool last_protect = false;
             bool prot = id(temp_protect);
@@ -7389,15 +7399,15 @@ interval:
               last_protect = prot;
               if (prot) {
                 lv_obj_set_style_text_color(id(lbl_temp_value), lv_color_hex(0xFF0000), LV_PART_MAIN);
-                lv_label_set_text(id(lbl_temp_value), "ä¿æŠ¤!");
+                lv_label_set_text(id(lbl_temp_value), "±£»¤!");
               } else {
-                // æ¢å¤ä¸ºä¸»é¢˜ accent è‰² (è€Œéç¡¬ç¼–ç ç°è‰²)
+                // »Ö¸´ÎªÖ÷Ìâ accent É« (¶ø·ÇÓ²±àÂë»ÒÉ«)
                 lv_obj_set_style_text_color(id(lbl_temp_value), get_theme_accent(id(theme)), LV_PART_MAIN);
               }
             }
           }
 
-          // â•â•â• é™éŸ³æŒ‡ç¤º (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ¾²ÒôÖ¸Ê¾ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static int last_mute = -1;
             bool mute_now = id(soft_mute);
@@ -7409,7 +7419,7 @@ interval:
             }
           }
 
-          // â•â•â• WiFi å›¾æ ‡é¢œè‰² (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T WiFi Í¼±êÑÕÉ« (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static bool last_wifi = false;
             bool wifi_ok = wifi::global_wifi_component->is_connected();
@@ -7421,7 +7431,7 @@ interval:
             }
           }
 
-          // â•â•â• BLE å›¾æ ‡é¢œè‰² (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T BLE Í¼±êÑÕÉ« (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static int last_ble = -1;
             bool ble_ok = id(ble_connected) && !id(ble_remote_connected);
@@ -7433,11 +7443,11 @@ interval:
             }
           }
 
-          // â•â•â• BLE HID é¥æ§: çŠ¶æ€è½®è¯¢ + äº‹ä»¶å¤„ç† + UI æ›´æ–° â•â•â•
+          // ¨T¨T¨T BLE HID Ò£¿Ø: ×´Ì¬ÂÖÑ¯ + ÊÂ¼ş´¦Àí + UI ¸üĞÂ ¨T¨T¨T
           {
             ble_hid_host::poll();
 
-            // â”€â”€ å¼€æœºè‡ªåŠ¨é‡è¿å·²é…å¯¹è®¾å¤‡ï¼ˆä¸€æ¬¡æ€§ï¼‰ â”€â”€
+            // ©¤©¤ ¿ª»ú×Ô¶¯ÖØÁ¬ÒÑÅä¶ÔÉè±¸£¨Ò»´ÎĞÔ£© ©¤©¤
             {
               static bool auto_reconnect_tried = false;
               if (!auto_reconnect_tried && id(system_ready)) {
@@ -7446,9 +7456,9 @@ interval:
                 if (!bda.empty() && bda != "\"\"" && bda.length() >= 17) {
                   ble_hid_host::set_peer_bda_from_string(bda);
                   ble_hid_host::reconnect_enable();
-                  id(ble_remote_scan_status) = "æ­£åœ¨é‡è¿...";
+                  id(ble_remote_scan_status) = "ÕıÔÚÖØÁ¬...";
                 }
-                // åˆå§‹åŒ– BLE é¥æ§æŒ‡ç¤ºå™¨: æœ‰é…å¯¹è®°å½•æ‰æ˜¾ç¤º(æš—è‰²ç­‰å¾…), å¦åˆ™éšè—
+                // ³õÊ¼»¯ BLE Ò£¿ØÖ¸Ê¾Æ÷: ÓĞÅä¶Ô¼ÇÂ¼²ÅÏÔÊ¾(°µÉ«µÈ´ı), ·ñÔòÒş²Ø
                 bool has_peer = !bda.empty() && bda != "\"\"" && bda.length() >= 17;
                 lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
@@ -7458,12 +7468,12 @@ interval:
               }
             }
 
-            // â”€â”€ æ‰«æç»“æœ â†’ æ›´æ–° ble_remote_page è®¾å¤‡åˆ—è¡¨ â”€â”€
+            // ©¤©¤ É¨Ãè½á¹û ¡ú ¸üĞÂ ble_remote_page Éè±¸ÁĞ±í ©¤©¤
             if (id(ble_remote_scanning)) {
               int count = ble_hid_host::get_discovered_device_count();
               if (count != id(ble_remote_device_count)) {
                 id(ble_remote_device_count) = count;
-                // æ›´æ–°è®¾å¤‡æ§½æ˜¾ç¤º
+                // ¸üĞÂÉè±¸²ÛÏÔÊ¾
                 for (int i = 0; i < 3; i++) {
                   lv_obj_t* row_dev = (i == 0) ? id(ble_row_dev0) : (i == 1) ? id(ble_row_dev1) : id(ble_row_dev2);
                   lv_obj_t* lbl_dev = (i == 0) ? id(lbl_ble_dev0) : (i == 1) ? id(lbl_ble_dev1) : id(lbl_ble_dev2);
@@ -7484,20 +7494,20 @@ interval:
                   }
                 }
               }
-              // æ‰«æç»“æŸåè‡ªåŠ¨æ›´æ–°çŠ¶æ€
+              // É¨Ãè½áÊøºó×Ô¶¯¸üĞÂ×´Ì¬
               if (!ble_hid_host::is_scanning() && id(ble_remote_scanning)) {
                 id(ble_remote_scanning) = false;
                 if (ble_hid_host::is_connected()) {
-                  id(ble_remote_scan_status) = "å·²è¿æ¥: " + ble_hid_host::get_connected_name();
+                  id(ble_remote_scan_status) = "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name();
                 } else if (id(ble_remote_device_count) > 0) {
-                  id(ble_remote_scan_status) = "å‘ç°" + std::to_string(id(ble_remote_device_count)) + "ä¸ªè®¾å¤‡";
+                  id(ble_remote_scan_status) = "·¢ÏÖ" + std::to_string(id(ble_remote_device_count)) + "¸öÉè±¸";
                 } else {
-                  id(ble_remote_scan_status) = "æœªå‘ç°è®¾å¤‡";
+                  id(ble_remote_scan_status) = "Î´·¢ÏÖÉè±¸";
                 }
               }
             }
 
-            // â”€â”€ è¿æ¥çŠ¶æ€å˜åŒ– â†’ æ›´æ–° status æ–‡å­— + BDA æŒä¹…åŒ– â”€â”€
+            // ©¤©¤ Á¬½Ó×´Ì¬±ä»¯ ¡ú ¸üĞÂ status ÎÄ×Ö + BDA ³Ö¾Ã»¯ ©¤©¤
             {
               static bool last_connected = false;
               bool connected = ble_hid_host::is_connected();
@@ -7505,18 +7515,18 @@ interval:
                 last_connected = connected;
                 id(ble_remote_connected) = connected;
                 if (connected) {
-                  id(ble_remote_scan_status) = "å·²è¿æ¥: " + ble_hid_host::get_connected_name();
-                  // ç”µæ± ç”µé‡
-                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " ç”µæ± : %d%%", b); id(ble_remote_scan_status) += buf; } else { id(ble_remote_scan_status) += " ç”µæ± : æœªçŸ¥"; } }
-                  // æŒä¹…åŒ– BDA
+                  id(ble_remote_scan_status) = "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name();
+                  // µç³ØµçÁ¿
+                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " µç³Ø: %d%%", b); id(ble_remote_scan_status) += buf; } else { id(ble_remote_scan_status) += " µç³Ø: Î´Öª"; } }
+                  // ³Ö¾Ã»¯ BDA
                   std::string bda = ble_hid_host::get_peer_bda_string();
                   if (!bda.empty()) id(ble_remote_peer_bda) = bda;
                 } else {
-                  id(ble_remote_scan_status) = "æœªè¿æ¥";
+                  id(ble_remote_scan_status) = "Î´Á¬½Ó";
                 }
-                // æ›´æ–°è®¾ç½®é¡µå¯¼èˆªçŠ¶æ€æ–‡å­— ("è“ç‰™é¥æ§" è¡Œ)
-                lv_label_set_text(id(lbl_ble_status_nav), connected ? "å·²è¿æ¥" : "æœªè¿æ¥");
-                // æ›´æ–° main_page BLE é¥æ§æŒ‡ç¤ºå™¨é¢œè‰²ä¸æ˜¾éš
+                // ¸üĞÂÉèÖÃÒ³µ¼º½×´Ì¬ÎÄ×Ö ("À¶ÑÀÒ£¿Ø" ĞĞ)
+                lv_label_set_text(id(lbl_ble_status_nav), connected ? "ÒÑÁ¬½Ó" : "Î´Á¬½Ó");
+                // ¸üĞÂ main_page BLE Ò£¿ØÖ¸Ê¾Æ÷ÑÕÉ«ÓëÏÔÒş
                 bool has_peer = !id(ble_remote_peer_bda).empty() && id(ble_remote_peer_bda) != "\"\"";
                 lv_obj_remove_flag(id(lbl_ble_remote_indicator), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_remove_flag(id(ble_remote_batt_outline), LV_OBJ_FLAG_HIDDEN);
@@ -7528,12 +7538,12 @@ interval:
                   connected ? _accent : lv_color_hex(0x64748B), LV_PART_MAIN);
                 lv_obj_set_style_opa(id(ble_remote_batt_outline),
                   connected ? LV_OPA_90 : (has_peer ? LV_OPA_70 : LV_OPA_50), LV_PART_MAIN);
-                // æ›´æ–° ble_remote_page è¿”å›æŒ‰é’®æ–‡å­—ï¼ˆæ–­å¼€ç•™åœ¨æœ¬é¡µï¼Œä¸è¿”å›è®¾ç½®ï¼‰
-                lv_label_set_text(id(lbl_ble_back), connected ? "æ–­å¼€" : "è¿”å›è®¾ç½®");
+                // ¸üĞÂ ble_remote_page ·µ»Ø°´Å¥ÎÄ×Ö£¨¶Ï¿ªÁôÔÚ±¾Ò³£¬²»·µ»ØÉèÖÃ£©
+                lv_label_set_text(id(lbl_ble_back), connected ? "¶Ï¿ª" : "·µ»ØÉèÖÃ");
               }
-              // å‘¨æœŸæ€§æ›´æ–° ble_remote_page çŠ¶æ€æ ‡ç­¾
+              // ÖÜÆÚĞÔ¸üĞÂ ble_remote_page ×´Ì¬±êÇ©
               if (lv_scr_act() == id(ble_remote_page)->obj) {
-                // æ£€æŸ¥ç”µæ± æ›´æ–°
+                // ¼ì²éµç³Ø¸üĞÂ
                 if (connected) {
                   int b = ble_hid_host::get_battery_level();
                   if (b >= 0) {
@@ -7541,8 +7551,8 @@ interval:
                     static int last_batt = -2;
                     if (b != last_batt) {
                       last_batt = b;
-                      id(ble_remote_scan_status) = "å·²è¿æ¥: " + ble_hid_host::get_connected_name();
-                      char buf[16]; snprintf(buf, sizeof(buf), " ç”µæ± : %d%%", b);
+                      id(ble_remote_scan_status) = "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name();
+                      char buf[16]; snprintf(buf, sizeof(buf), " µç³Ø: %d%%", b);
                       id(ble_remote_scan_status) += buf;
                     }
                   } else {
@@ -7550,34 +7560,34 @@ interval:
                     static bool last_batt_unknown = false;
                     if (!last_batt_unknown) {
                       last_batt_unknown = true;
-                      id(ble_remote_scan_status) = "å·²è¿æ¥: " + ble_hid_host::get_connected_name() + " ç”µæ± : æœªçŸ¥";
+                      id(ble_remote_scan_status) = "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name() + " µç³Ø: Î´Öª";
                     }
                   }
                 }
                 lv_label_set_text(id(lbl_ble_status), id(ble_remote_scan_status).c_str());
               }
 
-              // è¯Šæ–­é¡µè‡ªåŠ¨åˆ·æ–° (heap/psram/uptime)
+              // Õï¶ÏÒ³×Ô¶¯Ë¢ĞÂ (heap/psram/uptime)
               if (lv_scr_act() == id(debug_page)->obj) {
                 static uint32_t last_update = 0;
                 uint32_t now = millis();
-                if (now - last_update > 2000) {  // æ¯ 2 ç§’åˆ·æ–°ä¸€æ¬¡
+                if (now - last_update > 2000) {  // Ã¿ 2 ÃëË¢ĞÂÒ»´Î
                   last_update = now;
                   char buf[64];
 
-                  snprintf(buf, sizeof(buf), "CPU å ç”¨: %.1f%%", s_cpu_load);
+                  snprintf(buf, sizeof(buf), "CPU Õ¼ÓÃ: %.1f%%", s_cpu_load);
                   lv_label_set_text(id(lbl_dbg_cpu), buf);
 
                   // Free internal heap
                   uint32_t free_internal = esp_get_free_heap_size();
                   uint32_t total_internal = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
-                  snprintf(buf, sizeof(buf), "å†…éƒ¨å †: %u / %u KB",
+                  snprintf(buf, sizeof(buf), "ÄÚ²¿¶Ñ: %u / %u KB",
                     (unsigned)(free_internal / 1024), (unsigned)(total_internal / 1024));
                   lv_label_set_text(id(lbl_dbg_heap), buf);
 
                   // Min free heap (all-time low watermark)
                   uint32_t min_free = esp_get_minimum_free_heap_size();
-                  snprintf(buf, sizeof(buf), "æœ€å°ç©ºé—²: %u KB",
+                  snprintf(buf, sizeof(buf), "×îĞ¡¿ÕÏĞ: %u KB",
                     (unsigned)(min_free / 1024));
                   lv_label_set_text(id(lbl_dbg_minheap), buf);
 
@@ -7590,7 +7600,7 @@ interval:
 
                   // Min free PSRAM
                   uint32_t min_psram = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
-                  snprintf(buf, sizeof(buf), "PSRAMæœ€å°ç©ºé—²: %u KB",
+                  snprintf(buf, sizeof(buf), "PSRAM×îĞ¡¿ÕÏĞ: %u KB",
                     (unsigned)(min_psram / 1024));
                   lv_label_set_text(id(lbl_dbg_minpsram), buf);
 
@@ -7600,25 +7610,25 @@ interval:
                   unsigned long hours = (ms % 86400000UL) / 3600000UL;
                   unsigned long mins = (ms % 3600000UL) / 60000UL;
                   unsigned long secs = (ms % 60000UL) / 1000UL;
-                  snprintf(buf, sizeof(buf), "è¿è¡Œæ—¶é—´: %02luæ—¶ %02luåˆ† %02luç§’", days * 24 + hours, mins, secs);
+                  snprintf(buf, sizeof(buf), "ÔËĞĞÊ±¼ä: %02luÊ± %02lu·Ö %02luÃë", days * 24 + hours, mins, secs);
                   lv_label_set_text(id(lbl_dbg_uptime), buf);
                 }
               }
             }
 
-            // â”€â”€ HID æŒ‰é”®äº‹ä»¶å¤„ç† â”€â”€
+            // ©¤©¤ HID °´¼üÊÂ¼ş´¦Àí ©¤©¤
             id(poll_remote_key_learning)->execute();
             while (ble_hid_host::has_event()) {
               auto evt = ble_hid_host::pop_event();
-              // è®°å½•åŸå§‹äº‹ä»¶ç”¨äºè°ƒè¯•
+              // ¼ÇÂ¼Ô­Ê¼ÊÂ¼şÓÃÓÚµ÷ÊÔ
               if (ble_hid_host::has_raw_event()) {
                 std::string raw_str = ble_hid_host::get_last_raw_event_string();
-                ESP_LOGD("ble_hid", "åŸå§‹HIDäº‹ä»¶: %s", raw_str.c_str());
+                ESP_LOGD("ble_hid", "Ô­Ê¼HIDÊÂ¼ş: %s", raw_str.c_str());
                 lv_label_set_text(id(lbl_ble_hid_event), raw_str.c_str());
                 ble_hid_host::clear_raw_event();
               }
               const char* ha_event_name = "";
-              // â”€â”€ åº”ç”¨ç”¨æˆ·æŒ‰é”®æ˜ å°„ â”€â”€
+              // ©¤©¤ Ó¦ÓÃÓÃ»§°´¼üÓ³Éä ©¤©¤
               {
                 int raw_type = (int)evt.type;
                 int mapped = raw_type;
@@ -7633,8 +7643,8 @@ interval:
                   case 8: mapped = id(key_map_8); break;
                   case 9: mapped = id(key_map_9); break;
                 }
-                // 1~9 æ˜¯é¥æ§å™¨æ ¸å¿ƒæŒ‰é”®ã€‚æ—§ NVS æˆ–è¯¯æ“ä½œè‹¥æŠŠå®ƒä»¬æ˜ å°„æˆç¦ç”¨/éæ³•å€¼ï¼Œ
-                // ä¼šé€ æˆâ€œæ—¥å¿—æœ‰ HIDï¼Œå®ä½“å®Œå…¨æ²¡ååº”â€ï¼Œè¿™é‡Œå›é€€åˆ°åŸå§‹åŠ¨ä½œã€‚
+                // 1~9 ÊÇÒ£¿ØÆ÷ºËĞÄ°´¼ü¡£¾É NVS »òÎó²Ù×÷Èô°ÑËüÃÇÓ³Éä³É½ûÓÃ/·Ç·¨Öµ£¬
+                // »áÔì³É¡°ÈÕÖ¾ÓĞ HID£¬ÊµÌåÍêÈ«Ã»·´Ó¦¡±£¬ÕâÀï»ØÍËµ½Ô­Ê¼¶¯×÷¡£
                 if ((mapped <= 0 || mapped >= remote_keys::ACTION_COUNT) &&
                     raw_type >= (int)ble_hid_host::HID_EVT_VOLUME_UP &&
                     raw_type <= (int)ble_hid_host::HID_EVT_CYCLE_INPUT) {
@@ -7643,7 +7653,7 @@ interval:
                 ESP_LOGI("ble_hid", "HID action raw=%d mapped=%d standby=%d ready=%d switching=%d",
                          raw_type, mapped, id(standby) ? 1 : 0, id(system_ready) ? 1 : 0,
                          id(switching_input) ? 1 : 0);
-                if (mapped == 0) continue;  // æ‰©å±•æŒ‰é”®ä»å…è®¸ç¦ç”¨
+                if (mapped == 0) continue;  // À©Õ¹°´¼üÈÔÔÊĞí½ûÓÃ
                 evt.type = (ble_hid_host::HidEventType)mapped;
               }
               if (id(standby) &&
@@ -7683,25 +7693,25 @@ interval:
                   break;
                 case ble_hid_host::HID_EVT_PLAY:
                   if (id(standby) || !id(system_ready)) break;
-                  id(media_select)->publish_state("æ’­æ”¾");
+                  id(media_select)->publish_state("²¥·Å");
                   id(media_reset)->execute();
                   ha_event_name = "PLAY";
                   break;
                 case ble_hid_host::HID_EVT_PAUSE:
                   if (id(standby) || !id(system_ready)) break;
-                  id(media_select)->publish_state("æš‚åœ");
+                  id(media_select)->publish_state("ÔİÍ£");
                   id(media_reset)->execute();
                   ha_event_name = "PAUSE";
                   break;
                 case ble_hid_host::HID_EVT_NEXT_TRACK:
                   if (id(standby) || !id(system_ready)) break;
-                  id(media_select)->publish_state("ä¸‹ä¸€é¦–");
+                  id(media_select)->publish_state("ÏÂÒ»Ê×");
                   id(media_reset)->execute();
                   ha_event_name = "NEXT_TRACK";
                   break;
                 case ble_hid_host::HID_EVT_PREV_TRACK:
                   if (id(standby) || !id(system_ready)) break;
-                  id(media_select)->publish_state("ä¸Šä¸€é¦–");
+                  id(media_select)->publish_state("ÉÏÒ»Ê×");
                   id(media_reset)->execute();
                   ha_event_name = "PREV_TRACK";
                   break;
@@ -7731,14 +7741,14 @@ interval:
                   ha_event_name = "DISCONNECTED";
                   break;
               }
-              // æ¨é€ HA äº‹ä»¶
+              // ÍÆËÍ HA ÊÂ¼ş
               if (ha_event_name[0] && evt.type < 0x10) {
                 id(ble_hid_event_text).publish_state(ha_event_name);
               }
             }
           }
 
-          // â•â•â• è‡ªåŠ¨åˆ‡æ¢å›¾æ ‡é¢œè‰² (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ×Ô¶¯ÇĞ»»Í¼±êÑÕÉ« (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static bool last_auto_switch = false;
             bool auto_now = id(auto_input);
@@ -7750,7 +7760,7 @@ interval:
               }
             }
 
-          // â•â•â• é¢‘è°±é¡µ: è¾“å…¥æºå›¾æ ‡ + åç§°æ›´æ–° (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÆµÆ×Ò³: ÊäÈëÔ´Í¼±ê + Ãû³Æ¸üĞÂ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static int last_spec_input = -1;
             int cur = id(current_input);
@@ -7762,7 +7772,7 @@ interval:
               lv_label_set_text(id(lbl_spec_input_icon), icons[cur]);
             }
           }
-          // â•â•â• é¢‘è°±é¡µ: æ¸©åº¦æ›´æ–° (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÆµÆ×Ò³: ÎÂ¶È¸üĞÂ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static float last_spec_temp = -999.0f;
             float cur_temp = id(ntc_temp)->has_state() ? id(ntc_temp)->state : -999.0f;
@@ -7770,14 +7780,14 @@ interval:
               last_spec_temp = cur_temp;
               char buf[16];
               if (id(ntc_temp)->has_state())
-                snprintf(buf, sizeof(buf), "%.1fÂ°C", id(ntc_temp)->state);
+                snprintf(buf, sizeof(buf), "%.1f¡ãC", id(ntc_temp)->state);
               else
-                snprintf(buf, sizeof(buf), "--.-Â°C");
+                snprintf(buf, sizeof(buf), "--.-¡ãC");
               lv_label_set_text(id(lbl_spec_temp), buf);
             }
           }
 
-          // â•â•â• è®¾ç½®é¡µ: IP åœ°å€æ›´æ–° (å«å˜åŒ–æ£€æµ‹) â•â•â•
+          // ¨T¨T¨T ÉèÖÃÒ³: IP µØÖ·¸üĞÂ (º¬±ä»¯¼ì²â) ¨T¨T¨T
           {
             static std::string last_ip;
             std::string new_ip;
@@ -7792,27 +7802,27 @@ interval:
             }
           }
 
-          // â•â•â• LED æŒ‡ç¤ºç¯: å¤šçŠ¶æ€ PWM æ§åˆ¶ (IO16, LEDC 1kHz) â•â•â•
-          //   çŠ¶æ€ä¼˜å…ˆçº§ (é«˜â†’ä½):
-          //     æ¸©åº¦ä¿æŠ¤å¿«é—ª â†’ å¾…æœºå‘¼å¸ â†’ æœªè¿WiFié—ªçƒ â†’
-          //     é™éŸ³åŠäº® â†’ å¼€æœºå¸¸äº®
-          //   å¤æ‚åº¦: ä½ (å•å˜é‡, æ— é”)
+          // ¨T¨T¨T LED Ö¸Ê¾µÆ: ¶à×´Ì¬ PWM ¿ØÖÆ (IO16, LEDC 1kHz) ¨T¨T¨T
+          //   ×´Ì¬ÓÅÏÈ¼¶ (¸ß¡úµÍ):
+          //     ÎÂ¶È±£»¤¿ìÉÁ ¡ú ´ı»úºôÎü ¡ú Î´Á¬WiFiÉÁË¸ ¡ú
+          //     ¾²Òô°ëÁÁ ¡ú ¿ª»ú³£ÁÁ
+          //   ¸´ÔÓ¶È: µÍ (µ¥±äÁ¿, ÎŞËø)
           {
             static uint32_t standby_entry_ms = 0;
-            static uint32_t fw_hold_start = 0;     // å·¥å‚é‡ç½®æŒ‰é”®è®¡æ—¶
+            static uint32_t fw_hold_start = 0;     // ¹¤³§ÖØÖÃ°´¼ü¼ÆÊ±
             float lvl = 0.0f;
             bool fw_active = false;
             uint32_t fw_hold_dur = 0;
             uint32_t n = millis();
 
-            // å¾…æœºè¿›å‡ºè·Ÿè¸ª
+            // ´ı»ú½ø³ö¸ú×Ù
             if (!id(standby)) {
               standby_entry_ms = 0;
             } else if (standby_entry_ms == 0) {
-              standby_entry_ms = n;   // è®°å½•è¿›å…¥å¾…æœºæ—¶é—´æˆ³
+              standby_entry_ms = n;   // ¼ÇÂ¼½øÈë´ı»úÊ±¼ä´Á
             }
 
-            // å·¥å‚é‡ç½®æŒ‰é”®è·Ÿè¸ª (5s å LED å¼€å§‹åŠ é€Ÿé—ªçƒåé¦ˆ)
+            // ¹¤³§ÖØÖÃ°´¼ü¸ú×Ù (5s ºó LED ¿ªÊ¼¼ÓËÙÉÁË¸·´À¡)
             {
               bool pressed = id(encoder_button).state;
               if (pressed) {
@@ -7824,53 +7834,53 @@ interval:
               }
             }
 
-            // ä¼˜å…ˆçº§ 1: æ¸©åº¦ä¿æŠ¤ (â‰¥72Â°C) â†’ å¿«é—ª 200ms å‘¨æœŸ
+            // ÓÅÏÈ¼¶ 1: ÎÂ¶È±£»¤ (¡İ72¡ãC) ¡ú ¿ìÉÁ 200ms ÖÜÆÚ
             if (id(temp_protect)) {
               lvl = (n % 200 < 100) ? 0.80f : 0.0f;
             }
-            // ä¼˜å…ˆçº§ 1b: å·¥å‚é‡ç½®æŒ‰ä½ 5~10s â†’ åŠ é€Ÿé—ªçƒ (500msâ†’100ms)
+            // ÓÅÏÈ¼¶ 1b: ¹¤³§ÖØÖÃ°´×¡ 5~10s ¡ú ¼ÓËÙÉÁË¸ (500ms¡ú100ms)
             else if (fw_active) {
               float progress = (float)(fw_hold_dur - 5000) / 5000.0f;
               uint32_t period = 500 - (uint32_t)(progress * 400.0f);
               if (period < 50) period = 50;
               lvl = ((n - fw_hold_start) % period < period / 2) ? 0.80f : 0.0f;
             }
-            // ä¼˜å…ˆçº§ 2: å¾…æœº
+            // ÓÅÏÈ¼¶ 2: ´ı»ú
             else if (id(standby)) {
               uint32_t dur = n - standby_entry_ms;
               if (dur >= 3600000) {
-                // å¾…æœº >1å°æ—¶: æ¯5åˆ†é’Ÿå¹³æ»‘è„‰å†² 2 ç§’, æœ€å¤§ 30%
+                // ´ı»ú >1Ğ¡Ê±: Ã¿5·ÖÖÓÆ½»¬Âö³å 2 Ãë, ×î´ó 30%
                 uint32_t mod = n % 300000;
                 if (mod < 2000) {
                   float t = (float)mod / 2000.0f;
                   lvl = 0.30f * (sinf(t * M_PI - M_PI_2) + 1.0f) * 0.5f;
                 }
-                // else lvl ä¿æŒ 0.0
+                // else lvl ±£³Ö 0.0
               } else {
-                // å¾…æœº <1å°æ—¶: æŸ”å‘¼å¸ 3s å‘¨æœŸ, 5%~55%
+                // ´ı»ú <1Ğ¡Ê±: ÈáºôÎü 3s ÖÜÆÚ, 5%~55%
                 float t = fmod((float)n, 3000.0f) / 3000.0f;
                 lvl = 0.05f + 0.50f * (sinf(t * 2.0f * M_PI - M_PI_2) + 1.0f) * 0.5f;
               }
             }
-            // ä¼˜å…ˆçº§ 3: å¼€æœºé—ªå±æœŸé—´ â†’ 1 ç§’å†…æ¸äº®åˆ° 70%
+            // ÓÅÏÈ¼¶ 3: ¿ª»úÉÁÆÁÆÚ¼ä ¡ú 1 ÃëÄÚ½¥ÁÁµ½ 70%
             else if (lv_scr_act() == id(splash_page)->obj) {
               float t = (float)n / 1000.0f;
               lvl = (t > 1.0f) ? 0.70f : t * 0.70f;
             }
-            // ä¼˜å…ˆçº§ 4: æœªè¿ WiFi â†’ é—ªçƒ 1s å‘¨æœŸ
+            // ÓÅÏÈ¼¶ 4: Î´Á¬ WiFi ¡ú ÉÁË¸ 1s ÖÜÆÚ
             else if (!wifi::global_wifi_component->is_connected()) {
               lvl = (n % 1000 < 500) ? 0.70f : 0.0f;
             }
-            // ä¼˜å…ˆçº§ 5: é™éŸ³ä¸­ â†’ å¸¸äº® 35%
+            // ÓÅÏÈ¼¶ 5: ¾²ÒôÖĞ ¡ú ³£ÁÁ 35%
             else if (id(soft_mute)) {
               lvl = 0.35f;
             }
-            // ä¼˜å…ˆçº§ 6: æ­£å¸¸ â†’ å¸¸äº® 70%
+            // ÓÅÏÈ¼¶ 6: Õı³£ ¡ú ³£ÁÁ 70%
             else {
               lvl = 0.70f;
             }
 
-            // å˜åŒ–æ£€æµ‹å†™å…¥ (é¿å…æ¯ 50ms åˆ·è¾“å‡º)
+            // ±ä»¯¼ì²âĞ´Èë (±ÜÃâÃ¿ 50ms Ë¢Êä³ö)
             static float last_lvl = -1.0f;
             if (fabs(lvl - last_lvl) > 0.005f) {
               last_lvl = lvl;
@@ -7887,7 +7897,7 @@ interval:
 
 binary_sensor:
   - platform: gpio
-    name: "ç¼–ç å™¨æŒ‰é”®"
+    name: "±àÂëÆ÷°´¼ü"
     id: encoder_button
     pin:
       number: GPIO8
@@ -7909,7 +7919,7 @@ binary_sensor:
             id(encoder_button_guard_until_ms) = millis() + 250;
 
     on_multi_click:
-      # ä¸‰å‡» â†’ å›ºä»¶ç‰ˆæœ¬éšè—å…¥å£ (å…ˆäºåŒå‡»åŒ¹é…, é˜²æ­¢ä¸‰å‡»è¢«æ‹¦æˆª)
+      # Èı»÷ ¡ú ¹Ì¼ş°æ±¾Òş²ØÈë¿Ú (ÏÈÓÚË«»÷Æ¥Åä, ·ÀÖ¹Èı»÷±»À¹½Ø)
       - timing:
           - ON for at most 400ms
           - OFF for at most 400ms
@@ -7918,16 +7928,16 @@ binary_sensor:
           - ON for at most 400ms
           - OFF for at least 300ms
         then:
-          # ä¸‰å‡»ï¼šå›ºä»¶ç‰ˆæœ¬è¡Œéšè—å…¥å£ â†’ è·³è½¬è¯Šæ–­é¡µ (ä»…åœ¨è®¾ç½®é¡µç„¦ç‚¹ Row 13 ç”Ÿæ•ˆ)
+          # Èı»÷£º¹Ì¼ş°æ±¾ĞĞÒş²ØÈë¿Ú ¡ú Ìø×ªÕï¶ÏÒ³ (½öÔÚÉèÖÃÒ³½¹µã Row 13 ÉúĞ§)
           - if:
               condition:
                 lambda: >-
                   return lv_scr_act() == id(settings_page)->obj &&
-                         id(settings_focus_idx) == 13;  // Row 13=å›ºä»¶ç‰ˆæœ¬
+                         id(settings_focus_idx) == 13;  // Row 13=¹Ì¼ş°æ±¾
               then:
                 - script.execute: show_debug_page
 
-      # åŒå‡» â†’ é™éŸ³åˆ‡æ¢ (ä»…ä¸»é¡µ/é¢‘è°±é¡µæœ‰æ•ˆ)
+      # Ë«»÷ ¡ú ¾²ÒôÇĞ»» (½öÖ÷Ò³/ÆµÆ×Ò³ÓĞĞ§)
       - timing:
           - ON for at most 450ms
           - OFF for at most 650ms
@@ -7948,7 +7958,7 @@ binary_sensor:
                     id(soft_mute_switch)->toggle();
                 - script.execute: reset_idle_timer
 
-      # å•å‡» â†’ å”¤é†’å±å¹• | é¢‘è°±é¡µè¿”å›ä¸»é¡µ | è®¾ç½®é¡µåˆ‡æ¢æµè§ˆ/è°ƒèŠ‚æ¨¡å¼
+      # µ¥»÷ ¡ú »½ĞÑÆÁÄ» | ÆµÆ×Ò³·µ»ØÖ÷Ò³ | ÉèÖÃÒ³ÇĞ»»ä¯ÀÀ/µ÷½ÚÄ£Ê½
       - timing:
           - ON for at most 450ms
           - OFF for at least 700ms
@@ -7968,18 +7978,18 @@ binary_sensor:
                     condition:
                       lvgl.page.is_showing: settings_page
                     then:
-                      # è®¾ç½®é¡µï¼šå•å‡»åˆ‡æ¢æµè§ˆ/è°ƒèŠ‚æ¨¡å¼ï¼ˆåªè¯»é¡¹æ— ååº”ï¼‰
+                      # ÉèÖÃÒ³£ºµ¥»÷ÇĞ»»ä¯ÀÀ/µ÷½ÚÄ£Ê½£¨Ö»¶ÁÏîÎŞ·´Ó¦£©
                       - lambda: |-
                           lv_obj_t** rows = settings_ui::rows();
                           lv_obj_t** bars = settings_ui::bars();
                           // bar_base_heights defined in settings_ui.h
                           int idx = id(settings_focus_idx);
                           if (id(settings_active_idx) < 0) {
-                            // è¿›å…¥è°ƒèŠ‚æ¨¡å¼ï¼ˆRow 8/9: è“ç‰™é¥æ§/é¥æ§å™¨æŒ‰é”®ä¸ºå¯¼èˆªé¡¹ï¼Œè·³è½¬é¡µé¢ï¼‰
+                            // ½øÈëµ÷½ÚÄ£Ê½£¨Row 8/9: À¶ÑÀÒ£¿Ø/Ò£¿ØÆ÷°´¼üÎªµ¼º½Ïî£¬Ìø×ªÒ³Ãæ£©
                             if (idx == 8) {
                               id(ble_remote_focus_idx) = 0;
                               id(ble_remote_device_count) = 0;
-                              id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "å·²è¿æ¥: " + ble_hid_host::get_connected_name() : "æœªè¿æ¥";
+                              id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name() : "Î´Á¬½Ó";
                               id(ble_remote_connected) = ble_hid_host::is_connected();
                               id(style_secondary_pages)->execute();
                               id(last_display_interaction) = millis();
@@ -8031,14 +8041,14 @@ binary_sensor:
                               }
                               return;
                             }
-                            if (idx == 14) return;  // IPåœ°å€åªè¯»é¡¹ä¸è¿›è°ƒèŠ‚
+                            if (idx == 14) return;  // IPµØÖ·Ö»¶ÁÏî²»½øµ÷½Ú
                             id(settings_active_idx) = idx;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                             lv_obj_set_style_border_width(rows[idx], 3, LV_PART_MAIN);
                             if (bars[idx]) lv_obj_set_height(bars[idx], settings_ui::BAR_ACTIVE_H);
                             id(style_secondary_pages)->execute();
                           } else {
-                            // é€€å‡ºè°ƒèŠ‚æ¨¡å¼ï¼ˆç¡®è®¤ä¿®æ”¹ï¼Œå€¼å·²åœ¨è°ƒèŠ‚æ—¶å®æ—¶ç”Ÿæ•ˆï¼‰
+                            // ÍË³öµ÷½ÚÄ£Ê½£¨È·ÈÏĞŞ¸Ä£¬ÖµÒÑÔÚµ÷½ÚÊ±ÊµÊ±ÉúĞ§£©
                             int active = id(settings_active_idx);
                             id(settings_active_idx) = -1;
                             lv_obj_set_style_bg_color(rows[idx], lv_color_hex(0x142033), LV_PART_MAIN);
@@ -8053,37 +8063,37 @@ binary_sensor:
                           condition:
                             lvgl.page.is_showing: ble_remote_page
                           then:
-                            # è“ç‰™é¥æ§é¡µï¼šå•å‡»æ¿€æ´»ç„¦ç‚¹é¡¹
+                            # À¶ÑÀÒ£¿ØÒ³£ºµ¥»÷¼¤»î½¹µãÏî
                             - lambda: |-
                                 int f = id(ble_remote_focus_idx);
                                 if (f == 0) {
-                                  // æ‰«æ/åœæ­¢æ‰«æ
+                                  // É¨Ãè/Í£Ö¹É¨Ãè
                                   if (id(ble_remote_scanning)) {
                                     ble_hid_host::stop_scan();
                                     id(ble_remote_scanning) = false;
-                                    id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "å·²è¿æ¥: " + ble_hid_host::get_connected_name() : "æœªè¿æ¥";
+                                    id(ble_remote_scan_status) = ble_hid_host::is_connected() ? "ÒÑÁ¬½Ó: " + ble_hid_host::get_connected_name() : "Î´Á¬½Ó";
                                   } else {
                                     ble_hid_host::start_scan();
                                     id(ble_remote_scanning) = true;
                                     id(ble_remote_device_count) = 0;
-                                    id(ble_remote_scan_status) = "æ‰«æä¸­...";
+                                    id(ble_remote_scan_status) = "É¨ÃèÖĞ...";
                                   }
                                 } else if (f >= 1 && f <= 3) {
-                                  // è¿æ¥è®¾å¤‡ (f-1 = è®¾å¤‡ç´¢å¼•)
+                                  // Á¬½ÓÉè±¸ (f-1 = Éè±¸Ë÷Òı)
                                   int dev_idx = f - 1;
                                   int count = id(ble_remote_device_count);
                                   if (dev_idx < count) {
-                                    id(ble_remote_scan_status) = "æ­£åœ¨è¿æ¥...";
+                                    id(ble_remote_scan_status) = "ÕıÔÚÁ¬½Ó...";
                                     ble_hid_host::connect(dev_idx);
                                   }
                                 } else if (f == 4) {
-                                  // å·²è¿æ¥â†’æ–­å¼€ï¼ˆç•™åœ¨è“ç‰™é¡µï¼‰ï¼Œæœªè¿æ¥â†’è¿”å›è®¾ç½®
+                                  // ÒÑÁ¬½Ó¡ú¶Ï¿ª£¨ÁôÔÚÀ¶ÑÀÒ³£©£¬Î´Á¬½Ó¡ú·µ»ØÉèÖÃ
                                   if (ble_hid_host::is_connected()) {
                                     ble_hid_host::disconnect();
                                     id(ble_remote_peer_bda) = "\"\"";
                                     id(ble_remote_battery) = -1;
                                     id(ble_remote_connected) = false;
-                                    id(ble_remote_scan_status) = "æœªè¿æ¥";
+                                    id(ble_remote_scan_status) = "Î´Á¬½Ó";
                                   } else {
                                     lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
                                   }
@@ -8094,13 +8104,13 @@ binary_sensor:
                                 condition:
                                   lvgl.page.is_showing: remote_keys_page
                                 then:
-                                  # é¥æ§å™¨æŒ‰é”®é¡µï¼šå•å‡»åˆ‡æ¢æµè§ˆ/è°ƒèŠ‚æ¨¡å¼
+                                  # Ò£¿ØÆ÷°´¼üÒ³£ºµ¥»÷ÇĞ»»ä¯ÀÀ/µ÷½ÚÄ£Ê½
                                   - lambda: |-
                                       int f = id(keymap_focus_idx);
                                       int act = id(keymap_active_idx);
                                       if (f >= 0 && f <= 8) {
                                         if (act < 0) {
-                                          // æµè§ˆâ†’è°ƒèŠ‚ï¼šè®°å½•å½“å‰è¡Œ, é«˜äº®èƒŒæ™¯
+                                          // ä¯ÀÀ¡úµ÷½Ú£º¼ÇÂ¼µ±Ç°ĞĞ, ¸ßÁÁ±³¾°
                                           id(keymap_active_idx) = f;
                                           lv_obj_t* rows_k[] = {
                                             id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
@@ -8110,7 +8120,7 @@ binary_sensor:
                                           lv_obj_set_style_bg_color(rows_k[f], lv_color_hex(0x1B2A40), LV_PART_MAIN);
                                           id(style_secondary_pages)->execute();
                                         } else {
-                                          // è°ƒèŠ‚â†’æµè§ˆï¼šç¡®è®¤ä¿®æ”¹, æ¢å¤èƒŒæ™¯
+                                          // µ÷½Ú¡úä¯ÀÀ£ºÈ·ÈÏĞŞ¸Ä, »Ö¸´±³¾°
                                           id(keymap_active_idx) = -1;
                                           lv_obj_t* rows_k[] = {
                                             id(keymap_row_0), id(keymap_row_1), id(keymap_row_2),
@@ -8142,7 +8152,7 @@ binary_sensor:
                                       } else if (f == 10) {
                                         id(keymap_active_idx) = -1;
                                         id(clear_learned_remote_keys)->execute();
-                                        lv_label_set_text(id(val_keymap_reset), "å·²æ¸…ç©º");
+                                        lv_label_set_text(id(val_keymap_reset), "ÒÑÇå¿Õ");
                                         id(style_secondary_pages)->execute();
                                       } else if (f == 11) {
                                         id(keymap_active_idx) = -1;
@@ -8161,13 +8171,13 @@ binary_sensor:
                                       condition:
                                         lvgl.page.is_showing: debug_page
                                       then:
-                                        # è¯Šæ–­é¡µï¼šå•å‡» â†’ æ ¹æ®ç„¦ç‚¹æ‰§è¡Œæ“ä½œ
+                                        # Õï¶ÏÒ³£ºµ¥»÷ ¡ú ¸ù¾İ½¹µãÖ´ĞĞ²Ù×÷
                                         - lambda: |-
                                             ESP_LOGI("ENC_BTN", "debug click focus=%d", id(debug_focus_idx));
                                             if (id(debug_focus_idx) == 0) {
-                                              // é‡æ ¡å‡†
+                                              // ÖØĞ£×¼
                                               bool ok = msgeq7::recalibrate();
-                                              lv_label_set_text(id(lbl_dbg_recal), ok ? "æ ¡å‡†å®Œæˆ" : "æ ¡å‡†å¤±è´¥");
+                                              lv_label_set_text(id(lbl_dbg_recal), ok ? "Ğ£×¼Íê³É" : "Ğ£×¼Ê§°Ü");
                                               id(style_secondary_pages)->execute();
                                             } else {
                                               lv_scr_load_anim(id(settings_page)->obj, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
@@ -8187,7 +8197,7 @@ binary_sensor:
                                                   condition:
                                                     lvgl.page.is_showing: main_page
                                                   then:
-                                                    # ä¸»é¡µå•å‡» â†’ è¿›å…¥è®¾ç½®é¡µ
+                                                    # Ö÷Ò³µ¥»÷ ¡ú ½øÈëÉèÖÃÒ³
                                                     - lambda: |-
                                                         id(settings_focus_idx) = 0;
                                                         id(settings_active_idx) = -1;
@@ -8221,11 +8231,11 @@ binary_sensor:
                                                         animation: LV_SCREEN_LOAD_ANIM_FADE_IN
                                                         time: 200ms
                                                   else:
-                                                    # å…¶ä»–é¡µé¢çŸ­æŒ‰ç”± encoder enter_button è‡ªåŠ¨å¤„ç†
+                                                    # ÆäËûÒ³Ãæ¶Ì°´ÓÉ encoder enter_button ×Ô¶¯´¦Àí
                                                     - script.execute: reset_idle_timer
 
-      # é•¿æŒ‰ â†’ è®¾ç½®é¡µ/è“ç‰™é¥æ§é¡µè¿”å›ä¸»é¡µé¢ï¼Œå…¶ä»–é¡µé¢å¾…æœº/å”¤é†’ã€‚
-      # ç›´æ¥æ“ä½œ standby å…¨å±€å˜é‡è€Œé switch çŠ¶æ€ï¼Œé¿å… switch å†…éƒ¨çŠ¶æ€ä¸ä¸€è‡´ã€‚
+      # ³¤°´ ¡ú ÉèÖÃÒ³/À¶ÑÀÒ£¿ØÒ³·µ»ØÖ÷Ò³Ãæ£¬ÆäËûÒ³Ãæ´ı»ú/»½ĞÑ¡£
+      # Ö±½Ó²Ù×÷ standby È«¾Ö±äÁ¿¶ø·Ç switch ×´Ì¬£¬±ÜÃâ switch ÄÚ²¿×´Ì¬²»Ò»ÖÂ¡£
       - timing:
           - ON for at least 1500ms
         then:
@@ -8237,7 +8247,7 @@ binary_sensor:
               condition:
                 lambda: 'return lv_scr_act() == id(settings_page)->obj || lv_scr_act() == id(ble_remote_page)->obj || lv_scr_act() == id(debug_page)->obj || lv_scr_act() == id(remote_keys_page)->obj;'
               then:
-                # è®¾ç½®é¡µ/è“ç‰™é¥æ§é¡µ/è¯Šæ–­é¡µé•¿æŒ‰ â†’ è¿”å›ä¸»é¡µé¢ï¼ˆä¸è§¦å‘å¾…æœºï¼‰
+                # ÉèÖÃÒ³/À¶ÑÀÒ£¿ØÒ³/Õï¶ÏÒ³³¤°´ ¡ú ·µ»ØÖ÷Ò³Ãæ£¨²»´¥·¢´ı»ú£©
                 - lambda: |-
                     if (lv_scr_act() == id(settings_page)->obj) {
                       int active = id(settings_active_idx);
@@ -8291,12 +8301,12 @@ binary_sensor:
                           else:
                             - script.execute: start_wifi_ap
 
-  # â”€â”€ éŸ³é¢‘æ£€æµ‹ (MCP23017 GPB0~GPB3, é«˜ç”µå¹³=æœ‰ä¿¡å·) â”€â”€
+  # ©¤©¤ ÒôÆµ¼ì²â (MCP23017 GPB0~GPB3, ¸ßµçÆ½=ÓĞĞÅºÅ) ©¤©¤
   - platform: gpio
-    name: "éŸ³é¢‘æ£€æµ‹-CD"
+    name: "ÒôÆµ¼ì²â-CD"
     id: audio_cd
-    # MCP23017 è‡ªèº«é€šè¿‡ GPIO12/INTB ä¸­æ–­å”¤é†’å¹¶åˆ·æ–°ç¼“å­˜ï¼›
-    # gpio binary_sensor ä¸èƒ½å¯¹æ‰©å±• IO æŒ‚ ESP32 åŸç”Ÿ ISRï¼Œæ˜¾å¼å…³é—­å¯é¿å…è¯¯å¯¼æ€§ polling warningã€‚
+    # MCP23017 ×ÔÉíÍ¨¹ı GPIO12/INTB ÖĞ¶Ï»½ĞÑ²¢Ë¢ĞÂ»º´æ£»
+    # gpio binary_sensor ²»ÄÜ¶ÔÀ©Õ¹ IO ¹Ò ESP32 Ô­Éú ISR£¬ÏÔÊ½¹Ø±Õ¿É±ÜÃâÎóµ¼ĞÔ polling warning¡£
     use_interrupt: false
     pin:
       mcp23xxx: mcp23017_hub
@@ -8305,7 +8315,7 @@ binary_sensor:
       mode:
         input: true
         pullup: true
-      inverted: true          # æ£€æµ‹åˆ°ä¿¡å·æ—¶å¼•è„šè¢«æ‹‰ä½
+      inverted: true          # ¼ì²âµ½ĞÅºÅÊ±Òı½Å±»À­µÍ
     filters:
       - delayed_on: 100ms
       - delayed_off: 500ms
@@ -8317,7 +8327,7 @@ binary_sensor:
         - script.execute: auto_switch_input
 
   - platform: gpio
-    name: "éŸ³é¢‘æ£€æµ‹-DAC"
+    name: "ÒôÆµ¼ì²â-DAC"
     id: audio_dac
     use_interrupt: false
     pin:
@@ -8339,7 +8349,7 @@ binary_sensor:
         - script.execute: auto_switch_input
 
   - platform: gpio
-    name: "éŸ³é¢‘æ£€æµ‹-PC"
+    name: "ÒôÆµ¼ì²â-PC"
     id: audio_pc
     use_interrupt: false
     pin:
@@ -8361,7 +8371,7 @@ binary_sensor:
         - script.execute: auto_switch_input
 
   - platform: gpio
-    name: "éŸ³é¢‘æ£€æµ‹-AUX"
+    name: "ÒôÆµ¼ì²â-AUX"
     id: audio_aux
     use_interrupt: false
     pin:

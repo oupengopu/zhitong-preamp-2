@@ -1,3 +1,20 @@
+﻿v2.1.15 - 2026-07-10
+  修复: 防火爆音机制失效 - 静音/待机/输出切换仍是硬切无渐变
+  根因: 三条路径的渐变到零机制都有bug：
+    A. soft_mute_switch turn_on_action: pga2311::set_volume(0,0) 在渐变开始后立即执行，
+       截断了 send_volume_to_pga 的 while 循环(只跑了1步15ms就跳零)
+    B. enter_standby/volume_fade_to_zero: 调用 send_volume_to_pga 时 soft_mute==false，
+       其初始 lambda 的 else 分支把 target_db 覆盖回音量水平，渐变根本不跑
+    C. switch_output_mode: 同 B + timeout:1200ms 太短(完整渐变需~2.8s)
+  措施:
+    - soft_mute_switch turn_on_action: 在 send_volume_to_pga 后加 wait_until
+      current_db<=-95.5, timeout:8000ms，等渐变完成再硬件静音
+    - volume_fade_to_zero: 重写为自包含渐变循环，不再调用 send_volume_to_pga，
+      独立控制 target_db=-96 和 while 循环
+    - enter_standby: 移除 script.stop:send_volume_to_pga，timeout 2000ms→8000ms
+    - switch_output_mode: 改用 volume_fade_to_zero，timeout 1200ms→8000ms
+    - switch_input: timeout 1200ms→8000ms(已有 switching_input 保护免受 target_db 覆盖)
+  涉及文件: 智能前级蓝牙2.0.yaml
 v2.1.14 - 2026-07-10
   修复: 显式指定 mipi_spi SPI mode 0，修复 2026.6.4 默认 MODE3 导致 NV3007 黑屏
   根因: ESPHome 2026.6.4 中 mipi_spi CUSTOM 模型在无 CS 引脚时默认 SPI mode 变为 MODE3，
