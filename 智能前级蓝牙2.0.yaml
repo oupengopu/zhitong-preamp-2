@@ -12,12 +12,11 @@
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  platformio_options:
-    build_flags:
-      - -DUSE_ESP32_BLE_CLIENT
-      - -DESPHOME_ESP32_BLE_GAP_EVENT_HANDLER_COUNT=1
-      - -DESPHOME_ESP32_BLE_GAP_SCAN_EVENT_HANDLER_COUNT=1
-      - -DESPHOME_ESP32_BLE_GATTC_EVENT_HANDLER_COUNT=1
+  build_flags:
+    - -DUSE_ESP32_BLE_CLIENT
+    - -DESPHOME_ESP32_BLE_GAP_EVENT_HANDLER_COUNT=1
+    - -DESPHOME_ESP32_BLE_GAP_SCAN_EVENT_HANDLER_COUNT=1
+    - -DESPHOME_ESP32_BLE_GATTC_EVENT_HANDLER_COUNT=1
   includes:
     - PGA/pga2311.h
     - PGA/msgeq7.h
@@ -931,7 +930,7 @@ display:
   - platform: mipi_spi
     model: CUSTOM
     spi_id: display_spi
-    
+    spi_mode: 0
     dc_pin: GPIO6
     reset_pin: GPIO15
     dimensions:

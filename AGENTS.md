@@ -12,6 +12,24 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 改动文件: `智能前级蓝牙2.0.yaml` 中 8 处 font 定义。
 
+
+**35. ESPHome 2026.7.0 兼容: platformio_options → build_flags**
+
+platformio_options.build_flags 在 ESPHome 2026.12.0 会移除支持。
+将 build_flags 从 platformio_options 下移到 esphome: 直接子级。
+
+改动文件: `智能前级蓝牙2.0.yaml` (esphome: 段)
+
+**36. NV3007 黑屏修复: 显式 spi_mode: 0**
+
+ESPHome 2026.6.4+ 在无 CS 引脚时默认 SPI mode 改为 MODE3,
+NV3007 需要 MODE0, 导致初始化失败 → 有背光无显示。
+
+修复: mipi_spi display 配置加 spi_mode: 0。
+
+改动文件: `智能前级蓝牙2.0.yaml` (display: 段)
+
+
 ## 强制性规则
 
 **每次修改代码后，必须同步更新以下项目文档：**

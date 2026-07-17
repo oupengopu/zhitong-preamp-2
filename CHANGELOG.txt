@@ -1,3 +1,13 @@
+v2.1.22 - 2026-07-17
+  恢复: 回退到 v2.1.8 代码基线(无爆音修复), 保留以下修复:
+    - 修复黑屏: mipi_spi 显式 spi_mode: 0 (NV3007 需要 MODE0, ESPHome 2026.6.4+ 默认 MODE3)
+    - 兼容 ESPHome 2026.7.0: platformio_options.build_flags → build_flags (废弃格式)
+  回退原因: 用户要求回退到 v2.1.8 备份点, 只叠加黑屏修复
+改动文件:
+  智能前级蓝牙2.0.yaml (spi_mode: 0 + build_flags 格式)
+  CHANGELOG.txt
+
+---
 v2.1.8 - 2026-07-04
   修复: 输入切换继电器吸合两次
     - 根因: input_select 的 set_action + 调用方各调了一次 switch_input
