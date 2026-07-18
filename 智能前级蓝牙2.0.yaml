@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.25"
+  firmware_version: "v2.1.26"
 
 esphome:
   name: ${device_name}
@@ -565,6 +565,11 @@ wifi:
 captive_portal:
 web_server:
   port: 80
+  # ESPHome 2026.7.0 blocks browser cross-origin/PNA requests unless explicitly allowed.
+  # The local www/index.html console may be opened from file:// (Origin: null), so "*" is required.
+  allowed_origins:
+    - "*"
+  enable_private_network_access: true
 
 # ═══════════════════════════════════════════════════════════════
 # SPI 总线 — NV3007 TFT 显示 (ESPHome SPI2_HOST, 与 PGA2311 SPI3_HOST 无冲突)

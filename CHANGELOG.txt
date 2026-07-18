@@ -1,3 +1,21 @@
+v2.1.26 - 2026-07-19
+  修复: 本地 www/index.html 网页仍无法控制设备
+    - web_server 增加 allowed_origins: "*" 和 enable_private_network_access: true, 放行浏览器跨源/PNA 控制请求
+    - 固件显示版本号更新为 v2.1.26
+    - 网页控制台显示 WEB v2.1.26, 方便确认浏览器没有打开旧缓存
+    - 网页实体映射增加固定实体名称兜底, 即使 SSE 状态尚未完成映射也能发 REST 控制请求
+    - 静音按钮取消点击时本地假切换, 改为只根据设备 SSE 状态显示真实静音状态
+    - 网页 POST 统一走 sendRequest, 控制失败时给出 toast 提示, 方便区分 IP/跨源权限问题
+    - 移除不存在的 manifest/icon 引用, 并在打开时清理旧 Service Worker, 避免旧缓存或 sw.js 404 误导排查
+  原因: 命令行不带 Origin 的 REST 请求可以 200, 但浏览器本地网页会带 Origin/PNA 预检; ESPHome 2026.7.0 默认未放行外部网页来源, 导致按钮请求被设备 web_server 拦截。本地 file:// 页面会产生 Origin: null, 不能单独写入 allowed_origins, 因此使用 "*" 覆盖本地文件和本地服务两种打开方式
+  备注: 本次只修复网页控制链路, 不修改 BLE HID 遥控器和音频防爆音逻辑
+改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, web_server 跨源/PNA)
+  www/index.html
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.25 - 2026-07-18
   修复: ESPHome 2026.7.0 下本地网页控制台无法控制和音量显示不同步
     - www/index.html 的 REST 控制路径改为使用 ESPHome web_server 接受的实体名称路径, 不再把 SSE 短 id 当作 REST object_id

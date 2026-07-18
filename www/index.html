@@ -7,8 +7,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PGA2311">
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" href="./icons/icon-192.png" type="image/png">
     <title>PGA2311 前级控制台</title>
     <style>
         :root {
@@ -38,6 +36,12 @@
         .ip-input {
             background: var(--btn-bg); border: none; color: white;
             padding: 8px 12px; border-radius: 20px; font-size: 12px; outline: none; text-align: center; width: 110px;
+        }
+        .web-version {
+            margin-left: 8px;
+            color: var(--text-sub);
+            font-size: 10px;
+            font-weight: 600;
         }
         .card {
             background-color: var(--card-bg); border-radius: var(--border-radius);
@@ -325,6 +329,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
+            <span class="web-version">WEB v2.1.26</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -353,7 +358,7 @@
             <button class="circle-btn btn-standby" id="btn-standby" onclick="sendStandbyToggle();">
                 <i>⏻</i><span id="standby-label">运行</span>
             </button>
-            <button class="circle-btn btn-mute" id="btn-mute" onclick="this.classList.toggle('active'); sendSwitch('静音-SW');">
+            <button class="circle-btn btn-mute" id="btn-mute" onclick="sendSwitch('静音-SW');">
                 <i>🔇</i>静音
             </button>
             <button class="circle-btn" onclick="stepVol(-2)"><i>-</i>减小</button>
@@ -418,6 +423,14 @@
 
 <script>
     const DEFAULT_DEVICE_IP = '192.168.31.99';
+    const ENTITY_FALLBACKS = {
+        vol: { domain: 'number', name: '主音量 Volume', id: '' },
+        bal: { domain: 'number', name: '声道平衡 Balance', id: '' },
+        input: { domain: 'select', name: '输入源选择 Input', id: '' },
+        mute: { domain: 'switch', name: '静音-SW', id: '' },
+        media: { domain: 'select', name: '媒体控制 Media', id: '' },
+        standby: { domain: 'switch', name: '待机模式', id: '' }
+    };
     const savedDeviceIp = localStorage.getItem('pga2311_ip');
     let deviceIp = (!savedDeviceIp || savedDeviceIp === '192.168.31.86') ? DEFAULT_DEVICE_IP : savedDeviceIp;
     if (deviceIp !== savedDeviceIp) localStorage.setItem('pga2311_ip', deviceIp);
@@ -425,7 +438,7 @@
     let currentVol = 0;
     let eventSource = null;
 
-    let eMap = { vol: null, bal: null, input: null, mute: null, media: null, standby: null };
+    let eMap = { ...ENTITY_FALLBACKS };
     let standbyMode = false;
 
     // ════════════════════════════════════════
@@ -840,24 +853,39 @@
         return `${entity.domain}/${encodeURIComponent(entity.name)}`;
     }
 
-    async function sendCmd(key, action) {
+    function entityMatches(entity, mapped) {
+        if (!entity || !mapped) return false;
+        return (!!mapped.id && entity.id === mapped.id) || entity.name === mapped.name;
+    }
+
+    function sendRequest(url, label) {
+        return fetch(url, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-store',
+            body: ''
+        }).then(res => {
+            if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+            return res;
+        }).catch(err => {
+            console.warn(`${label}失败:`, err);
+            showToast(`${label}失败，请检查IP/跨源权限`, 3000);
+        });
+    }
+
+    function sendCmd(key, action) {
         if (deviceIp.includes('x')) return showToast("请先输入正确的 IP！");
         const path = entityPath(eMap[key]);
-        if (!path) return console.warn('未找到实体:', key);
-        fetch(`http://${deviceIp}/${path}/${action}`, { method: 'POST', body: '' })
-            .catch(err => console.warn('指令发送失败:', err));
+        if (!path) return showToast(`未找到实体: ${key}`);
+        sendRequest(`http://${deviceIp}/${path}/${action}`, '指令发送');
     }
 
     function sendSwitch(entityName) {
-        fetch(`http://${deviceIp}/switch/${encodeURIComponent(entityName)}/toggle`, { method: 'POST', body: '' })
-            .catch(err => console.warn('开关切换失败:', err));
+        sendRequest(`http://${deviceIp}/switch/${encodeURIComponent(entityName)}/toggle`, '开关切换');
     }
 
     function sendMedia(option) {
-        fetch(`http://${deviceIp}/select/${encodeURIComponent('媒体控制 Media')}/set?option=${encodeURIComponent(option)}`, {
-            method: 'POST',
-            body: ''
-        }).catch(err => console.warn('媒体控制失败:', err));
+        sendRequest(`http://${deviceIp}/select/${encodeURIComponent('媒体控制 Media')}/set?option=${encodeURIComponent(option)}`, '媒体控制');
     }
 
     function sendPowerOn() {
@@ -898,40 +926,40 @@
     }
 
     function updateUI(entity) {
-        const eid = entity.id;
+        const eid = entity.id || '';
         const state = entity.state;
 
-        if (eMap.mute && eid === eMap.mute.id) {
+        if (entityMatches(entity, eMap.mute)) {
             document.getElementById('btn-mute').classList.toggle('active', state === 'ON');
             return;
         }
 
-        if (eMap.standby && eid === eMap.standby.id) {
+        if (entityMatches(entity, eMap.standby)) {
             standbyMode = state === 'ON';
             document.getElementById('btn-standby').classList.toggle('active', standbyMode);
             document.getElementById('standby-label').innerText = standbyMode ? '待机' : '运行';
             return;
         }
 
-        if (eMap.vol && eid === eMap.vol.id) {
+        if (entityMatches(entity, eMap.vol)) {
             currentVol = parseInt(entity.value);
             const db = pctToDb(currentVol);
             document.getElementById('vol-text').innerText = formatDb(db);
             document.getElementById('vol-slider').value = currentVol;
             document.getElementById('vol-slider').style.setProperty('--track-fill', currentVol + '%');
         }
-        else if (eMap.bal && eid === eMap.bal.id) {
+        else if (entityMatches(entity, eMap.bal)) {
             const bal = parseInt(entity.value);
             document.getElementById('bal-slider').value = bal;
             document.getElementById('bal-text').innerText = bal < 0 ? `左 ${-bal}` : bal > 0 ? `右 ${bal}` : '居中 0';
         }
-        else if (eMap.input && eid === eMap.input.id) {
+        else if (entityMatches(entity, eMap.input)) {
             ['CD','DAC','PC','AUX'].forEach(src => {
                 document.getElementById(`btn-${src.toLowerCase()}`)
                     .classList.toggle('active', entity.state === src);
             });
         }
-        else if (eMap.media && eid === eMap.media.id) {
+        else if (entityMatches(entity, eMap.media)) {
             const playBtn = document.getElementById('btn-play');
             if (playBtn) {
                 playBtn.classList.toggle('playing', entity.state === '播放');
@@ -1002,12 +1030,12 @@
 
     window.onload = () => {
         connect();
-        // 注册 Service Worker（PWA 离线支持）
+        // 本地控制台不使用离线缓存, 避免旧 Service Worker 返回过期页面。
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('[SW] 已注册:', reg.scope);
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(reg => reg.unregister());
             }).catch(err => {
-                console.warn('[SW] 注册失败:', err);
+                console.warn('[SW] 清理失败:', err);
             });
         }
     };

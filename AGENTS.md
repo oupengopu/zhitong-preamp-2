@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
@@ -71,6 +71,21 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (input_select set_action)
 
+**40. 本地网页控制台跨源/PNA 放行**
+
+ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但浏览器从本地 `www/index.html`
+访问设备 `http://<ip>/...` 时会带跨源 Origin 和 Private Network Access 预检。
+
+**修复**:
+- `web_server` 必须配置 `allowed_origins: ["*"]` 和 `enable_private_network_access: true`, 否则本地网页按钮会被设备 web_server 拦截。
+- 本地 `file://` 打开网页时浏览器 Origin 为 `null`; ESPHome 的 `allowed_origins` 不能单独写 `null`, 因此这里使用 `"*"`。
+- `www/index.html` 保留固定实体名称兜底, 不依赖 SSE 短 id 才能发送控制请求。
+- 网页显示 `WEB v2.1.26`, 便于确认浏览器没有加载旧缓存。
+- 静音按钮不得点击后本地假切换, 必须等设备 SSE 状态回传后再显示 active。
+- 本地控制台不再注册 Service Worker; 若浏览器里有旧注册, 打开页面时清理, 避免旧缓存导致"代码已改但页面没变"。
+
+改动文件: `智能前级蓝牙2.0.yaml` (web_server), `www/index.html`
+
 
 ## 强制性规则
 
@@ -89,7 +104,7 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.25
+**固件版本:** v2.1.26
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
