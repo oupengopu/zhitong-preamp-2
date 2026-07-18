@@ -506,10 +506,8 @@ api:
       then:
         - lambda: |-
             if (!id(system_ready)) return;
-            id(soft_mute) = muted;
-            if (muted) id(mute_switch)->turn_on();
-            else       id(mute_switch)->turn_off();
-            id(send_volume_to_pga)->execute();
+            if (muted) id(soft_mute_switch)->turn_on();
+            else       id(soft_mute_switch)->turn_off();
             id(reset_idle_timer)->execute();
 
     - service: set_input
@@ -810,14 +808,32 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     optimistic: true
     turn_on_action:
-      - globals.set: {id: soft_mute, value: 'true'}
-      - script.execute: send_volume_to_pga
-      - switch.turn_on: mute_switch
+      - if:
+          condition:
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning) || id(switching_input);'
+          then:
+            - lambda: |-
+                id(soft_mute) = true;
+                id(target_db) = -96.0f;
+                id(current_db) = -96.0f;
+                id(mute_switch)->turn_on();
+                pga2311::set_volume(0, 0);
+          else:
+            - script.stop: send_volume_to_pga
+            - globals.set: {id: soft_mute, value: 'true'}
+            - lambda: 'id(target_db) = -96.0f;'
+            - script.execute: send_volume_to_pga
+            - wait_until:
+                condition:
+                  lambda: 'return id(current_db) <= -95.5f;'
+                timeout: 1600ms
+            - lambda: 'pga2311::set_volume(0, 0);'
+            - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
       - if:
           condition:
-            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning);'
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning) || id(switching_input);'
           then:
             - lambda: |-
                 id(soft_mute) = true;
@@ -5076,6 +5092,14 @@ script:
                 id(saved_soft_mute) = id(soft_mute);
                 id(soft_mute)       = true;
                 id(target_db)       = -96.0f;
+                id(system_ready)    = false;
+            - script.execute: send_volume_to_pga
+            - wait_until:
+                condition:
+                  lambda: 'return id(current_db) <= -95.5f;'
+                timeout: 1800ms
+            - lambda: |-
+                id(target_db)       = -96.0f;
                 id(current_db)      = -96.0f;
                 id(mute_switch)->turn_on();
                 auto off = id(display_backlight)->turn_off();
@@ -5083,7 +5107,6 @@ script:
                 off.perform();
                 pga2311::set_volume(0, 0);
                 id(display_is_off)  = true;   // 同步显示状态
-                id(system_ready)    = false;
                 id(standby)         = true;
                 id(standby_switch)->publish_state(false);  // HA 同步
             - lvgl.pause:
@@ -5235,7 +5258,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) {
+          if (id(ota_active) || id(temp_protect) || id(standby)) {
             id(current_db) = -96.0f;
             id(target_db)  = -96.0f;
             pga2311::set_volume(0, 0);
@@ -5258,7 +5281,7 @@ script:
       - while:
           condition:
             lambda: |-
-              if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) return false;
+              if (id(ota_active) || id(temp_protect) || id(standby)) return false;
               return fabs(id(target_db) - id(current_db)) > 0.09f;
           then:
             - lambda: |-
@@ -5311,7 +5334,7 @@ script:
             - delay: 15ms
 
       - lambda: |-
-          if (id(ota_active) || id(temp_protect) || id(standby) || id(power_transitioning)) return;
+          if (id(ota_active) || id(temp_protect) || id(standby)) return;
 
           id(current_db) = id(target_db);
 
@@ -5652,6 +5675,56 @@ script:
             lv_label_set_text(id(val_spectrum_theme), names[st]);
           }
       - script.execute: style_secondary_pages
+
+  - id: switch_output_mode
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active);'
+          then:
+            - lambda: |-
+                if (id(output_mode)) id(relay_out)->turn_on();
+                else id(relay_out)->turn_off();
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(power_transitioning) || id(switching_input);'
+                then:
+                  - lambda: |-
+                      ESP_LOGW("output_mode", "skip output switch while audio path is busy");
+                else:
+                  - script.stop: send_volume_to_pga
+                  - lambda: |-
+                      id(saved_soft_mute) = id(soft_mute);
+                      id(soft_mute) = true;
+                      id(switching_input) = true;
+                      id(target_db) = -96.0f;
+                  - script.execute: send_volume_to_pga
+                  - wait_until:
+                      condition:
+                        lambda: 'return id(current_db) <= -95.5f;'
+                      timeout: 1800ms
+                  - lambda: |-
+                      pga2311::set_volume(0, 0);
+                      id(mute_switch)->turn_on();
+                  - delay: 30ms
+                  - lambda: |-
+                      if (id(output_mode)) id(relay_out)->turn_on();
+                      else id(relay_out)->turn_off();
+                  - delay: 100ms
+                  - lambda: |-
+                      id(soft_mute) = id(saved_soft_mute);
+                      id(switching_input) = false;
+                      if (!id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning)) {
+                        id(mute_switch)->turn_off();
+                      }
+                  - delay: 20ms
+                  - if:
+                      condition:
+                        lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
+                      then:
+                        - script.execute: send_volume_to_pga
 
   - id: switch_input
     mode: queued
@@ -6043,13 +6116,14 @@ sensor:
                     break;
                   }
                   case 10: { // 输出模式（toggle 变压器/直通）
+                    if (id(power_transitioning) || id(switching_input) || id(standby) || id(temp_protect) || id(ota_active)) break;
                     bool v = !id(output_mode);
                     id(output_mode) = v;
                     lv_label_set_text(id(val_output_mode), v ? "直通" : "变压器");
                     lv_label_set_text(id(lbl_main_output_value), v ? "DIRECT" : "TRANSFORMER");
                     lv_obj_add_flag(id(lbl_out_transformer), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_add_flag(id(lbl_out_direct), LV_OBJ_FLAG_HIDDEN);
-                    if (v) id(relay_out)->turn_on(); else id(relay_out)->turn_off();
+                    id(switch_output_mode)->execute();
                     break;
                   }
                   case 11: { // 频谱跳转：0=禁用，5~60秒

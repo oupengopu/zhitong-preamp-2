@@ -1,3 +1,16 @@
+v2.1.23 - 2026-07-18
+  修复: 基于 v2.1.8 重新实现防爆音路径, 修复开启静音/进入待机/变压器直通切换硬切爆音
+    - 开启静音: 先让 send_volume_to_pga 渐变到 -96dB, 等 current_db <= -95.5 后再打开硬件静音
+    - 进入待机: power_transitioning 期间允许 PGA 渐变, 等软降完成后再 pga2311::set_volume(0,0)、硬静音、关背光
+    - 输出模式: 新增 switch_output_mode 脚本, 按输入切换同类顺序执行软降 -> 硬静音 -> 切 GPA4 -> 恢复
+    - HA set_mute 服务改走 soft_mute_switch, 不再直接操作 mute_switch
+  原因: 之前爆音修复没有生效, 根因是多个入口仍在渐变前直接硬件静音/继电器切换/重写 current_db
+改动文件:
+  智能前级蓝牙2.0.yaml (soft_mute_switch, enter_standby, send_volume_to_pga, switch_output_mode)
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.22 - 2026-07-17
   恢复: 回退到 v2.1.8 代码基线(无爆音修复), 保留以下修复:
     - 修复黑屏: mipi_spi 显式 spi_mode: 0 (NV3007 需要 MODE0, ESPHome 2026.6.4+ 默认 MODE3)

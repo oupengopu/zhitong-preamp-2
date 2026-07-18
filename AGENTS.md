@@ -29,6 +29,20 @@ NV3007 需要 MODE0, 导致初始化失败 → 有背光无显示。
 
 改动文件: `智能前级蓝牙2.0.yaml` (display: 段)
 
+**37. 防爆音路径必须先软降再硬切**
+
+开启静音、进入待机、变压器/直通输出模式切换都不能直接操作硬件静音或继电器。
+必须先让 `send_volume_to_pga` 把 PGA2311 渐变到 -96dB, 等 `current_db <= -95.5f`
+后, 再执行 `pga2311::set_volume(0,0)`、`mute_switch` 或 `relay_out`。
+
+已修复入口:
+- `soft_mute_switch.turn_on_action`: 先软降到 0, 再打开硬件静音
+- `enter_standby`: `power_transitioning` 期间允许音量渐变, 软降完成后再关屏/待机
+- `switch_output_mode`: 输出模式切换使用软降 -> 硬静音 -> 切 GPA4 -> 恢复音量
+- HA `set_mute` 服务必须调用 `soft_mute_switch`, 不要直接切 `mute_switch`
+
+改动文件: `智能前级蓝牙2.0.yaml` (switch/script/api 段)
+
 
 ## 强制性规则
 
