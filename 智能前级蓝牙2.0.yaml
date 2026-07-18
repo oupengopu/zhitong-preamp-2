@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.26"
+  firmware_version: "v2.1.28"
 
 esphome:
   name: ${device_name}
@@ -388,21 +388,25 @@ esp32_ble_server:
                     }
                     case 0x07: {
                       id(media_select)->publish_state("播放");
+                      id(ble_hid_event_text).publish_state("PLAY");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x0A: {
                       id(media_select)->publish_state("暂停");
+                      id(ble_hid_event_text).publish_state("PAUSE");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x08: {
                       id(media_select)->publish_state("下一首");
+                      id(ble_hid_event_text).publish_state("NEXT_TRACK");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x09: {
                       id(media_select)->publish_state("上一首");
+                      id(ble_hid_event_text).publish_state("PREV_TRACK");
                       id(media_reset)->execute();
                       break;
                     }
@@ -3893,6 +3897,10 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
+  - id: anti_pop_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
   - id: last_v_change_ms
     type: uint32_t
     restore_value: false
@@ -5275,12 +5283,20 @@ script:
     then:
       - script.stop: send_volume_to_pga
       - lambda: |-
+          id(anti_pop_start_ms) = millis();
           id(target_db) = -96.0f;
+          ESP_LOGD("anti_pop", "fade start current=%.2f target=%.2f soft=%d switching=%d power=%d standby=%d",
+                   id(current_db), id(target_db), id(soft_mute) ? 1 : 0,
+                   id(switching_input) ? 1 : 0, id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0);
       - script.execute: send_volume_to_pga
       - wait_until:
           condition:
             lambda: 'return id(current_db) <= -95.5f || id(ota_active) || id(temp_protect) || id(standby);'
           timeout: 5s
+      - lambda: |-
+          ESP_LOGD("anti_pop", "fade done elapsed=%u current=%.2f target=%.2f ota=%d temp=%d standby=%d",
+                   (unsigned)(millis() - id(anti_pop_start_ms)), id(current_db), id(target_db),
+                   id(ota_active) ? 1 : 0, id(temp_protect) ? 1 : 0, id(standby) ? 1 : 0);
       - if:
           condition:
             lambda: 'return id(current_db) > -95.5f && !id(ota_active) && !id(temp_protect) && !id(standby);'
@@ -5795,12 +5811,11 @@ script:
           condition:
             lambda: 'return !id(soft_mute);'
           then:
-            - lambda: 'id(target_db) = -96.0f;'
-            - script.execute: send_volume_to_pga
+            - script.execute: anti_pop_fade_to_silence
             - wait_until:
                 condition:
-                  lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1200ms
+                  lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
+                timeout: 5500ms
 
       - lambda: 'pga2311::set_volume(0, 0);'
       - switch.turn_on: mute_switch
@@ -6664,6 +6679,18 @@ select:
           } else if (x == "关机") {
             if (!id(standby)) id(standby_switch)->turn_on();
             else id(media_reset)->execute();
+          } else if (x == "播放") {
+            id(ble_hid_event_text).publish_state("PLAY");
+            id(media_reset)->execute();
+          } else if (x == "暂停") {
+            id(ble_hid_event_text).publish_state("PAUSE");
+            id(media_reset)->execute();
+          } else if (x == "下一首") {
+            id(ble_hid_event_text).publish_state("NEXT_TRACK");
+            id(media_reset)->execute();
+          } else if (x == "上一首") {
+            id(ble_hid_event_text).publish_state("PREV_TRACK");
+            id(media_reset)->execute();
           } else if (x != "空闲") {
             id(media_reset)->execute();
           }
@@ -6744,7 +6771,13 @@ interval:
               spectrum_frame_avg += std::max(frame.left[i], frame.right[i]);
             }
             spectrum_frame_avg /= 7;
-            if (spectrum_frame_peak <= 36 && spectrum_frame_avg <= 16) {
+            int live_signal_sum_l = 0, live_signal_sum_r = 0;
+            for (int i = 0; i < 7; i++) {
+              live_signal_sum_l += frame.left[i];
+              live_signal_sum_r += frame.right[i];
+            }
+            int live_signal_avg = std::max(live_signal_sum_l / 7, live_signal_sum_r / 7);
+            if (spectrum_frame_peak <= 12 && spectrum_frame_avg <= 4) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
@@ -7056,17 +7089,49 @@ interval:
 
             // ═══ 信号强度 (供 LED 呼吸用, 取 L/R 较大值) ═══
             {
-              int sum_l = 0, sum_r = 0;
-              for (int i = 0; i < 7; i++) {
-                sum_l += frame.left[i];
-                sum_r += frame.right[i];
-              }
-              int l_avg = sum_l / 7;
-              int r_avg = sum_r / 7;
-              s_signal_avg = (l_avg > r_avg) ? l_avg : r_avg;
+              s_signal_avg = live_signal_avg;
             }
           }  // end if (!id(soft_mute))
-          // 静音时保持上次信号值, 防止频谱页因信号归零而提前退出
+          else {
+            msgeq7::SpectrumFrame frame;
+            msgeq7::get_frame(&frame);
+            int sum_l = 0, sum_r = 0;
+            for (int i = 0; i < 7; i++) {
+              sum_l += frame.left[i];
+              sum_r += frame.right[i];
+            }
+            s_signal_avg = std::max(sum_l / 7, sum_r / 7);
+          }
+
+          {
+            static uint32_t last_msgeq7_diag_ms = 0;
+            uint32_t now_diag = millis();
+            if (now_diag - last_msgeq7_diag_ms >= 1000) {
+              last_msgeq7_diag_ms = now_diag;
+              msgeq7::SpectrumFrame frame_dbg;
+              msgeq7::DebugFrame raw_dbg;
+              msgeq7::get_frame(&frame_dbg);
+              msgeq7::get_debug_frame(&raw_dbg);
+              int frame_peak = 0, frame_avg = 0, raw_peak = 0, raw_avg = 0, off_peak = 0;
+              for (int i = 0; i < 7; i++) {
+                int f = std::max(frame_dbg.left[i], frame_dbg.right[i]);
+                int r = std::max(raw_dbg.raw_l[i], raw_dbg.raw_r[i]);
+                int o = std::max(raw_dbg.offset_l[i], raw_dbg.offset_r[i]);
+                frame_peak = std::max(frame_peak, f);
+                raw_peak = std::max(raw_peak, r);
+                off_peak = std::max(off_peak, o);
+                frame_avg += f;
+                raw_avg += r;
+              }
+              frame_avg /= 7;
+              raw_avg /= 7;
+              ESP_LOGD("msgeq7_diag", "ready=%d raw_peak=%d raw_avg=%d off_peak=%d frame_peak=%d frame_avg=%d signal=%d soft=%d mcp=%d/%d/%d/%d",
+                       msgeq7::is_ready() ? 1 : 0, raw_peak, raw_avg, off_peak, frame_peak, frame_avg, s_signal_avg,
+                       id(soft_mute) ? 1 : 0,
+                       id(audio_cd)->state ? 1 : 0, id(audio_dac)->state ? 1 : 0,
+                       id(audio_pc)->state ? 1 : 0, id(audio_aux)->state ? 1 : 0);
+            }
+          }
 
           // ═══ 恢复出厂设置: 编码器按键 10 秒检测 ═══
           //   待机或工作状态下, 长按编码器按键 10 秒触发。

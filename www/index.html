@@ -329,7 +329,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
-            <span class="web-version">WEB v2.1.26</span>
+            <span class="web-version">WEB v2.1.28</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -358,7 +358,7 @@
             <button class="circle-btn btn-standby" id="btn-standby" onclick="sendStandbyToggle();">
                 <i>⏻</i><span id="standby-label">运行</span>
             </button>
-            <button class="circle-btn btn-mute" id="btn-mute" onclick="sendSwitch('静音-SW');">
+            <button class="circle-btn btn-mute" id="btn-mute" onclick="sendCmd('mute', 'toggle');">
                 <i>🔇</i>静音
             </button>
             <button class="circle-btn" onclick="stepVol(-2)"><i>-</i>减小</button>
@@ -868,8 +868,23 @@
             if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
             return res;
         }).catch(err => {
-            console.warn(`${label}失败:`, err);
-            showToast(`${label}失败，请检查IP/跨源权限`, 3000);
+            if (err && /^.+ HTTP \d+$/.test(err.message || '')) {
+                console.warn(`${label}失败:`, err);
+                showToast(`${label}失败，请检查实体路径`, 3000);
+                return;
+            }
+            console.warn(`${label} CORS失败，尝试 no-cors 发送:`, err);
+            return fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-store',
+                body: ''
+            }).then(() => {
+                showToast(`${label}已发送`, 1200);
+            }).catch(err2 => {
+                console.warn(`${label}失败:`, err2);
+                showToast(`${label}失败，请检查IP/跨源权限`, 3000);
+            });
         });
     }
 
@@ -880,20 +895,16 @@
         sendRequest(`http://${deviceIp}/${path}/${action}`, '指令发送');
     }
 
-    function sendSwitch(entityName) {
-        sendRequest(`http://${deviceIp}/switch/${encodeURIComponent(entityName)}/toggle`, '开关切换');
-    }
-
     function sendMedia(option) {
-        sendRequest(`http://${deviceIp}/select/${encodeURIComponent('媒体控制 Media')}/set?option=${encodeURIComponent(option)}`, '媒体控制');
+        sendCmd('media', `set?option=${encodeURIComponent(option)}`);
     }
 
     function sendPowerOn() {
-        sendMedia('开机');
+        sendCmd('standby', 'turn_off');
     }
 
     function sendPowerOff() {
-        sendMedia('关机');
+        sendCmd('standby', 'turn_on');
     }
 
     function sendStandbyToggle() {

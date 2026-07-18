@@ -86,6 +86,33 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 
 改动文件: `智能前级蓝牙2.0.yaml` (web_server), `www/index.html`
 
+**41. 防爆音和 MSGEQ7 信号判定**
+
+防爆音路径必须统一走 `anti_pop_fade_to_silence`, 不要再在局部入口写固定 1200ms/1500ms 等待后硬切。
+
+**修复要点**:
+- 输入切换也必须复用 `anti_pop_fade_to_silence`, 等 `current_db <= -95.5f` 或统一脚本结束后再 `pga2311::set_volume(0,0)`、硬静音、切输入继电器。
+- `anti_pop_fade_to_silence` 保留 DEBUG 级起止日志, 验证时可临时把 logger 调到 DEBUG; 最终固件保持 INFO。
+- MSGEQ7 启动零漂 offset 只允许低噪声 raw 值参与, 当前上限为 `320`; 不要再用接近满量程的阈值, 否则带信号开机会把真实音乐当 offset 扣掉。
+- MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
+- `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
+- 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
+
+改动文件: `智能前级蓝牙2.0.yaml`, `PGA/msgeq7.h`, `www/index.html`
+
+**42. 本地网页按钮控制兜底**
+
+实机 REST 直测成功但浏览器按钮无效时, 优先检查浏览器跨源/PNA 和前端实体路径, 不要先改音频核心。
+
+**规则**:
+- `www/index.html` 的控制按钮必须优先复用 `/events` 发现到的实体 `domain/name`, 并保留固定实体名称兜底。
+- `switch/待机模式` 语义为 `ON=待机, OFF=运行`; 网页开机/关机/待机按钮应直接调用该 switch 的 `turn_off/turn_on`, 不要绕 `select/媒体控制 Media`。
+- 媒体按钮可以调用 `select/媒体控制 Media`, 但必须通过统一发送函数, 以便复用 CORS/no-cors 兜底和路径检查。
+- 浏览器 CORS/PNA 失败而 curl 可控时, 网页可以先普通 `mode: "cors"` POST, 失败后再用 `mode: "no-cors"` 发送同一条 POST; HTTP 404/500 这类已拿到响应的错误不要隐藏。
+- ESPHome POST 控制请求必须显式带空 body/Content-Length, 否则可能返回 `411 Length Required`。
+
+改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (firmware_version)
+
 
 ## 强制性规则
 
@@ -104,7 +131,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.26
+**固件版本:** v2.1.28
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

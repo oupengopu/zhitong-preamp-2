@@ -68,6 +68,13 @@ struct SpectrumFrame {
   float temperature;                // NTC 温度 (C), NTC_INVALID = 无效
 };
 
+struct DebugFrame {
+  int raw_r[MSGEQ7_NUM_BANDS];      // ADC 原始右声道 (offset 前)
+  int raw_l[MSGEQ7_NUM_BANDS];      // ADC 原始左声道 (offset 前)
+  int offset_r[MSGEQ7_NUM_BANDS];   // 当前右声道零漂 offset
+  int offset_l[MSGEQ7_NUM_BANDS];   // 当前左声道零漂 offset
+};
+
 // ═══════════════════════════════════════════════════════════════
 //  内部状态 (外部禁止直接访问, 通过 get_frame() / get_temperature() 读取)
 //  使用 inline 变量 (C++17) 替代 static, 确保 ODR 安全
@@ -78,6 +85,8 @@ inline int _combined[MSGEQ7_NUM_BANDS] = {0};
 inline int _peak[MSGEQ7_NUM_BANDS] = {0};      // combined peak
 inline int _peak_l[MSGEQ7_NUM_BANDS] = {0};    // 左声道 peak
 inline int _peak_r[MSGEQ7_NUM_BANDS] = {0};    // 右声道 peak
+inline int _last_raw_r[MSGEQ7_NUM_BANDS] = {0};
+inline int _last_raw_l[MSGEQ7_NUM_BANDS] = {0};
 inline float _ntc_temperature = NTC_INVALID;
 
 inline float _smooth_r[MSGEQ7_NUM_BANDS] = {0};
@@ -108,7 +117,7 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 //   MSGEQ7 3.3V 供电时底噪约 100-200mV, 对应 ADC ≈ 124-248 / 4095 → 8-15 / 255
 //   旧值 3 太低会导致静音时频谱跳动, 提升到 8 消除底噪
 static constexpr int NOISE_GATE = 8;
-static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
+static constexpr int OFFSET_CALIBRATION_MAX_RAW = 320;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
 inline adc_oneshot_unit_handle_t _adc_handle = nullptr;
@@ -353,7 +362,12 @@ static void read() {
   int new_r[MSGEQ7_NUM_BANDS], new_l[MSGEQ7_NUM_BANDS];
   int new_combined[MSGEQ7_NUM_BANDS], new_peak[MSGEQ7_NUM_BANDS];
   int new_peak_l[MSGEQ7_NUM_BANDS], new_peak_r[MSGEQ7_NUM_BANDS];
+  int raw_r_snapshot[MSGEQ7_NUM_BANDS], raw_l_snapshot[MSGEQ7_NUM_BANDS];
   float new_sr[MSGEQ7_NUM_BANDS], new_sl[MSGEQ7_NUM_BANDS];
+  for (int i = 0; i < MSGEQ7_NUM_BANDS; i++) {
+    raw_r_snapshot[i] = -1;
+    raw_l_snapshot[i] = -1;
+  }
 
   // 复位多路复用器
   gpio_set_level((gpio_num_t)MSGEQ7_RESET_PIN, 1);
@@ -368,6 +382,8 @@ static void read() {
 
     int r_raw = _adc_read(MSGEQ7_R_ADC_CH);
     int l_raw = _adc_read(MSGEQ7_L_ADC_CH);
+    raw_r_snapshot[i] = r_raw;
+    raw_l_snapshot[i] = l_raw;
 
     // ADC 读取失败时跳过本频段, 保留上次平滑值 (避免归零闪烁)
     if (r_raw < 0 || l_raw < 0) {
@@ -464,6 +480,8 @@ static void read() {
   memcpy(_peak, new_peak, sizeof(_peak));
   memcpy(_peak_l, new_peak_l, sizeof(_peak_l));
   memcpy(_peak_r, new_peak_r, sizeof(_peak_r));
+  memcpy(_last_raw_r, raw_r_snapshot, sizeof(_last_raw_r));
+  memcpy(_last_raw_l, raw_l_snapshot, sizeof(_last_raw_l));
   portEXIT_CRITICAL(&_mux);
 
   // _smooth_* 仅本函数读写, 放在锁外减少临界区时长
@@ -566,6 +584,17 @@ static bool get_frame(SpectrumFrame* out) {
   memcpy(out->peak_l, _peak_l, sizeof(_peak_l));
   memcpy(out->peak_r, _peak_r, sizeof(_peak_r));
   out->temperature = _ntc_temperature;
+  portEXIT_CRITICAL(&_mux);
+  return true;
+}
+
+static bool get_debug_frame(DebugFrame* out) {
+  if (out == nullptr) return false;
+  portENTER_CRITICAL(&_mux);
+  memcpy(out->raw_r, _last_raw_r, sizeof(_last_raw_r));
+  memcpy(out->raw_l, _last_raw_l, sizeof(_last_raw_l));
+  memcpy(out->offset_r, _r_offset, sizeof(_r_offset));
+  memcpy(out->offset_l, _l_offset, sizeof(_l_offset));
   portEXIT_CRITICAL(&_mux);
   return true;
 }

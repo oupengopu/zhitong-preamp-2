@@ -10,9 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.0  
-**MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.5.2 + LVGL v9.x managed component  
+**固件版本:** v2.1.28
+**MCU:** ESP32-S3 @ 240MHz
+**框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
@@ -538,7 +538,7 @@ HA 滑条   → volume_number.set_action → volume_val 转换 → send_volume_t
 ### 新增功能（对比 fsievers22/esphome-ble-remote）
 1. **电池电量读取** — 发现 Battery Service (0x180F) + Battery Level characteristic (0x2A19)，CCCD 注册通知 + 初始读取，在 ble_remote_page 显示百分比
 2. **HID 原始事件调试查看器** — NOTIFY_EVT 中捕获 `_last_raw_page/_usage/_value`，`has_raw_event()` / `get_last_raw_event_string()` 供 YAML lambda 和 LVGL 显示
-3. **Home Assistant 事件推送** — `ble_hid_event_text` text_sensor，`on_value` → `homeassistant.event: esphome.hid_events`，按键数据随事件推送
+3. **Home Assistant 事件推送** — `ble_hid_event_text` text_sensor，`on_value` → `homeassistant.event: esphome.hid_events`，按键数据随事件推送；网页/手机 BLE 媒体控制也复用该事件通道
 
 ---
 

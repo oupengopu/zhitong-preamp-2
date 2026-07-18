@@ -1,3 +1,39 @@
+v2.1.28 - 2026-07-19
+  修复: 本地网页按钮仍可能无法控制设备
+    - www/index.html 的静音按钮改为走已发现/兜底的 `switch/静音-SW` 实体路径, 不再单独硬编码 switch 名称
+    - 开机/关机/待机按钮直接操作 `switch/待机模式` 的 `turn_off/turn_on`, 不再绕 `select/媒体控制 Media`
+    - 媒体按钮改为复用统一 `sendCmd('media', ...)`, 使用 SSE 发现到的实体名称路径和固定兜底
+    - REST 控制先按普通 CORS POST 发送; 若浏览器因 CORS/PNA 判定失败, 自动退到 `no-cors` 方式发送同一条 POST
+    - 固件显示版本号更新为 v2.1.28, 网页控制台显示 WEB v2.1.28
+  原因: 实机 curl 直测 `number/主音量 Volume`、`select/媒体控制 Media`、`switch/待机模式` 均返回 200, 证明设备 REST 入口可用; 浏览器本地 HTML 仍可能被跨源/PNA 预检或前端硬编码路径拦住。ESPHome 2026.7 的 PNA 预检会在默认 `Access-Control-Allow-Origin: *` 外追加请求源, 个别浏览器会把这种双 ACAO 判为失败, 因此网页需要发送兜底并减少绕路
+  备注: 本次不修改 BLE HID 遥控器和音频核心逻辑
+改动文件:
+  www/index.html
+  智能前级蓝牙2.0.yaml (firmware_version)
+  CHANGELOG.txt
+  AGENTS.md
+
+---
+v2.1.27 - 2026-07-19
+  修复: 防爆音输入切换路径和 MSGEQ7 有信号但显示/自动判断无信号
+    - 输入切换从固定 1200ms 等待改为复用 anti_pop_fade_to_silence, 与静音/待机/输出模式一致: 软降到 current_db <= -95.5f 后再硬静音和切继电器
+    - anti_pop_fade_to_silence 增加 DEBUG 级起止日志, 便于临时打开 logger 验证软降耗时和硬切前电平
+    - MSGEQ7 启动零漂 offset 上限从 3600 raw 改为 320 raw, 避免带信号开机时把音乐电平采成 offset 后全部扣成 0
+    - MSGEQ7 信号强度改用未显示消隐前的实时频谱平均值, 静音时也继续更新, 不再沿用旧的 0 值
+    - 频谱显示静默消隐阈值从 peak<=36/avg<=16 降为 peak<=12/avg<=4, 避免小信号被当作无信号
+    - msgeq7.h 增加 DebugFrame 只读快照, 仅供 DEBUG 日志验证 raw/offset/frame 三层数据
+    - 网页/手机 BLE 的媒体控制命令现在会复用 `ble_hid_event_text` 推送 `esphome.hid_events`, 播放/暂停/上一首/下一首与 BLE HID 遥控保持同一条 HA 事件通道
+    - 网页控制台版本显示更新为 WEB v2.1.27
+  原因: v2.1.24 已修复静音/待机/输出模式的软降硬切顺序, 但输入切换仍保留旧 1200ms 等待; 按当前渐变速度, 常用音量降到 -96dB 可能超过 1.2 秒而提前硬切。MSGEQ7 方面, 过高的 offset 采样上限会在有信号开机时把真实信号当底噪扣除, 同时显示消隐阈值偏高、静音时信号值冻结会放大"无信号"现象
+  备注: DEBUG 日志默认不会输出; 最终固件 logger 仍保持 INFO
+改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, anti_pop_fade_to_silence, switch_input, MSGEQ7 interval)
+  PGA/msgeq7.h
+  www/index.html
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.26 - 2026-07-19
   修复: 本地 www/index.html 网页仍无法控制设备
     - web_server 增加 allowed_origins: "*" 和 enable_private_network_access: true, 放行浏览器跨源/PNA 控制请求
