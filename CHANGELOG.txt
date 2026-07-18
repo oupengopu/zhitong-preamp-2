@@ -1,3 +1,30 @@
+v2.1.36 - 2026-07-19
+  修复: MSGEQ7 弱信号无显示 + 本地网页按钮提示已发送但实机仍无动作
+    - `PGA/msgeq7.h` 新增 `RAW_NOISE_FLOOR=6`, 在 raw-offset 后先扣除 ADC 底噪
+    - 新增 `SIGNAL_FULL_SCALE_RAW=128`, 用实机有效包络窗口映射到 0-255, 不再按 ADC 4095 全量程缩放
+    - 保留频段增益先于缩放, `NOISE_GATE=2` 作为最后的显示门限
+    - 固件显示版本号更新为 v2.1.36
+    - `www/index.html` 控制请求改为优先 `fetch` CORS POST, 成功时必须拿到 HTTP 200, 失败时显示实体路径错误
+    - CORS/PNA 被浏览器拦截时再降级为 `no-cors` POST, 最后才使用隐藏 form 兜底
+    - 网页版本更新到 `WEB v2.1.36`; 浏览器保存的旧 IP 会在网页版本变化时重置到当前默认 `192.168.31.99`
+    - 支持用 `?ip=192.168.x.x` 临时指定设备 IP, 并写回本地保存值
+    - 验证通过后将 `anti_pop` 与 `msgeq7_diag` 临时 INFO 日志恢复为 DEBUG, 最终固件保持 INFO 运行不刷屏
+  原因: MSGEQ7 临时诊断实测 DAC 输入检测 `mcp=0/1/0/0`, raw 在 offset 附近有约 10~15 count 变化, 但旧算法按 4095 全量程缩放后低于 `NOISE_GATE`, 导致 `frame_peak=0 signal=0`。网页侧 curl 直测 ESPHome REST 接口正常, 但旧版总是盲目使用隐藏 form 并立即提示"已发送", 浏览器拦截或 localStorage 残留旧 IP 时没有任何可见错误。
+  验证:
+    - OTA 临时诊断版后, DAC 输入下 `frame_peak` 从 0 变为 9~17, `signal` 变为 4~9
+    - 静音开启日志显示先淡到 `current=-95.50` 后才 `静音-HW >> ON`
+    - 输入 DAC/CD 切换日志显示先淡到约 `current=-95.5` 后才硬静音、切输入、再解除硬静音
+    - 本地 HTTP 打开网页 `WEB v2.1.36`, 连续两次播放控制无前端错误; 设备 `BLE HID 按键事件` 递增到 `PLAY#6`
+  改动文件:
+  PGA/msgeq7.h (raw域底噪扣除, 有效窗口缩放)
+  智能前级蓝牙2.0.yaml (firmware_version, 诊断日志恢复 DEBUG)
+  www/index.html (POST 发送层, IP 初始化, 网页版本)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.34 - 2026-07-19
   修复: MSGEQ7 弱信号已放大但频谱自动判定仍按旧阈值认为无信号
     - 频谱自动跳转的 `has_signal` 阈值从 `s_signal_avg > 8` 改为 `s_signal_avg > 2`

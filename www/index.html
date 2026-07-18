@@ -328,7 +328,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
-            <span class="web-version">WEB v2.1.33</span>
+            <span class="web-version">WEB v2.1.36</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -421,7 +421,10 @@
 </div>
 
 <script>
+    const WEB_VERSION = 'v2.1.36';
     const DEFAULT_DEVICE_IP = '192.168.31.99';
+    const STORAGE_DEVICE_IP_KEY = 'pga2311_ip';
+    const STORAGE_WEB_VERSION_KEY = 'pga2311_web_version';
     const ENTITY_FALLBACKS = {
         vol: { domain: 'number', name: '主音量 Volume', id: '' },
         bal: { domain: 'number', name: '声道平衡 Balance', id: '' },
@@ -440,9 +443,29 @@
         '下一首': 'mediaNext',
         '上一首': 'mediaPrev'
     };
-    const savedDeviceIp = localStorage.getItem('pga2311_ip');
-    let deviceIp = (!savedDeviceIp || savedDeviceIp === '192.168.31.86') ? DEFAULT_DEVICE_IP : savedDeviceIp;
-    if (deviceIp !== savedDeviceIp) localStorage.setItem('pga2311_ip', deviceIp);
+    function loadDeviceIp() {
+        const params = new URLSearchParams(window.location.search);
+        const queryIp = (params.get('ip') || params.get('host') || '').trim();
+        if (isValidIP(queryIp)) {
+            localStorage.setItem(STORAGE_DEVICE_IP_KEY, queryIp);
+            localStorage.setItem(STORAGE_WEB_VERSION_KEY, WEB_VERSION);
+            return queryIp;
+        }
+
+        const savedDeviceIp = localStorage.getItem(STORAGE_DEVICE_IP_KEY);
+        const savedWebVersion = localStorage.getItem(STORAGE_WEB_VERSION_KEY);
+        if (savedWebVersion !== WEB_VERSION) {
+            localStorage.setItem(STORAGE_DEVICE_IP_KEY, DEFAULT_DEVICE_IP);
+            localStorage.setItem(STORAGE_WEB_VERSION_KEY, WEB_VERSION);
+            return DEFAULT_DEVICE_IP;
+        }
+
+        if (savedDeviceIp && isValidIP(savedDeviceIp)) return savedDeviceIp;
+        localStorage.setItem(STORAGE_DEVICE_IP_KEY, DEFAULT_DEVICE_IP);
+        return DEFAULT_DEVICE_IP;
+    }
+
+    let deviceIp = loadDeviceIp();
     document.getElementById('ip-address').value = deviceIp;
     let currentVol = 0;
     let eventSource = null;
@@ -831,7 +854,8 @@
     document.getElementById('ip-address').addEventListener('change', function(e) {
         deviceIp = e.target.value.trim();
         if (deviceIp && !isValidIP(deviceIp)) { showToast('IP 格式不正确！'); return; }
-        localStorage.setItem('pga2311_ip', deviceIp);
+        localStorage.setItem(STORAGE_DEVICE_IP_KEY, deviceIp);
+        localStorage.setItem(STORAGE_WEB_VERSION_KEY, WEB_VERSION);
         resetReconnectDelay();
         connect(true);
     });
@@ -901,50 +925,50 @@
         return true;
     }
 
-    function shouldUseFormPost() {
-        return true;
-    }
+    function fetchPost(url, mode, timeoutMs = 3500) {
+        const options = {
+            method: 'POST',
+            mode,
+            cache: 'no-store',
+            credentials: 'omit',
+            body: '1'
+        };
 
-    function sendRequest(url, label, options = {}) {
-        if (shouldUseFormPost()) {
-            sendByHiddenForm(url);
-            if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
-            return Promise.resolve(true);
+        if (typeof AbortController === 'undefined') {
+            return fetch(url, options);
         }
 
-        // Fallback kept for future same-origin use. The local console normally
-        // uses form POST because Chrome may silently drop fetch/no-cors PNA calls.
-        const postBody = new Uint8Array([49]);
-        return fetch(url, {
-            method: 'POST',
-            mode: 'cors',
-            cache: 'no-store',
-            body: postBody
-        }).then(res => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        options.signal = controller.signal;
+        return fetch(url, options).finally(() => clearTimeout(timer));
+    }
+
+    async function sendRequest(url, label, options = {}) {
+        try {
+            const res = await fetchPost(url, 'cors');
             if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+            if (!options.silentSuccess) showToast(`${label}成功`, 1200);
             return true;
-        }).catch(err => {
+        } catch (err) {
             if (err && /^.+ HTTP \d+$/.test(err.message || '')) {
                 console.warn(`${label}失败:`, err);
-                if (!options.silentHttpError) showToast(`${label}失败，请检查实体路径`, 3000);
+                if (!options.silentHttpError) showToast(`${label}失败，请检查实体路径`, 3500);
                 return false;
             }
-            console.warn(`${label} CORS失败，尝试 no-cors 发送:`, err);
-            return fetch(url, {
-                method: 'POST',
-                mode: 'no-cors',
-                cache: 'no-store',
-                body: postBody
-            }).then(() => {
-                if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
+
+            console.warn(`${label} CORS/PNA失败，尝试 no-cors POST:`, err);
+            try {
+                await fetchPost(url, 'no-cors');
+                if (!options.silentSuccess) showToast(`${label}已发送，等待状态回传`, 1800);
                 return true;
-            }).catch(err2 => {
+            } catch (err2) {
                 console.warn(`${label}失败:`, err2);
                 sendByHiddenForm(url);
-                if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
+                if (!options.silentSuccess) showToast(`${label}已用兜底发送，请确认 IP`, 2500);
                 return true;
-            });
-        });
+            }
+        }
     }
 
     function sendCmd(key, action) {

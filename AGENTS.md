@@ -94,7 +94,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - 输入切换也必须复用 `anti_pop_fade_to_silence`, 等 `current_db <= -95.5f` 或统一脚本结束后再 `pga2311::set_volume(0,0)`、硬静音、切输入继电器。
 - `anti_pop_fade_to_silence` 保留 DEBUG 级起止日志, 验证时可临时把 logger 调到 DEBUG; 最终固件保持 INFO。
 - MSGEQ7 启动零漂 offset 必须接受实机 3.3V 下约 `3200 raw` 的直流偏置, 当前上限为 `3600`; 不要改回过低阈值, 否则 offset 会被丢弃, 频谱常满格/信号判断失真。
-- MSGEQ7 弱信号必须先做频段增益再做 4095→255 缩放和噪声门限; 当前 `NOISE_GATE=2`, 不要改回“缩放后先门限再增益”, 否则几十 raw 的有效变化会被整数截断成 0。
+- MSGEQ7 弱信号必须先在 raw 域扣除 `RAW_NOISE_FLOOR=6`, 再做频段增益, 最后按 `SIGNAL_FULL_SCALE_RAW=128` 映射到 0-255; 当前 `NOISE_GATE=2`。不要改回 4095 全量程缩放或“缩放后先门限再增益”, 否则十几个 raw count 的有效变化会被整数截断成 0。
 - 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg > 2`; 不要保留旧的 `> 8` 阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
@@ -111,7 +111,9 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `switch/待机模式` 语义为 `ON=待机, OFF=运行`; 网页开机/关机/待机按钮应直接调用该 switch 的 `turn_off/turn_on`, 不要绕 `select/媒体控制 Media`。
 - 媒体按钮可以调用 `select/媒体控制 Media`, 但必须通过统一发送函数, 以便复用 CORS/no-cors 兜底和路径检查。
 - 浏览器 CORS/PNA 失败而 curl 可控时, 网页可以先普通 `mode: "cors"` POST, 失败后再用 `mode: "no-cors"` 发送同一条 POST; HTTP 404/500 这类已拿到响应的错误不要隐藏。
-- ESPHome POST 控制请求必须带非空 body/Content-Length, 否则可能返回 `411 Length Required`; 网页侧优先用二进制 body, 不要引入自定义 header 或会触发预检的 `Content-Type`。
+- ESPHome POST 控制请求必须带非空 body/Content-Length, 否则可能返回 `411 Length Required`; 网页侧使用简单非空 body, 不要引入自定义 header 或会触发预检的 `Content-Type`。
+- `www/index.html` 不要默认盲目隐藏 form POST; 必须先用可确认 HTTP 状态的 `fetch` CORS POST, 失败再降级 no-cors/form, 否则浏览器拦截或路径 404 会被误报为"已发送"。
+- 网页版本变化时要重置浏览器保存的旧设备 IP 到当前默认值, 并支持 `?ip=192.168.x.x` 覆盖; 多次 OTA 测试会在 `.66/.97/.99` 间切换, stale localStorage 是网页控制失败的常见原因。
 
 改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (firmware_version)
 
@@ -122,9 +124,9 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 按钮看似发送但实体不会执行。
 
 **修复**:
-- `www/index.html` 的 `sendRequest()` 使用非空 1 字节 body, 当前为 `new Uint8Array([49])`。
+- `www/index.html` 的 `sendRequest()` 使用非空 1 字节 body, 当前为字符串 `"1"`。
 - CORS 正常路径和 `no-cors` 兜底路径都必须使用同一非空 body。
-- 避免字符串 body 或自定义 header 触发浏览器 `OPTIONS` 预检; 实机验证 `web_server_idf` 对预检可能空回复。
+- 避免自定义 header 或非简单 `Content-Type` 触发浏览器 `OPTIONS` 预检; 实机验证 `web_server_idf` 对预检可能空回复。
 - curl/PowerShell 验证 REST 时也要用 `--data-raw "x"` 或等效方式, 不要只写 `-X POST`。
 
 改动文件: `www/index.html`
@@ -214,7 +216,7 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.34
+**固件版本:** v2.1.36
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

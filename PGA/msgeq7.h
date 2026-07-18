@@ -113,10 +113,12 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
   230, 256, 282, 320, 371, 435, 512
 };
 
-// ── 噪声门限 (0-255 量纲, 低于此值的频谱归零, 静音时频谱静止) ──
-//   MSGEQ7 3.3V 供电下弱音频可能只有几十 raw 的有效摆幅。
-//   门限放在频段增益之后, 这里保持较低值, 避免整数缩放过早吃掉弱信号。
+// ── 噪声门限与弱信号缩放 ──
+//   实机 3.3V 供电下 MSGEQ7 包络只在直流偏置附近摆动十几个 raw count。
+//   先在 raw 域扣掉 ADC 底噪, 再按有效窗口映射到 0-255, 避免 4095 全量程缩放吃掉弱信号。
 static constexpr int NOISE_GATE = 2;
+static constexpr int RAW_NOISE_FLOOR = 6;
+static constexpr int SIGNAL_FULL_SCALE_RAW = 128;
 static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
@@ -411,14 +413,18 @@ static void read() {
     l_raw -= _l_offset[i];
     if (r_raw < 0) r_raw = 0;
     if (l_raw < 0) l_raw = 0;
+    if (r_raw <= RAW_NOISE_FLOOR) r_raw = 0;
+    else r_raw -= RAW_NOISE_FLOOR;
+    if (l_raw <= RAW_NOISE_FLOOR) l_raw = 0;
+    else l_raw -= RAW_NOISE_FLOOR;
 
-    // 频段增益补偿先在 ADC 原始域完成, 避免弱信号被 4095->255 的整数缩放截断。
+    // 频段增益补偿先在 ADC 原始域完成, 避免弱信号被整数缩放截断。
     int r_val = (r_raw * BAND_GAIN_Q8[i]) >> 8;
     int l_val = (l_raw * BAND_GAIN_Q8[i]) >> 8;
 
-    // 缩放到 0-255
-    r_val = r_val * 255 / 4095;
-    l_val = l_val * 255 / 4095;
+    // 缩放到 0-255: MSGEQ7 有效包络窗口远小于 ADC 0-4095 全量程
+    r_val = r_val * 255 / SIGNAL_FULL_SCALE_RAW;
+    l_val = l_val * 255 / SIGNAL_FULL_SCALE_RAW;
     if (r_val > 255) r_val = 255;
     if (l_val > 255) l_val = 255;
 
