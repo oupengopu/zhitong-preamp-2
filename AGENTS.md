@@ -93,7 +93,8 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 **修复要点**:
 - 输入切换也必须复用 `anti_pop_fade_to_silence`, 等 `current_db <= -95.5f` 或统一脚本结束后再 `pga2311::set_volume(0,0)`、硬静音、切输入继电器。
 - `anti_pop_fade_to_silence` 保留 DEBUG 级起止日志, 验证时可临时把 logger 调到 DEBUG; 最终固件保持 INFO。
-- MSGEQ7 启动零漂 offset 只允许低噪声 raw 值参与, 当前上限为 `320`; 不要再用接近满量程的阈值, 否则带信号开机会把真实音乐当 offset 扣掉。
+- MSGEQ7 启动零漂 offset 必须接受实机 3.3V 下约 `3200 raw` 的直流偏置, 当前上限为 `3600`; 不要改回过低阈值, 否则 offset 会被丢弃, 频谱常满格/信号判断失真。
+- MSGEQ7 弱信号必须先做频段增益再做 4095→255 缩放和噪声门限; 当前 `NOISE_GATE=2`, 不要改回“缩放后先门限再增益”, 否则几十 raw 的有效变化会被整数截断成 0。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
 - 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
@@ -153,6 +154,47 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 改动文件: `www/index.html`
 
+**46. 网页媒体控制必须使用瞬时 button 入口**
+
+`select/媒体控制 Media` 可以保留为状态显示和旧接口兼容, 但它不是可靠的瞬时按钮。
+连续设置同一个 option 时, ESPHome/前端状态去重可能让后续动作不稳定。
+
+**修复**:
+- 固件提供 `button/媒体播放 Play`、`button/媒体暂停 Pause`、`button/媒体下一首 Next`、`button/媒体上一首 Prev`。
+- 4 个 button 共用 `emit_media_action`, 每次 press 都发布 `ACTION#seq` 到 `BLE HID 按键事件`。
+- `www/index.html` 媒体按钮只有在 `/events` 已发现对应 button 实体 id 后才调用 `/button/<name>/press`; button 不存在或未广播时必须直接回退到 `select/媒体控制 Media`。
+- button 探测/兼容入口失败不要先弹 `IP/跨源权限` 错误, 避免旧固件未 OTA 时误导排查。
+- `/events` 后续精简状态包可能没有 `name/domain`; `mapEntity()` 必须合并实体信息, 不允许用空 `name` 覆盖已知实体, 否则会出现 `未找到实体: media`。
+
+改动文件: `智能前级蓝牙2.0.yaml` (script/button/select), `www/index.html`
+
+**47. 本地 HTML 控制页必须保留 form POST 兜底**
+
+直接双击打开 `www/index.html` 时, 浏览器可能拦截 `file:// -> http://192.168.x.x`
+的 `fetch`/Private Network Access 请求。命令行 curl 返回 200 不代表本地 HTML 一定能发出同样请求。
+
+**规则**:
+- `www/index.html` 的控制请求必须默认使用隐藏 iframe + form POST, 不能先依赖 `fetch`/`no-cors` 成功判断。
+- `file://` 和本地 HTTP 打开时都优先用 form POST, 因为控制命令只需要发送, 不需要读取跨源响应。
+- 网页 SSE 未连接时只能提示连接状态, 不能用全屏遮罩或 `pointer-events: none` 阻断控制按钮; curl 已能控制时, 用户仍应能从网页直接发送命令。
+- 普通 CORS/no-cors 代码只作为未来同源场景备用, 不能作为本地控制台的首选发送通道。
+- 这类问题优先改网页发送层, 不要误判为固件 REST 实体失效。
+
+改动文件: `www/index.html`
+
+**48. 防爆音渐变期间必须锁定 target_db**
+
+`anti_pop_fade_to_silence` 运行期间, 其他入口可能继续触发 `send_volume_to_pga`
+或 `soft_mute_switch.turn_off_action`。如果这时按普通音量重算 `target_db`, 软降目标会从
+`-96dB` 被抢回当前音量, 最后表现为 5 秒超时后才硬静音/硬切, 防爆音等于失效。
+
+**规则**:
+- `send_volume_to_pga` 在 `anti_pop_fade_to_silence->is_running()` 时必须强制保持 `target_db=-96.0f`。
+- 防爆音软降未完成时, 取消静音只能保持 `soft_mute=true` 并同步开关状态, 不能提前打开硬件静音或恢复音量。
+- 实机日志若出现 `fade timeout before hard mute` 且 `target_db` 不是 `-96.0f`, 优先检查是否有入口抢写了 `target_db`。
+
+改动文件: `智能前级蓝牙2.0.yaml` (soft_mute_switch/send_volume_to_pga)
+
 
 ## 强制性规则
 
@@ -171,7 +213,7 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.29
+**固件版本:** v2.1.33
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

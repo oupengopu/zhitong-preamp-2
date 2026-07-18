@@ -273,10 +273,9 @@
             font-size: 14px; color: var(--text-sub);
         }
 
-        /* 控件禁用态 */
+        /* 连接异常只做视觉提示, 不再阻止本地控制命令 */
         .controls-locked {
-            pointer-events: none !important;
-            opacity: 0.35 !important;
+            opacity: 0.72 !important;
         }
 
         /* ══ 开关机二次确认弹窗 ══ */
@@ -329,7 +328,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
-            <span class="web-version">WEB v2.1.30</span>
+            <span class="web-version">WEB v2.1.33</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -429,7 +428,17 @@
         input: { domain: 'select', name: '输入源选择 Input', id: '' },
         mute: { domain: 'switch', name: '静音-SW', id: '' },
         media: { domain: 'select', name: '媒体控制 Media', id: '' },
+        mediaPlay: { domain: 'button', name: '媒体播放 Play', id: '' },
+        mediaPause: { domain: 'button', name: '媒体暂停 Pause', id: '' },
+        mediaNext: { domain: 'button', name: '媒体下一首 Next', id: '' },
+        mediaPrev: { domain: 'button', name: '媒体上一首 Prev', id: '' },
         standby: { domain: 'switch', name: '待机模式', id: '' }
+    };
+    const MEDIA_BUTTON_KEYS = {
+        '播放': 'mediaPlay',
+        '暂停': 'mediaPause',
+        '下一首': 'mediaNext',
+        '上一首': 'mediaPrev'
     };
     const savedDeviceIp = localStorage.getItem('pga2311_ip');
     let deviceIp = (!savedDeviceIp || savedDeviceIp === '192.168.31.86') ? DEFAULT_DEVICE_IP : savedDeviceIp;
@@ -498,15 +507,9 @@
     const controlCards = document.querySelectorAll('.card');
 
     function setControlsEnabled(enabled) {
-        if (enabled) {
-            overlay.classList.remove('visible');
-            overlay.classList.add('hidden');
-            controlCards.forEach(c => c.classList.remove('controls-locked'));
-        } else {
-            overlay.classList.add('visible');
-            overlay.classList.remove('hidden');
-            controlCards.forEach(c => c.classList.add('controls-locked'));
-        }
+        overlay.classList.remove('visible');
+        overlay.classList.add('hidden');
+        controlCards.forEach(c => c.classList.toggle('controls-locked', !enabled));
     }
 
     function updateConnStatus() {
@@ -838,14 +841,25 @@
         const name = entity.name || '';
         const nameId = entity.name_id || '';
         const domain = entity.domain || (nameId.includes('/') ? nameId.split('/')[0] : '');
-        const item = { domain, name, id: eid };
+        const mergeEntity = (key) => {
+            const prev = eMap[key] || ENTITY_FALLBACKS[key] || {};
+            eMap[key] = {
+                domain: domain || prev.domain || '',
+                name: name || prev.name || '',
+                id: eid || prev.id || ''
+            };
+        };
 
-        if (name === '静音-SW' || eid === 'switch-______-sw') eMap.mute = item;
-        else if (name === '待机模式' || eid === 'switch-____________') eMap.standby = item;
-        else if (name === '主音量 Volume' || eid.includes('volume') || eid.includes('vol')) eMap.vol = item;
-        else if (name === '声道平衡 Balance' || eid.includes('balance') || eid.includes('bal')) eMap.bal = item;
-        else if (name === '输入源选择 Input' || eid.includes('input')) eMap.input = item;
-        else if (name === '媒体控制 Media' || eid.includes('media')) eMap.media = item;
+        if (name === '静音-SW' || eid === 'switch-______-sw' || (!!eMap.mute.id && eid === eMap.mute.id)) mergeEntity('mute');
+        else if (name === '待机模式' || eid === 'switch-____________' || (!!eMap.standby.id && eid === eMap.standby.id)) mergeEntity('standby');
+        else if (name === '主音量 Volume' || eid.includes('volume') || eid.includes('vol') || (!!eMap.vol.id && eid === eMap.vol.id)) mergeEntity('vol');
+        else if (name === '声道平衡 Balance' || eid.includes('balance') || eid.includes('bal') || (!!eMap.bal.id && eid === eMap.bal.id)) mergeEntity('bal');
+        else if (name === '输入源选择 Input' || eid.includes('input') || (!!eMap.input.id && eid === eMap.input.id)) mergeEntity('input');
+        else if (name === '媒体控制 Media' || (!!eMap.media.id && eid === eMap.media.id) || (domain === 'select' && eid.includes('media'))) mergeEntity('media');
+        else if (name === '媒体播放 Play' || (!!eMap.mediaPlay.id && eid === eMap.mediaPlay.id) || (domain === 'button' && eid.includes('play'))) mergeEntity('mediaPlay');
+        else if (name === '媒体暂停 Pause' || (!!eMap.mediaPause.id && eid === eMap.mediaPause.id) || (domain === 'button' && eid.includes('pause'))) mergeEntity('mediaPause');
+        else if (name === '媒体下一首 Next' || (!!eMap.mediaNext.id && eid === eMap.mediaNext.id) || (domain === 'button' && eid.includes('next'))) mergeEntity('mediaNext');
+        else if (name === '媒体上一首 Prev' || (!!eMap.mediaPrev.id && eid === eMap.mediaPrev.id) || (domain === 'button' && eid.includes('prev'))) mergeEntity('mediaPrev');
     }
 
     function entityPath(entity) {
@@ -858,9 +872,48 @@
         return (!!mapped.id && entity.id === mapped.id) || entity.name === mapped.name;
     }
 
-    function sendRequest(url, label) {
-        // ESPHome 2026.7 requires Content-Length, while browser CORS must avoid
-        // triggering an OPTIONS preflight that web_server_idf does not answer.
+    function sendByHiddenForm(url) {
+        const target = `esp-post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const iframe = document.createElement('iframe');
+        iframe.name = target;
+        iframe.style.display = 'none';
+        iframe.setAttribute('aria-hidden', 'true');
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = target;
+        form.style.display = 'none';
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'x';
+        input.value = '1';
+        form.appendChild(input);
+
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(() => {
+            form.remove();
+            iframe.remove();
+        }, 5000);
+        return true;
+    }
+
+    function shouldUseFormPost() {
+        return true;
+    }
+
+    function sendRequest(url, label, options = {}) {
+        if (shouldUseFormPost()) {
+            sendByHiddenForm(url);
+            if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
+            return Promise.resolve(true);
+        }
+
+        // Fallback kept for future same-origin use. The local console normally
+        // uses form POST because Chrome may silently drop fetch/no-cors PNA calls.
         const postBody = new Uint8Array([49]);
         return fetch(url, {
             method: 'POST',
@@ -869,12 +922,12 @@
             body: postBody
         }).then(res => {
             if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
-            return res;
+            return true;
         }).catch(err => {
             if (err && /^.+ HTTP \d+$/.test(err.message || '')) {
                 console.warn(`${label}失败:`, err);
-                showToast(`${label}失败，请检查实体路径`, 3000);
-                return;
+                if (!options.silentHttpError) showToast(`${label}失败，请检查实体路径`, 3000);
+                return false;
             }
             console.warn(`${label} CORS失败，尝试 no-cors 发送:`, err);
             return fetch(url, {
@@ -883,10 +936,13 @@
                 cache: 'no-store',
                 body: postBody
             }).then(() => {
-                showToast(`${label}已发送`, 1200);
+                if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
+                return true;
             }).catch(err2 => {
                 console.warn(`${label}失败:`, err2);
-                showToast(`${label}失败，请检查IP/跨源权限`, 3000);
+                sendByHiddenForm(url);
+                if (!options.silentSuccess) showToast(`${label}已发送`, 1200);
+                return true;
             });
         });
     }
@@ -895,11 +951,23 @@
         if (deviceIp.includes('x')) return showToast("请先输入正确的 IP！");
         const path = entityPath(eMap[key]);
         if (!path) return showToast(`未找到实体: ${key}`);
-        sendRequest(`http://${deviceIp}/${path}/${action}`, '指令发送');
+        return sendRequest(`http://${deviceIp}/${path}/${action}`, '指令发送');
     }
 
-    function sendMedia(option) {
-        sendCmd('media', `set?option=${encodeURIComponent(option)}`);
+    async function sendMedia(option) {
+        const buttonKey = MEDIA_BUTTON_KEYS[option];
+        if (buttonKey && eMap[buttonKey] && eMap[buttonKey].id) {
+            const path = entityPath(eMap[buttonKey]);
+            if (path) {
+                const ok = await sendRequest(`http://${deviceIp}/${path}/press`, '媒体指令', {
+                    silentHttpError: true,
+                    silentNetworkError: true,
+                    silentSuccess: true
+                });
+                if (ok) return;
+            }
+        }
+        return sendCmd('media', `set?option=${encodeURIComponent(option)}`);
     }
 
     function sendPowerOn() {

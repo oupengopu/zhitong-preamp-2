@@ -114,10 +114,10 @@ static constexpr int BAND_GAIN_Q8[MSGEQ7_NUM_BANDS] = {
 };
 
 // ── 噪声门限 (0-255 量纲, 低于此值的频谱归零, 静音时频谱静止) ──
-//   MSGEQ7 3.3V 供电时底噪约 100-200mV, 对应 ADC ≈ 124-248 / 4095 → 8-15 / 255
-//   旧值 3 太低会导致静音时频谱跳动, 提升到 8 消除底噪
-static constexpr int NOISE_GATE = 8;
-static constexpr int OFFSET_CALIBRATION_MAX_RAW = 320;
+//   MSGEQ7 3.3V 供电下弱音频可能只有几十 raw 的有效摆幅。
+//   门限放在频段增益之后, 这里保持较低值, 避免整数缩放过早吃掉弱信号。
+static constexpr int NOISE_GATE = 2;
+static constexpr int OFFSET_CALIBRATION_MAX_RAW = 3600;
 
 // ── ADC oneshot 句柄 (ESP-IDF 5.x 新 API) ──
 inline adc_oneshot_unit_handle_t _adc_handle = nullptr;
@@ -272,7 +272,8 @@ static void setup() {
         esp_rom_delay_us(40);
       }
     }
-    // 3帧平均 -> 零漂偏置, 阈值50: 正常静默偏置约 8-40, >50 可能有音频信号, 舍弃校准
+    // 3帧平均 -> 零漂偏置。实机 3.3V MSGEQ7 输出存在约 3200 raw 的直流偏置,
+    // 只排除接近 ADC 顶端的异常/强信号污染, 避免把正常偏置丢弃后频谱常满格。
     for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
       int avg_r = r_sum[j] / 3;
       int avg_l = l_sum[j] / 3;
@@ -411,19 +412,19 @@ static void read() {
     if (r_raw < 0) r_raw = 0;
     if (l_raw < 0) l_raw = 0;
 
+    // 频段增益补偿先在 ADC 原始域完成, 避免弱信号被 4095->255 的整数缩放截断。
+    int r_val = (r_raw * BAND_GAIN_Q8[i]) >> 8;
+    int l_val = (l_raw * BAND_GAIN_Q8[i]) >> 8;
+
     // 缩放到 0-255
-    int r_val = r_raw * 255 / 4095;
-    int l_val = l_raw * 255 / 4095;
-
-    // 噪声门限 (先于增益, 防止增益放大噪声)
-    if (r_val < NOISE_GATE) r_val = 0;
-    if (l_val < NOISE_GATE) l_val = 0;
-
-    // 频段增益补偿 (整数定点: ×N/256, 比 float mul 快 ~5x on ESP32-S3 FPU)
-    r_val = (r_val * BAND_GAIN_Q8[i]) >> 8;
-    l_val = (l_val * BAND_GAIN_Q8[i]) >> 8;
+    r_val = r_val * 255 / 4095;
+    l_val = l_val * 255 / 4095;
     if (r_val > 255) r_val = 255;
     if (l_val > 255) l_val = 255;
+
+    // 噪声门限 (增益之后判断, 防止弱信号被提前扼杀)
+    if (r_val < NOISE_GATE) r_val = 0;
+    if (l_val < NOISE_GATE) l_val = 0;
 
     // 双速率平滑: 上升快, 下降慢 (视觉更流畅)
     float sr = local_sr[i], sl = local_sl[i];

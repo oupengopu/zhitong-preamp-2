@@ -1,3 +1,31 @@
+v2.1.33 - 2026-07-19
+  修复: 本地网页控制、媒体按钮重复触发、防爆音目标抢占、MSGEQ7 弱信号门限
+    - `www/index.html` 所有控制命令默认改为隐藏 iframe + form POST, 不再先走 `fetch/no-cors`
+    - `file://` 和本地 HTTP 打开网页时都使用 form POST, 避免 Chrome/Edge 对私有网络 fetch 的静默拦截或假成功
+    - SSE 未连接/重连中时不再用全屏遮罩拦住控制区, 只降低透明度提示状态
+    - www/index.html 的 `mapEntity()` 改为合并实体信息, `/events` 后续精简状态包缺少 `name/domain` 时不再覆盖已知实体名称
+    - 网页新增媒体按钮实体兜底映射: `媒体播放 Play` / `媒体暂停 Pause` / `媒体下一首 Next` / `媒体上一首 Prev`
+    - 网页媒体按钮只在 `/events` 已实际发现 button 实体 id 后调用 `/button/<媒体按钮>/press`, 旧固件或 button 未广播时直接回退到 `select/媒体控制 Media`
+    - button 探测失败不弹出跨源/IP错误, 避免未 OTA 到新固件时误报 `媒体指令失败，请检查IP/跨源权限`
+    - 固件新增 `emit_media_action` 脚本和 4 个 template button, 每次 press 都发布 `ACTION#seq` HID 脉冲事件, 不再依赖 select 当前 option 是否变化
+    - `send_volume_to_pga` 在 `anti_pop_fade_to_silence` 运行期间强制保持 `target_db=-96.0f`, 防止音量/取消静音动作把软降目标抢回当前音量
+    - `soft_mute_switch.turn_off_action` 遇到防爆音软降进行中时只保持 `soft_mute=true` 并同步开关状态, 不提前恢复音量/打开硬件静音
+    - MSGEQ7 零漂 offset 上限从 `320` 恢复为 `3600`, 接受实机 3.3V 下约 `3250 raw` 的直流偏置, 避免 offset 被丢弃后频谱常满格/信号判断失真
+    - MSGEQ7 频段增益移到 4095→255 缩放之前, `NOISE_GATE` 降为 `2`, 避免几十 raw 的弱音频变化被整数截断后全部归零
+    - 频谱显示静默消隐阈值降为 `peak<=1 && avg<=0`, 配合驱动弱信号输出
+    - 固件显示版本号更新为 v2.1.33, 网页控制台显示更新为 WEB v2.1.33
+  原因: 设备 REST 入口用 curl 实测返回 200, `/events` 也能看到实体, 说明固件 web_server 可控; 失败点集中在浏览器侧的 `fetch/no-cors` 跨源/PNA 发送不可靠, 以及旧页面在 SSE 抖动时禁用按钮。媒体控制方面, ESPHome `/events` 后续精简包会缺少 `name/domain`, 旧网页把 `eMap.media` 覆盖空后第二次点击会报 `未找到实体: media`; 同时 select 不是可靠的瞬时按钮。防爆音方面, 实机日志曾出现 `fade timeout before hard mute: current_db=-36.00 target_db=-36.00`, 说明软降脚本等待 `-96dB` 时被取消静音/音量路径抢回目标。MSGEQ7 方面, 实机 raw 直流偏置约 `3250`, 旧 offset 上限 `320` 会丢弃正常偏置。
+  备注: 本次不修改 BLE HID 配对/解析逻辑。
+改动文件:
+  www/index.html
+  智能前级蓝牙2.0.yaml (firmware_version, emit_media_action, media template buttons, soft_mute_switch, send_volume_to_pga, MSGEQ7显示消隐)
+  PGA/msgeq7.h (offset上限, 增益/门限顺序)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.30 - 2026-07-19
   修复: 本地网页仍可能无法控制设备
     - www/index.html 的 POST body 从字符串 `1` 改为 `new Uint8Array([49])`

@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.29"
+  firmware_version: "v2.1.33"
 
 esphome:
   name: ${device_name}
@@ -855,17 +855,26 @@ switch:
     turn_off_action:
       - if:
           condition:
-            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning) || id(switching_input);'
+            lambda: 'return id(anti_pop_fade_to_silence)->is_running();'
           then:
             - lambda: |-
                 id(soft_mute) = true;
+                id(target_db) = -96.0f;
                 id(soft_mute_switch)->publish_state(true);
-                id(mute_switch)->turn_on();
-                pga2311::set_volume(0, 0);
           else:
-            - globals.set: {id: soft_mute, value: 'false'}
-            - switch.turn_off: mute_switch
-            - script.execute: send_volume_to_pga
+            - if:
+                condition:
+                  lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning) || id(switching_input);'
+                then:
+                  - lambda: |-
+                      id(soft_mute) = true;
+                      id(soft_mute_switch)->publish_state(true);
+                      id(mute_switch)->turn_on();
+                      pga2311::set_volume(0, 0);
+                else:
+                  - globals.set: {id: soft_mute, value: 'false'}
+                  - switch.turn_off: mute_switch
+                  - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
 
   - platform: template
@@ -5024,6 +5033,30 @@ script:
       - lambda: |-
           id(media_select)->publish_state("空闲");
 
+  - id: emit_media_action
+    mode: queued
+    max_runs: 4
+    parameters:
+      action: int
+    then:
+      - lambda: |-
+          const char* label = "空闲";
+          const char* usage = "";
+          switch (action) {
+            case 1: label = "播放";   usage = "PLAY";       break;
+            case 2: label = "暂停";   usage = "PAUSE";      break;
+            case 3: label = "下一首"; usage = "NEXT_TRACK"; break;
+            case 4: label = "上一首"; usage = "PREV_TRACK"; break;
+            default: return;
+          }
+          id(media_select)->publish_state(label);
+          id(hid_event_seq)++;
+          if (id(hid_event_seq) == 0) id(hid_event_seq) = 1;
+          std::string state = std::string(usage) + "#" + std::to_string(id(hid_event_seq));
+          id(ble_hid_event_text).publish_state(state);
+          ESP_LOGD("media", "emit %s seq=%u", usage, (unsigned)id(hid_event_seq));
+          id(media_reset)->execute();
+
   - id: start_wifi_ap
     mode: restart
     then:
@@ -5329,7 +5362,9 @@ script:
             return;
           }
 
-          if (!id(switching_input)) {
+          if (id(anti_pop_fade_to_silence)->is_running()) {
+            id(target_db) = -96.0f;
+          } else if (!id(switching_input)) {
             if (id(soft_mute)) {
               id(target_db) = -96.0f;
             } else {
@@ -6496,6 +6531,43 @@ text_sensor:
                 auto pos = x.find('#');
                 return pos == std::string::npos ? std::string("0") : x.substr(pos + 1);
 
+button:
+  - platform: template
+    name: "媒体播放 Play"
+    id: media_play_button
+    icon: mdi:play
+    on_press:
+      - script.execute:
+          id: emit_media_action
+          action: 1
+
+  - platform: template
+    name: "媒体暂停 Pause"
+    id: media_pause_button
+    icon: mdi:pause
+    on_press:
+      - script.execute:
+          id: emit_media_action
+          action: 2
+
+  - platform: template
+    name: "媒体下一首 Next"
+    id: media_next_button
+    icon: mdi:skip-next
+    on_press:
+      - script.execute:
+          id: emit_media_action
+          action: 3
+
+  - platform: template
+    name: "媒体上一首 Prev"
+    id: media_prev_button
+    icon: mdi:skip-previous
+    on_press:
+      - script.execute:
+          id: emit_media_action
+          action: 4
+
 number:
   - platform: template
     name: "主音量 Volume"
@@ -6687,12 +6759,6 @@ select:
     optimistic: true
     set_action:
       - lambda: |-
-          auto publish_hid_event = [&](const char* usage) {
-            id(hid_event_seq)++;
-            if (id(hid_event_seq) == 0) id(hid_event_seq) = 1;
-            std::string state = std::string(usage) + "#" + std::to_string(id(hid_event_seq));
-            id(ble_hid_event_text).publish_state(state);
-          };
           id(media_select)->publish_state(x);
           if (x == "开机") {
             if (id(standby)) id(standby_switch)->turn_off();
@@ -6701,17 +6767,13 @@ select:
             if (!id(standby)) id(standby_switch)->turn_on();
             else id(media_reset)->execute();
           } else if (x == "播放") {
-            publish_hid_event("PLAY");
-            id(media_reset)->execute();
+            id(emit_media_action)->execute(1);
           } else if (x == "暂停") {
-            publish_hid_event("PAUSE");
-            id(media_reset)->execute();
+            id(emit_media_action)->execute(2);
           } else if (x == "下一首") {
-            publish_hid_event("NEXT_TRACK");
-            id(media_reset)->execute();
+            id(emit_media_action)->execute(3);
           } else if (x == "上一首") {
-            publish_hid_event("PREV_TRACK");
-            id(media_reset)->execute();
+            id(emit_media_action)->execute(4);
           } else if (x != "空闲") {
             id(media_reset)->execute();
           }
@@ -6798,7 +6860,7 @@ interval:
               live_signal_sum_r += frame.right[i];
             }
             int live_signal_avg = std::max(live_signal_sum_l / 7, live_signal_sum_r / 7);
-            if (spectrum_frame_peak <= 12 && spectrum_frame_avg <= 4) {
+            if (spectrum_frame_peak <= 1 && spectrum_frame_avg <= 0) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
