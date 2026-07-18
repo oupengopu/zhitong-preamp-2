@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.24"
+  firmware_version: "v2.1.25"
 
 esphome:
   name: ${device_name}
@@ -125,7 +125,7 @@ esphome:
 
             const char* names[] = {"CD", "DAC", "PC", "AUX"};
             id(input_select)->publish_state(names[id(current_input)]);
-            id(standby_switch)->publish_state(!id(standby));
+            id(standby_switch)->publish_state(id(standby));
 
             // 初始化输出继电器状态 (GPA4)
             if (id(output_mode))
@@ -382,8 +382,8 @@ esp32_ble_server:
                     case 0x06: {
                       if (len < 1) break;
                       bool want_standby = x[3] == 0x01;
-                      if (want_standby && !id(standby))  id(standby_switch)->turn_off();
-                      else if (!want_standby && id(standby)) id(standby_switch)->turn_on();
+                      if (want_standby && !id(standby))  id(standby_switch)->turn_on();
+                      else if (!want_standby && id(standby)) id(standby_switch)->turn_off();
                       break;
                     }
                     case 0x07: {
@@ -408,12 +408,12 @@ esp32_ble_server:
                     }
                     case 0x0B: {
                       if (!id(standby)) break;
-                      id(standby_switch)->turn_on();
+                      id(standby_switch)->turn_off();
                       break;
                     }
                     case 0x0C: {
                       if (id(standby)) break;
-                      id(standby_switch)->turn_off();
+                      id(standby_switch)->turn_on();
                       break;
                     }
                     case 0x0D: {
@@ -859,11 +859,10 @@ switch:
     icon: mdi:power
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
-    # ⚠️ 重要: HA switch ON = 设备运行(非待机), OFF = 待机模式
-    # turn_off = HA关闭开关 → 进入待机, turn_on = HA打开开关 → 退出待机
-    turn_off_action:
-      - script.execute: enter_standby
+    # 待机模式: ON = 待机, OFF = 运行。
     turn_on_action:
+      - script.execute: enter_standby
+    turn_off_action:
       - if:
           condition:
             lambda: 'return id(standby) && !id(temp_protect);'
@@ -871,7 +870,7 @@ switch:
             - script.execute: exit_standby
           else:
             - lambda: |-
-                if (id(temp_protect)) id(standby_switch)->publish_state(false);
+                if (id(temp_protect)) id(standby_switch)->publish_state(true);
 
   # ── 输入继电器 (MCP23017 GPA0~GPA3, CD/DAC/PC/AUX) ──
   - platform: gpio
@@ -5090,6 +5089,7 @@ script:
                 ESP_LOGD("standby", "enter_standby skipped: transitioning=%d standby=%d switching=%d output_switch=%d",
                          id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0,
                          id(switching_input) ? 1 : 0, id(switch_output_mode)->is_running() ? 1 : 0);
+                id(standby_switch)->publish_state(id(standby));
           else:
             - script.stop: display_idle_timer
             - script.stop: send_volume_to_pga
@@ -5117,7 +5117,7 @@ script:
                 pga2311::set_volume(0, 0);
                 id(display_is_off)  = true;   // 同步显示状态
                 id(standby)         = true;
-                id(standby_switch)->publish_state(false);  // HA 同步
+                id(standby_switch)->publish_state(true);  // HA 同步
             - lvgl.pause:
             - delay: 100ms
             - lambda: |-
@@ -5134,6 +5134,7 @@ script:
             - lambda: |-
                 ESP_LOGD("standby", "exit_standby skipped: transitioning=%d standby=%d",
                          id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0);
+                id(standby_switch)->publish_state(id(standby));
           else:
             - script.stop: display_idle_timer
             - script.stop: enter_standby
@@ -5151,7 +5152,7 @@ script:
                 id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
-                id(standby_switch)->publish_state(true);  // HA 同步
+                id(standby_switch)->publish_state(false);  // HA 同步
             - light.turn_on:
                 id: display_backlight
                 transition_length: 800ms
@@ -6374,7 +6375,7 @@ sensor:
                   id(mute_switch)->turn_on();
                   id(send_volume_to_pga)->execute();
                   if (id(temp_protect_forced_standby)) {
-                    id(standby_switch)->turn_off();
+                    id(standby_switch)->turn_on();
                   }
         - if:
             condition:
@@ -6386,7 +6387,7 @@ sensor:
                   id(temp_protect) = false;
                   id(temp_protect_forced_standby) = false;
                   if (wake_from_protect && id(standby)) {
-                    id(standby_switch)->turn_on();
+                    id(standby_switch)->turn_off();
                   } else if (!id(standby)) {
                     if (!id(soft_mute)) id(mute_switch)->turn_off();
                     id(send_volume_to_pga)->execute();
@@ -6653,10 +6654,10 @@ select:
       - lambda: |-
           id(media_select)->publish_state(x);
           if (x == "开机") {
-            if (id(standby)) id(standby_switch)->turn_on();
+            if (id(standby)) id(standby_switch)->turn_off();
             else id(media_reset)->execute();
           } else if (x == "关机") {
-            if (!id(standby)) id(standby_switch)->turn_off();
+            if (!id(standby)) id(standby_switch)->turn_on();
             else id(media_reset)->execute();
           } else if (x != "空闲") {
             id(media_reset)->execute();
@@ -6678,10 +6679,16 @@ select:
           else if (x == "PC")  target = 2;
           else if (x == "AUX") target = 3;
           if (target < 0) return;
+          if (target == id(current_input)) {
+            id(sync_settings_ui)->execute();
+            id(reset_idle_timer)->execute();
+            return;
+          }
           id(last_switch_ms) = now;
           id(last_manual_input_ms) = now;   // 记录手动选择
           id(current_input) = target;
           id(sync_settings_ui)->execute();
+          id(switch_input)->execute();
           id(reset_idle_timer)->execute();
 
 # ═══════════════════════════════════════════════════════════════
@@ -7754,8 +7761,8 @@ interval:
                   ha_event_name = "PREV_TRACK";
                   break;
                 case ble_hid_host::HID_EVT_POWER:
-                  if (id(standby)) { id(standby_switch)->turn_on(); }
-                  else { id(standby_switch)->turn_off(); }
+                  if (id(standby)) { id(standby_switch)->turn_off(); }
+                  else { id(standby_switch)->turn_on(); }
                   ha_event_name = "POWER";
                   break;
                 case ble_hid_host::HID_EVT_CYCLE_INPUT: {

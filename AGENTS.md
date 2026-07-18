@@ -56,6 +56,21 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 改动文件: `智能前级蓝牙2.0.yaml` (script/switch 段)
 
+**39. ESPHome 2026.7.0 本地网页控制台 REST 路径**
+
+`www/index.html` 是本地浏览器控制台, 通过设备 `web_server` 的 `/events` SSE 获取实体状态, 再发 REST 请求控制设备。
+
+**注意**:
+- ESPHome 2026.7.0 当前 REST 控制路径使用实体名称, 例如 `/number/主音量 Volume/set?value=49`, 不要把 SSE 里的短 `id` 拼成 REST object_id, 否则会 404。
+- 网页 POST 请求需要显式带空 body, 避免部分客户端/工具触发 `411 Length Required`。
+- 默认设备 IP 当前为 `192.168.31.99`; 只允许自动迁移旧默认 `192.168.31.86`, 不要覆盖用户手动保存的其他 IP。
+- 网页音量 dB 显示必须和固件公式保持一致: PGA 寄存器值按 `(reg - 192) * 0.5` 换算, 不要用 `(reg - 255) * 0.5`。
+- `待机模式` 这个 ESPHome/HA 开关语义为 `ON=待机, OFF=运行`; 网页按钮 active 状态应表示真正待机, 文案显示"运行/待机", 避免误解。
+- 外部 `select/输入源选择 Input` 请求必须能触发 `switch_input`; 但内部代码已经设置 `current_input` 后再 `publish_state`, 因此 `set_action` 中目标等于 `current_input` 时要跳过, 防止恢复 v2.1.8 前的重复继电器吸合。
+- 本条只涉及本地网页和外部输入选择入口, 不修改 BLE HID 遥控器路径。
+
+改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (input_select set_action)
+
 
 ## 强制性规则
 
@@ -74,9 +89,9 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.0  
-**MCU:** ESP32-S3 @ 240MHz  
-**框架:** ESPHome 2026.6.4 + LVGL v9.x managed component  
+**固件版本:** v2.1.25
+**MCU:** ESP32-S3 @ 240MHz
+**框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---
@@ -678,7 +693,7 @@ cd preview && py -3.11 -m http.server 8084
 
 10. **YAML 文件名含中文字符**: 主配置文件 `智能前级蓝牙2.0.yaml` 含中文与空格。ESPHome/ESP-IDF 工具链在 Windows 下可能遇到路径编码问题（如 freetype-py 的 FT_New_Face 无法加载含中文路径）。git 操作时注意文件名编码，编译时使用完整路径。
 
-11. **standby_switch 命名约定**: HA 实体名"待机模式"，但 ON=设备运行中，OFF=待机模式。`turn_off_action` → 进入待机，`turn_on_action` → 退出待机。新增待机相关逻辑时严格遵守此约定。
+11. **standby_switch 命名约定**: HA 实体名"待机模式"，ON=待机模式，OFF=设备运行中。`turn_on_action` → 进入待机，`turn_off_action` → 退出待机。新增待机相关逻辑时严格遵守此约定。
 
 12. **硬件静音 GPA6 极性**: 必须牢记硬件是 **高电平=开声, 低电平=静音**。固件里的 `mute_switch` 使用 `inverted: true`，让 HA 的"静音-HW"开关语义变成 ON=输出低电平=静音，OFF=输出高电平=开声。以后修改静音逻辑时不要把 `switch.turn_on` 当成开声。
 

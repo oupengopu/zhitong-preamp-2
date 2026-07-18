@@ -1,3 +1,22 @@
+v2.1.25 - 2026-07-18
+  修复: ESPHome 2026.7.0 下本地网页控制台无法控制和音量显示不同步
+    - www/index.html 的 REST 控制路径改为使用 ESPHome web_server 接受的实体名称路径, 不再把 SSE 短 id 当作 REST object_id
+    - POST 请求显式带空 body, 避免部分客户端触发 411 Length Required
+    - 默认设备 IP 改为 192.168.31.99, 并把浏览器里遗留的旧默认 192.168.31.86 自动迁移到当前 IP
+    - 网页面板音量 dB 换算改为与固件一致: PGA 寄存器值按 (reg - 192) * 0.5 显示
+    - 待机圆形按钮改为显示"运行/待机", active 状态仅表示设备处于待机
+    - 固件待机模式开关改为正向语义: ON=待机, OFF=运行, 同步修正媒体开机/关机、BLE 手机命令、温度保护恢复和 HID 电源键调用
+    - 外部 select/输入源选择 Input 请求重新触发 switch_input, 目标等于 current_input 时直接跳过, 避免回到 v2.1.8 前的重复继电器吸合
+    - 固件显示版本号更新为 v2.1.25
+  原因: ESPHome 2026.7.0 的 web_server REST 接口使用实体名称路径; 原网页仍使用 SSE id 路径导致 404。v2.1.8 为修复重复切换移除了 input_select set_action 的 switch_input, 使网页/HA 外部选输入只改显示不切继电器。旧 standby_switch 使用 ON=运行/OFF=待机, 与实体名"待机模式"相反, 容易误操作
+  备注: 本次未修改 BLE HID 遥控器代码
+改动文件:
+  www/index.html
+  智能前级蓝牙2.0.yaml (firmware_version, input_select set_action)
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.24 - 2026-07-18
   加固: 防爆音状态机最终化, 避免软降超时或并发操作导致再次硬切
     - 新增 anti_pop_fade_to_silence 统一软降脚本, 静音/待机/输出模式切换共用同一条软降等待路径
@@ -272,7 +291,7 @@ v2.1.3 - 2026-07-02
   ▸ 🟠 高危修复 (3项)
     - H1: font_cn_small 增加"电池"二字 (BLE 状态文字"电池:50%"渲染为空白框)
     - H2: 删除三处冗余 guard_ok = false; 赋值 (第422/4073行)
-    - H3: standby_switch 添加命名注释 (HA switch ON=运行中, OFF=待机模式)
+    - H3: standby_switch 添加命名注释 (历史旧约定: HA switch ON=运行中, OFF=待机模式; v2.1.25 已改为 ON=待机)
 
   ▸ 🟡 中等修复 (1项)
     - M1: reset_idle_timer 熄屏亮度恢复补充 .perform() (确保立即生效)
