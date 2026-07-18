@@ -1,3 +1,34 @@
+v2.1.30 - 2026-07-19
+  修复: 本地网页仍可能无法控制设备
+    - www/index.html 的 POST body 从字符串 `1` 改为 `new Uint8Array([49])`
+    - 继续提供非空 body/Content-Length, 满足 ESPHome 2026.7 `web_server_idf` 要求
+    - 避免浏览器自动附加 `Content-Type: text/plain;charset=UTF-8` 后触发 CORS/OPTIONS 预检
+    - 实机验证: 设备对普通 POST + 非空 body 返回 200, 但对 OPTIONS 预检返回空回复; 因此网页必须尽量保持简单请求
+    - 网页控制台显示更新为 WEB v2.1.30, 便于确认浏览器没有加载旧页面
+  原因: ESPHome 2026.7 的 REST 入口要求 POST 带 Content-Length; 同时设备 web_server 对 OPTIONS 预检支持不完整。字符串 body 虽然可解决 411, 但部分浏览器可能因 Content-Type 进入预检路径, 造成命令行 curl 可控、网页按钮无效。
+  备注: 本次只修改本地网页发送方式和文档, 不修改固件音频逻辑、BLE HID 遥控器逻辑。
+改动文件:
+  www/index.html
+  CHANGELOG.txt
+  AGENTS.md
+
+---
+v2.1.29 - 2026-07-19
+  修复: 本地网页按钮点击后设备仍不执行, 以及媒体按钮同一动作只能触发一次
+    - www/index.html 的 POST 请求 body 从空字符串改为非空占位符 `1`, 强制浏览器发送 Content-Length
+    - CORS 和 no-cors 两条发送路径都使用同一个非空 body, 避免兜底请求仍被设备拒绝
+    - 新增 `hid_event_seq` 全局序号, 网页/手机 BLE/实体遥控发布 HID 事件时使用 `ACTION#seq` 作为 text_sensor 状态
+    - `homeassistant.event: esphome.hid_events` 保持 `usage=ACTION`, 另加 `seq`, 避免破坏旧自动化
+    - 固件显示版本号更新为 v2.1.29, 网页控制台显示更新为 WEB v2.1.29
+  原因: 实机 `/events` 日志明确报 `Content length is required for post`, 本机直测无 body 的 POST 返回 411, 加 `--data-raw "x"` 后同一路径返回 200。继续连续两次播放测试时, REST 都 200 但 `BLE HID 按键事件` 固定为 `PLAY`, 同状态重复发布无法稳定形成第二次前端/HA触发, 因此需要事件脉冲序号
+  备注: 本次不修改 BLE HID 配对/解析逻辑, 只改变 HID 事件 text_sensor 的状态格式; HA 事件里的 `usage` 仍为原始动作名
+改动文件:
+  www/index.html
+  智能前级蓝牙2.0.yaml (firmware_version, hid_event_seq, BLE HID 事件发布)
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.28 - 2026-07-19
   修复: 本地网页按钮仍可能无法控制设备
     - www/index.html 的静音按钮改为走已发现/兜底的 `switch/静音-SW` 实体路径, 不再单独硬编码 switch 名称

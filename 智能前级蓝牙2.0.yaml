@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.28"
+  firmware_version: "v2.1.29"
 
 esphome:
   name: ${device_name}
@@ -286,6 +286,12 @@ esp32_ble_server:
                   if (!id(system_ready) && cmd != 0x06 && cmd != 0x10) return;
 
                   uint32_t now = millis();
+                  auto publish_hid_event = [&](const char* usage) {
+                    id(hid_event_seq)++;
+                    if (id(hid_event_seq) == 0) id(hid_event_seq) = 1;
+                    std::string state = std::string(usage) + "#" + std::to_string(id(hid_event_seq));
+                    id(ble_hid_event_text).publish_state(state);
+                  };
                   if (cmd == 0x01 || cmd == 0x04) {
                     if (now - id(last_control_ms) < 30) return;
                     id(last_control_ms) = now;
@@ -388,25 +394,25 @@ esp32_ble_server:
                     }
                     case 0x07: {
                       id(media_select)->publish_state("播放");
-                      id(ble_hid_event_text).publish_state("PLAY");
+                      publish_hid_event("PLAY");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x0A: {
                       id(media_select)->publish_state("暂停");
-                      id(ble_hid_event_text).publish_state("PAUSE");
+                      publish_hid_event("PAUSE");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x08: {
                       id(media_select)->publish_state("下一首");
-                      id(ble_hid_event_text).publish_state("NEXT_TRACK");
+                      publish_hid_event("NEXT_TRACK");
                       id(media_reset)->execute();
                       break;
                     }
                     case 0x09: {
                       id(media_select)->publish_state("上一首");
-                      id(ble_hid_event_text).publish_state("PREV_TRACK");
+                      publish_hid_event("PREV_TRACK");
                       id(media_reset)->execute();
                       break;
                     }
@@ -3901,6 +3907,10 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
+  - id: hid_event_seq
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
   - id: last_v_change_ms
     type: uint32_t
     restore_value: false
@@ -6479,7 +6489,12 @@ text_sensor:
         - homeassistant.event:
             event: esphome.hid_events
             data:
-              usage: !lambda 'return x;'
+              usage: !lambda |-
+                auto pos = x.find('#');
+                return pos == std::string::npos ? x : x.substr(0, pos);
+              seq: !lambda |-
+                auto pos = x.find('#');
+                return pos == std::string::npos ? std::string("0") : x.substr(pos + 1);
 
 number:
   - platform: template
@@ -6672,6 +6687,12 @@ select:
     optimistic: true
     set_action:
       - lambda: |-
+          auto publish_hid_event = [&](const char* usage) {
+            id(hid_event_seq)++;
+            if (id(hid_event_seq) == 0) id(hid_event_seq) = 1;
+            std::string state = std::string(usage) + "#" + std::to_string(id(hid_event_seq));
+            id(ble_hid_event_text).publish_state(state);
+          };
           id(media_select)->publish_state(x);
           if (x == "开机") {
             if (id(standby)) id(standby_switch)->turn_off();
@@ -6680,16 +6701,16 @@ select:
             if (!id(standby)) id(standby_switch)->turn_on();
             else id(media_reset)->execute();
           } else if (x == "播放") {
-            id(ble_hid_event_text).publish_state("PLAY");
+            publish_hid_event("PLAY");
             id(media_reset)->execute();
           } else if (x == "暂停") {
-            id(ble_hid_event_text).publish_state("PAUSE");
+            publish_hid_event("PAUSE");
             id(media_reset)->execute();
           } else if (x == "下一首") {
-            id(ble_hid_event_text).publish_state("NEXT_TRACK");
+            publish_hid_event("NEXT_TRACK");
             id(media_reset)->execute();
           } else if (x == "上一首") {
-            id(ble_hid_event_text).publish_state("PREV_TRACK");
+            publish_hid_event("PREV_TRACK");
             id(media_reset)->execute();
           } else if (x != "空闲") {
             id(media_reset)->execute();
@@ -7743,6 +7764,12 @@ interval:
                 ble_hid_host::clear_raw_event();
               }
               const char* ha_event_name = "";
+              auto publish_hid_event = [&](const char* usage) {
+                id(hid_event_seq)++;
+                if (id(hid_event_seq) == 0) id(hid_event_seq) = 1;
+                std::string state = std::string(usage) + "#" + std::to_string(id(hid_event_seq));
+                id(ble_hid_event_text).publish_state(state);
+              };
               // ── 应用用户按键映射 ──
               {
                 int raw_type = (int)evt.type;
@@ -7780,7 +7807,7 @@ interval:
                   ha_event_name = "WAKE";
                 }
                 if (ha_event_name[0] && ((int)evt.type < 0x10)) {
-                  id(ble_hid_event_text).publish_state(ha_event_name);
+                  publish_hid_event(ha_event_name);
                 }
                 continue;
               }
@@ -7858,7 +7885,7 @@ interval:
               }
               // 推送 HA 事件
               if (ha_event_name[0] && evt.type < 0x10) {
-                id(ble_hid_event_text).publish_state(ha_event_name);
+                publish_hid_event(ha_event_name);
               }
             }
           }

@@ -62,7 +62,7 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 **注意**:
 - ESPHome 2026.7.0 当前 REST 控制路径使用实体名称, 例如 `/number/主音量 Volume/set?value=49`, 不要把 SSE 里的短 `id` 拼成 REST object_id, 否则会 404。
-- 网页 POST 请求需要显式带空 body, 避免部分客户端/工具触发 `411 Length Required`。
+- 网页 POST 请求必须带非空 body, 让浏览器发送 `Content-Length`; 空 body/无 body 在 ESPHome 2026.7 `web_server_idf` 下会触发 `411 Length Required`。优先使用 1 字节二进制 body, 避免浏览器自动添加 `Content-Type` 后触发 ESPHome 不完整支持的 `OPTIONS` 预检。
 - 默认设备 IP 当前为 `192.168.31.99`; 只允许自动迁移旧默认 `192.168.31.86`, 不要覆盖用户手动保存的其他 IP。
 - 网页音量 dB 显示必须和固件公式保持一致: PGA 寄存器值按 `(reg - 192) * 0.5` 换算, 不要用 `(reg - 255) * 0.5`。
 - `待机模式` 这个 ESPHome/HA 开关语义为 `ON=待机, OFF=运行`; 网页按钮 active 状态应表示真正待机, 文案显示"运行/待机", 避免误解。
@@ -109,9 +109,49 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `switch/待机模式` 语义为 `ON=待机, OFF=运行`; 网页开机/关机/待机按钮应直接调用该 switch 的 `turn_off/turn_on`, 不要绕 `select/媒体控制 Media`。
 - 媒体按钮可以调用 `select/媒体控制 Media`, 但必须通过统一发送函数, 以便复用 CORS/no-cors 兜底和路径检查。
 - 浏览器 CORS/PNA 失败而 curl 可控时, 网页可以先普通 `mode: "cors"` POST, 失败后再用 `mode: "no-cors"` 发送同一条 POST; HTTP 404/500 这类已拿到响应的错误不要隐藏。
-- ESPHome POST 控制请求必须显式带空 body/Content-Length, 否则可能返回 `411 Length Required`。
+- ESPHome POST 控制请求必须带非空 body/Content-Length, 否则可能返回 `411 Length Required`; 网页侧优先用二进制 body, 不要引入自定义 header 或会触发预检的 `Content-Type`。
 
 改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (firmware_version)
+
+**43. ESPHome 2026.7 网页控制 POST 必须非空 body**
+
+`web_server_idf` 会拒绝没有 `Content-Length` 的 POST。浏览器 `fetch(..., body: "")`
+在部分环境下仍可能变成无长度 POST, 设备日志会报 `Content length is required for post`,
+按钮看似发送但实体不会执行。
+
+**修复**:
+- `www/index.html` 的 `sendRequest()` 使用非空 1 字节 body, 当前为 `new Uint8Array([49])`。
+- CORS 正常路径和 `no-cors` 兜底路径都必须使用同一非空 body。
+- 避免字符串 body 或自定义 header 触发浏览器 `OPTIONS` 预检; 实机验证 `web_server_idf` 对预检可能空回复。
+- curl/PowerShell 验证 REST 时也要用 `--data-raw "x"` 或等效方式, 不要只写 `-X POST`。
+
+改动文件: `www/index.html`
+
+**44. HID/媒体事件必须带脉冲序号**
+
+`BLE HID 按键事件` 是 `update_interval: never` 的 text_sensor, 网页/手机 BLE/实体遥控都会复用它推送
+`homeassistant.event: esphome.hid_events`。同一个动作如果连续发布固定状态（如一直是 `PLAY`）,
+浏览器 SSE/HA 状态监听可能只看到第一次。
+
+**修复**:
+- 所有 HID/媒体事件状态使用 `ACTION#seq`, 例如 `PLAY#12`、`NEXT_TRACK#13`。
+- `homeassistant.event` 的 `usage` 必须拆回 `#` 前的原始动作名, 并额外发送 `seq`。
+- 新增或修改媒体控制入口时, 不要直接 `id(ble_hid_event_text).publish_state("PLAY")`; 必须递增 `hid_event_seq` 后发布带序号状态。
+
+改动文件: `智能前级蓝牙2.0.yaml` (globals/text_sensor/media/HID 事件发布)
+
+**45. 网页控制 POST 不要触发 OPTIONS 预检**
+
+命令行 curl 带 body 的 POST 可以 200, 但浏览器若因为 `Content-Type` 或自定义 header 发起
+CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf`
+可能返回空回复, 表现为"curl 能控, 本地网页按钮不能控"。
+
+**修复**:
+- `sendRequest()` 的 body 使用 `Uint8Array([49])`, 既有 `Content-Length`, 又不主动设置 `Content-Type`。
+- 不要给网页控制请求添加自定义 header; 需要调试时用设备 `/events` 和浏览器控制台判断是否走了预检。
+- 如果再次改网页请求层, 必须同时验证: 空 POST 返回 411、非空 POST 返回 200、OPTIONS 不能作为成功路径依赖。
+
+改动文件: `www/index.html`
 
 
 ## 强制性规则
@@ -131,7 +171,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.28
+**固件版本:** v2.1.29
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

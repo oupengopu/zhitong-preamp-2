@@ -329,7 +329,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
-            <span class="web-version">WEB v2.1.28</span>
+            <span class="web-version">WEB v2.1.30</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -859,11 +859,14 @@
     }
 
     function sendRequest(url, label) {
+        // ESPHome 2026.7 requires Content-Length, while browser CORS must avoid
+        // triggering an OPTIONS preflight that web_server_idf does not answer.
+        const postBody = new Uint8Array([49]);
         return fetch(url, {
             method: 'POST',
             mode: 'cors',
             cache: 'no-store',
-            body: ''
+            body: postBody
         }).then(res => {
             if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
             return res;
@@ -878,7 +881,7 @@
                 method: 'POST',
                 mode: 'no-cors',
                 cache: 'no-store',
-                body: ''
+                body: postBody
             }).then(() => {
                 showToast(`${label}已发送`, 1200);
             }).catch(err2 => {
