@@ -1,3 +1,18 @@
+v2.1.24 - 2026-07-18
+  加固: 防爆音状态机最终化, 避免软降超时或并发操作导致再次硬切
+    - 新增 anti_pop_fade_to_silence 统一软降脚本, 静音/待机/输出模式切换共用同一条软降等待路径
+    - 软降等待窗口延长到 5 秒, 只有脚本结束后才进入硬静音/继电器切换; 超时会记录 current_db/target_db
+    - 忙碌期间开启静音只记录 soft_mute 请求, 不再在 switching_input/power_transitioning 中途直接硬静音
+    - 进入待机时避开输入/输出切换进行中的窗口, 防止 switch_output_mode 和 enter_standby 互相覆盖状态
+    - 输出模式切换恢复阶段保留用户在切换期间发出的静音请求, 不再强制恢复到切换前状态
+    - 固件显示版本号更新为 v2.1.24, 方便实机和备份固件区分
+  原因: v2.1.23 初版已能编译, 但 wait_until 超时后仍会继续硬切, 并发切换时也可能覆盖 soft_mute 状态
+改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, anti_pop_fade_to_silence, soft_mute_switch, enter_standby, switch_output_mode)
+  CHANGELOG.txt
+  AGENTS.md
+
+---
 v2.1.23 - 2026-07-18
   修复: 基于 v2.1.8 重新实现防爆音路径, 修复开启静音/进入待机/变压器直通切换硬切爆音
     - 开启静音: 先让 send_volume_to_pga 渐变到 -96dB, 等 current_db <= -95.5 后再打开硬件静音

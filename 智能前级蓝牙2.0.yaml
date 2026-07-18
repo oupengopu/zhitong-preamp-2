@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.5"
+  firmware_version: "v2.1.24"
 
 esphome:
   name: ${device_name}
@@ -810,7 +810,7 @@ switch:
     turn_on_action:
       - if:
           condition:
-            lambda: 'return id(standby) || id(temp_protect) || id(ota_active) || id(power_transitioning) || id(switching_input);'
+            lambda: 'return id(standby) || id(temp_protect) || id(ota_active);'
           then:
             - lambda: |-
                 id(soft_mute) = true;
@@ -819,16 +819,23 @@ switch:
                 id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
           else:
-            - script.stop: send_volume_to_pga
-            - globals.set: {id: soft_mute, value: 'true'}
-            - lambda: 'id(target_db) = -96.0f;'
-            - script.execute: send_volume_to_pga
-            - wait_until:
+            - if:
                 condition:
-                  lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1600ms
-            - lambda: 'pga2311::set_volume(0, 0);'
-            - switch.turn_on: mute_switch
+                  lambda: 'return id(power_transitioning) || id(switching_input) || id(anti_pop_fade_to_silence)->is_running();'
+                then:
+                  - lambda: |-
+                      id(soft_mute) = true;
+                      id(target_db) = -96.0f;
+                      id(soft_mute_switch)->publish_state(true);
+                else:
+                  - globals.set: {id: soft_mute, value: 'true'}
+                  - script.execute: anti_pop_fade_to_silence
+                  - wait_until:
+                      condition:
+                        lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
+                      timeout: 5500ms
+                  - lambda: 'pga2311::set_volume(0, 0);'
+                  - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
       - if:
@@ -5077,15 +5084,17 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return id(power_transitioning) || id(standby);'
+            lambda: 'return id(power_transitioning) || id(standby) || id(switching_input) || id(switch_output_mode)->is_running();'
           then:
             - lambda: |-
-                ESP_LOGD("standby", "enter_standby skipped: transitioning=%d standby=%d",
-                         id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0);
+                ESP_LOGD("standby", "enter_standby skipped: transitioning=%d standby=%d switching=%d output_switch=%d",
+                         id(power_transitioning) ? 1 : 0, id(standby) ? 1 : 0,
+                         id(switching_input) ? 1 : 0, id(switch_output_mode)->is_running() ? 1 : 0);
           else:
             - script.stop: display_idle_timer
             - script.stop: send_volume_to_pga
             - script.stop: switch_input
+            - script.stop: anti_pop_fade_to_silence
             - lambda: |-
                 id(power_transitioning) = true;
                 id(standby_wake_block_until_ms) = millis() + 2500;
@@ -5093,11 +5102,11 @@ script:
                 id(soft_mute)       = true;
                 id(target_db)       = -96.0f;
                 id(system_ready)    = false;
-            - script.execute: send_volume_to_pga
+            - script.execute: anti_pop_fade_to_silence
             - wait_until:
                 condition:
-                  lambda: 'return id(current_db) <= -95.5f;'
-                timeout: 1800ms
+                  lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
+                timeout: 5500ms
             - lambda: |-
                 id(target_db)       = -96.0f;
                 id(current_db)      = -96.0f;
@@ -5130,6 +5139,7 @@ script:
             - script.stop: enter_standby
             - script.stop: send_volume_to_pga
             - script.stop: switch_input
+            - script.stop: anti_pop_fade_to_silence
             - lambda: |-
                 id(power_transitioning) = true;
                 id(standby)    = false;
@@ -5254,6 +5264,28 @@ script:
   # ══════════════════════════════════════════════════════════════
   # ★ V17 巅峰内核：双区间速度渐变 + 软锁释放
   # ══════════════════════════════════════════════════════════════
+  - id: anti_pop_fade_to_silence
+    mode: restart
+    then:
+      - script.stop: send_volume_to_pga
+      - lambda: |-
+          id(target_db) = -96.0f;
+      - script.execute: send_volume_to_pga
+      - wait_until:
+          condition:
+            lambda: 'return id(current_db) <= -95.5f || id(ota_active) || id(temp_protect) || id(standby);'
+          timeout: 5s
+      - if:
+          condition:
+            lambda: 'return id(current_db) > -95.5f && !id(ota_active) && !id(temp_protect) && !id(standby);'
+          then:
+            - lambda: |-
+                ESP_LOGW("anti_pop", "fade timeout before hard mute: current_db=%.2f target_db=%.2f",
+                         id(current_db), id(target_db));
+                id(current_db) = -96.0f;
+                id(target_db) = -96.0f;
+                pga2311::set_volume(0, 0);
+
   - id: send_volume_to_pga
     mode: restart
     then:
@@ -5700,11 +5732,11 @@ script:
                       id(soft_mute) = true;
                       id(switching_input) = true;
                       id(target_db) = -96.0f;
-                  - script.execute: send_volume_to_pga
+                  - script.execute: anti_pop_fade_to_silence
                   - wait_until:
                       condition:
-                        lambda: 'return id(current_db) <= -95.5f;'
-                      timeout: 1800ms
+                        lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
+                      timeout: 5500ms
                   - lambda: |-
                       pga2311::set_volume(0, 0);
                       id(mute_switch)->turn_on();
@@ -5714,7 +5746,9 @@ script:
                       else id(relay_out)->turn_off();
                   - delay: 100ms
                   - lambda: |-
-                      id(soft_mute) = id(saved_soft_mute);
+                      bool keep_muted = id(saved_soft_mute) || id(soft_mute_switch)->state;
+                      id(soft_mute) = keep_muted;
+                      id(soft_mute_switch)->publish_state(keep_muted);
                       id(switching_input) = false;
                       if (!id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning)) {
                         id(mute_switch)->turn_off();

@@ -43,6 +43,19 @@ NV3007 需要 MODE0, 导致初始化失败 → 有背光无显示。
 
 改动文件: `智能前级蓝牙2.0.yaml` (switch/script/api 段)
 
+**38. 防爆音软降统一脚本: anti_pop_fade_to_silence**
+
+v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬切, 并且输出切换/待机并发时可能覆盖 `soft_mute` 状态。
+
+**修复**:
+- 新增 `anti_pop_fade_to_silence` 统一脚本, 负责停止旧音量脚本、设置 `target_db=-96.0f`、执行 `send_volume_to_pga` 并等待 `current_db <= -95.5f`。
+- 软降等待窗口为 5 秒; 超时记录 `current_db/target_db`, 再兜底 PGA=0。正常路径必须先软降完成再硬静音或切继电器。
+- `soft_mute_switch.turn_on_action` 在 `switching_input/power_transitioning` 忙碌期间只记录 `soft_mute=true`, 不再中途直接硬静音。
+- `enter_standby` 遇到输入/输出切换中则跳过本次进入待机, 避免两个音频路径状态机互相抢 `switching_input/saved_soft_mute`。
+- `switch_output_mode` 恢复阶段要保留切换期间用户发出的静音请求, 不得简单恢复切换前 `saved_soft_mute`。
+
+改动文件: `智能前级蓝牙2.0.yaml` (script/switch 段)
+
 
 ## 强制性规则
 
