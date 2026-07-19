@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.50"
+  firmware_version: "v2.1.51"
 
 esphome:
   name: ${device_name}
@@ -354,7 +354,7 @@ esp32_ble_server:
                       // 同步 LVGL 设置页
                       lv_bar_set_value(id(bar_balance), bal + 20, LV_ANIM_OFF);
                       {
-                        char buf[8];
+                        char buf[16];
                         if (bal == 0) lv_label_set_text(id(val_balance), "平衡");
                         else { snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", bal < 0 ? -bal : bal);
                           lv_label_set_text(id(val_balance), buf); }
@@ -363,9 +363,8 @@ esp32_ble_server:
                     }
                     case 0x05: {
                       if (len < 1) break;
-                      uint8_t max_vol = x[3];
+                      int max_vol = (int)x[3];
                       if (max_vol < 10)  max_vol = 10;
-                      if (max_vol > 255) max_vol = 255;
                       id(max_volume) = max_vol;
                       if (id(power_on_limit) > max_vol) {
                         id(power_on_limit) = max_vol;
@@ -450,7 +449,7 @@ esp32_ble_server:
                       // 同步 LVGL 设置页
                       lv_bar_set_value(id(bar_display_timeout), tm, LV_ANIM_OFF);
                       {
-                        char buf[8];
+                        char buf[16];
                         snprintf(buf, sizeof(buf), "%d分钟", tm);
                         lv_label_set_text(id(val_timeout), buf);
                       }
@@ -536,6 +535,13 @@ api:
             else if (input_name == "PC")  target = 2;
             else if (input_name == "AUX") target = 3;
             if (target < 0) return;
+            if (target == id(current_input)) {
+              const char* names[] = {"CD", "DAC", "PC", "AUX"};
+              id(input_select)->publish_state(names[target]);
+              id(sync_settings_ui)->execute();
+              id(reset_idle_timer)->execute();
+              return;
+            }
             id(last_switch_ms) = now;
             id(last_manual_input_ms) = now;
             id(current_input) = target;
@@ -1825,7 +1831,7 @@ lvgl:
             text: !lambda |-
               int b = id(balance);
               if (b == 0) return std::string("平衡");
-              char buf[8];
+              char buf[16];
               snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", abs(b));
               return std::string(buf);
             text_font: montserrat_8
@@ -3424,7 +3430,7 @@ lvgl:
                   text: !lambda |-
                     int b = id(balance);
                     if (b == 0) return std::string("平衡");
-                    static char buf[8];
+                    static char buf[16];
                     snprintf(buf, sizeof(buf), "%s%d", b < 0 ? "L" : "R", b < 0 ? -b : b);
                     return std::string(buf);
                   text_font: font_cn_small
@@ -3583,7 +3589,7 @@ lvgl:
                   id: val_timeout
                   width: 70
                   text: !lambda |-
-                    static char buf[8];
+                    static char buf[16];
                     snprintf(buf, sizeof(buf), "%d分钟", id(display_timeout_min));
                     return buf;
                   text_font: font_cn_small
@@ -3763,7 +3769,7 @@ lvgl:
                   id: val_spectrum_auto
                   text: !lambda |-
                     if (id(spectrum_auto_seconds) <= 0) return std::string("禁用");
-                    char buf[12];
+                    char buf[16];
                     snprintf(buf, sizeof(buf), "%d秒", id(spectrum_auto_seconds));
                     return std::string(buf);
                   text_font: font_cn_small
@@ -5810,7 +5816,7 @@ script:
           if (bal > 20) bal = 20;
           lv_bar_set_value(id(bar_balance), bal + 20, LV_ANIM_OFF);
           {
-            char buf[8];
+            char buf[16];
             if (bal == 0) {
               lv_label_set_text(id(val_balance), "平衡");
             } else {
@@ -5837,7 +5843,7 @@ script:
 
           lv_bar_set_value(id(bar_display_timeout), id(display_timeout_min), LV_ANIM_OFF);
           {
-            char buf[12];
+            char buf[16];
             snprintf(buf, sizeof(buf), "%d分钟", id(display_timeout_min));
             lv_label_set_text(id(val_timeout), buf);
           }
@@ -5857,7 +5863,7 @@ script:
           if (id(spectrum_auto_seconds) <= 0) {
             lv_label_set_text(id(val_spectrum_auto), "禁用");
           } else {
-            char buf[12];
+            char buf[16];
             snprintf(buf, sizeof(buf), "%d秒", id(spectrum_auto_seconds));
             lv_label_set_text(id(val_spectrum_auto), buf);
           }
@@ -6235,7 +6241,7 @@ sensor:
                     id(save_current_input_balance)->execute(id(current_input), id(balance));
                     lv_bar_set_value(id(bar_balance), v + 20, LV_ANIM_OFF);
                     {
-                      char buf[8];
+                      char buf[16];
                       if (v == 0) lv_label_set_text(id(val_balance), "平衡");
                       else { snprintf(buf, sizeof(buf), "%s%d", v < 0 ? "L" : "R", v < 0 ? -v : v);
                         lv_label_set_text(id(val_balance), buf); }
@@ -6272,7 +6278,7 @@ sensor:
                     id(display_brightness) = v;
                     lv_bar_set_value(id(bar_brightness), v, LV_ANIM_OFF);
                     {
-                      char buf[8];
+                      char buf[16];
                       snprintf(buf, sizeof(buf), "%d%%", v);
                       lv_label_set_text(id(val_brightness), buf);
                     }
@@ -6290,7 +6296,7 @@ sensor:
                     id(display_timeout_min) = v;
                     lv_bar_set_value(id(bar_display_timeout), v, LV_ANIM_OFF);
                     {
-                      char buf[8];
+                      char buf[16];
                       snprintf(buf, sizeof(buf), "%d分钟", v);
                       lv_label_set_text(id(val_timeout), buf);
                     }
@@ -6331,7 +6337,7 @@ sensor:
                     if (v <= 0) {
                       lv_label_set_text(id(val_spectrum_auto), "禁用");
                     } else {
-                      char buf[12];
+                      char buf[16];
                       snprintf(buf, sizeof(buf), "%d秒", v);
                       lv_label_set_text(id(val_spectrum_auto), buf);
                     }
@@ -7624,11 +7630,20 @@ interval:
             msgeq7::SpectrumFrame frame;
             msgeq7::get_frame(&frame);
             int sum_l = 0, sum_r = 0;
+            int frame_peak = 0;
             for (int i = 0; i < 7; i++) {
               sum_l += frame.left[i];
               sum_r += frame.right[i];
+              frame_peak = std::max(frame_peak, std::max(frame.left[i], frame.right[i]));
             }
-            s_signal_avg = std::max(sum_l / 7, sum_r / 7);
+            int live_signal_avg_raw = std::max(sum_l / 7, sum_r / 7);
+            int live_signal_detect_raw = std::max(live_signal_avg_raw, (frame_peak + 1) / 2);
+            if (!active_input_recent_signal) live_signal_detect_raw = 0;
+            if (live_signal_detect_raw > s_signal_avg) {
+              s_signal_avg = live_signal_detect_raw;
+            } else {
+              s_signal_avg = (s_signal_avg * 9 + live_signal_detect_raw) / 10;
+            }
           }
 
           {
@@ -7960,7 +7975,7 @@ interval:
               if (bal == 0) {
                 lv_label_set_text(id(lbl_balance_val), "平衡");
               } else {
-                char buf[8];
+                char buf[16];
                 snprintf(buf, sizeof(buf), "%s%d", bal < 0 ? "L" : "R", abs(bal));
                 lv_label_set_text(id(lbl_balance_val), buf);
               }
@@ -8170,7 +8185,7 @@ interval:
                 if (connected) {
                   id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
                   // 电池电量
-                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b); id(ble_remote_scan_status) += buf; } else { id(ble_remote_scan_status) += " 电池: 未知"; } }
+                  { int b = ble_hid_host::get_battery_level(); if (b >= 0) { char buf[24]; snprintf(buf, sizeof(buf), " 电池: %d%%", b); id(ble_remote_scan_status) += buf; } else { id(ble_remote_scan_status) += " 电池: 未知"; } }
                   // 持久化 BDA
                   std::string bda = ble_hid_host::get_peer_bda_string();
                   if (!bda.empty()) id(ble_remote_peer_bda) = bda;
@@ -8205,7 +8220,7 @@ interval:
                     if (b != last_batt) {
                       last_batt = b;
                       id(ble_remote_scan_status) = "已连接: " + ble_hid_host::get_connected_name();
-                      char buf[16]; snprintf(buf, sizeof(buf), " 电池: %d%%", b);
+                      char buf[24]; snprintf(buf, sizeof(buf), " 电池: %d%%", b);
                       id(ble_remote_scan_status) += buf;
                     }
                   } else {
@@ -8301,6 +8316,7 @@ interval:
                   case 7: mapped = id(key_map_7); break;
                   case 8: mapped = id(key_map_8); break;
                   case 9: mapped = id(key_map_9); break;
+                  default: break;
                 }
                 // 1~9 是遥控器核心按键。旧 NVS 或误操作若把它们映射成禁用/非法值，
                 // 会造成“日志有 HID，实体完全没反应”，这里回退到原始动作。
@@ -8398,6 +8414,8 @@ interval:
                   id(ble_remote_battery) = -1;
                   id(ble_remote_connected) = false;
                   ha_event_name = "DISCONNECTED";
+                  break;
+                default:
                   break;
               }
               // 推送 HA 事件

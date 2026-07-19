@@ -1,3 +1,31 @@
+v2.1.51 - 2026-07-19
+  修复: 代码审核确认的 2/3/4/5/6/7 项问题
+    - 固件显示版本号更新为 v2.1.51, 本地网页显示更新为 WEB v2.1.51
+    - HA/API `set_input` 服务增加“目标输入等于当前输入”跳过逻辑, 只同步 select/UI, 不再重复执行 `switch_input`, 防止外部控制同一路输入时重复吸合继电器
+    - `www/index.html` 的控制请求恢复为隐藏 iframe + form POST 优先, `fetch` 仅作后备; fetch body 改为 `Uint8Array([49])`, 避免空 POST/预检导致 ESPHome 2026.7 web_server_idf 拦截
+    - `网页控制/index.html` 改为跳转到 `../www/index.html` 的兼容入口, 不再保留第二套旧控制逻辑, 避免用户打开旧页面时出现按钮状态假切换或控制路径过期
+    - 静音/视觉消隐时 MSGEQ7 的 `s_signal_avg` 继续按实时 frame 计算, 并由七段平均值 + 单频段峰值 + 当前输入 MCP gate 联合判定, 避免自动频谱跳转只看平均值导致弱信号抖动
+    - 清理 ESPHome 2026.7 编译警告中的可修项: BLE 服务最大音量使用 `int` 避免 `uint8_t > 255` 永假比较, 中文 `snprintf` 缓冲区加大, BLE HID 事件 `switch` 增加 `default`
+    - README/CLAUDE/AGENTS 同步更新版本和本次规则; 本次不修改 BLE HID 驱动、不改输出模式防爆音时序、不删任何 ESPHome/PlatformIO 缓存
+  原因: 这批问题属于外部控制入口和可维护性修复。网页控制此前容易受浏览器 file:// 跨源/PNA 影响; 旧网页入口又可能让人打开过期逻辑。外部输入服务缺少同输入跳过时, Web/HA 重复选择当前输入仍可能触发继电器动作。静音时频谱视觉可消隐, 但信号判定不能退回平均值单判定, 否则弱信号自动跳转不稳。
+  验证:
+    - RED 守卫在修改前失败: API set_input 缺少同输入跳过、网页版本不是 v2.1.51、sendRequest 不是 form POST 优先、旧网页不是跳转入口、静音分支 `s_signal_avg` 仍只看平均值、`uint8_t > 255` 和小缓冲区警告仍存在
+    - 修改后规则守卫通过: API set_input 同输入跳过、WEB v2.1.51、form POST 优先、`Uint8Array([49])`、旧网页跳转入口、静音信号判定非平均值单判定均匹配
+    - `git diff --check` 通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.51`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 23:41:34 +0800`, `config_hash=0xe1068f90`
+    - 固件产物生成: `firmware.factory.bin`, `firmware.ota.bin`, `firmware.elf`; `zhitong-preamp-2.bin` 大小 `0x1e1490`, app 分区剩余约 69%
+    - 之前点名的可修 warning 已消除; 当前剩余 warning 主要是 `PGA/*.h` 中未使用的备用/调试函数, 本次按 AGENTS 规则不处理
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, api set_input, MSGEQ7 静音信号判定, BLE 服务/HID switch/中文缓冲区警告)
+  www/index.html
+  网页控制/index.html
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.50 - 2026-07-19
   修复: 待机呼吸灯历史修复方案丢失, IO16 LED 呼吸仍像未修复
     - 固件显示版本号更新为 v2.1.50

@@ -328,7 +328,7 @@
         <div style="display: flex; align-items: center; font-size: 14px;">
             <span class="status-dot" id="conn-dot"></span>
             <span id="conn-text" style="transition: 0.3s;">未连接</span>
-            <span class="web-version">WEB v2.1.36</span>
+            <span class="web-version">WEB v2.1.51</span>
         </div>
         <input type="text" id="ip-address" class="ip-input" placeholder="输入设备 IP">
     </div>
@@ -421,7 +421,7 @@
 </div>
 
 <script>
-    const WEB_VERSION = 'v2.1.36';
+    const WEB_VERSION = 'v2.1.51';
     const DEFAULT_DEVICE_IP = '192.168.31.99';
     const STORAGE_DEVICE_IP_KEY = 'pga2311_ip';
     const STORAGE_WEB_VERSION_KEY = 'pga2311_web_version';
@@ -931,7 +931,7 @@
             mode,
             cache: 'no-store',
             credentials: 'omit',
-            body: '1'
+            body: new Uint8Array([49])
         };
 
         if (typeof AbortController === 'undefined') {
@@ -945,6 +945,14 @@
     }
 
     async function sendRequest(url, label, options = {}) {
+        try {
+            sendByHiddenForm(url);
+            if (!options.silentSuccess) showToast(`${label}已发送，等待状态回传`, 1800);
+            return true;
+        } catch (formErr) {
+            console.warn(`${label} form POST失败，尝试 fetch:`, formErr);
+        }
+
         try {
             const res = await fetchPost(url, 'cors');
             if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);

@@ -80,7 +80,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `web_server` 必须配置 `allowed_origins: ["*"]` 和 `enable_private_network_access: true`, 否则本地网页按钮会被设备 web_server 拦截。
 - 本地 `file://` 打开网页时浏览器 Origin 为 `null`; ESPHome 的 `allowed_origins` 不能单独写 `null`, 因此这里使用 `"*"`。
 - `www/index.html` 保留固定实体名称兜底, 不依赖 SSE 短 id 才能发送控制请求。
-- 网页显示 `WEB v2.1.26`, 便于确认浏览器没有加载旧缓存。
+- 网页显示版本必须随网页控制逻辑变化同步提升, 当前为 `WEB v2.1.51`, 便于确认浏览器没有加载旧缓存。
 - 静音按钮不得点击后本地假切换, 必须等设备 SSE 状态回传后再显示 active。
 - 本地控制台不再注册 Service Worker; 若浏览器里有旧注册, 打开页面时清理, 避免旧缓存导致"代码已改但页面没变"。
 
@@ -111,9 +111,9 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `www/index.html` 的控制按钮必须优先复用 `/events` 发现到的实体 `domain/name`, 并保留固定实体名称兜底。
 - `switch/待机模式` 语义为 `ON=待机, OFF=运行`; 网页开机/关机/待机按钮应直接调用该 switch 的 `turn_off/turn_on`, 不要绕 `select/媒体控制 Media`。
 - 媒体按钮可以调用 `select/媒体控制 Media`, 但必须通过统一发送函数, 以便复用 CORS/no-cors 兜底和路径检查。
-- 浏览器 CORS/PNA 失败而 curl 可控时, 网页可以先普通 `mode: "cors"` POST, 失败后再用 `mode: "no-cors"` 发送同一条 POST; HTTP 404/500 这类已拿到响应的错误不要隐藏。
+- 浏览器 CORS/PNA 失败而 curl 可控时, 网页应优先用隐藏 iframe + form POST 发送命令; 普通 `mode: "cors"` / `mode: "no-cors"` 仅作为后备诊断路径。
 - ESPHome POST 控制请求必须带非空 body/Content-Length, 否则可能返回 `411 Length Required`; 网页侧使用简单非空 body, 不要引入自定义 header 或会触发预检的 `Content-Type`。
-- `www/index.html` 不要默认盲目隐藏 form POST; 必须先用可确认 HTTP 状态的 `fetch` CORS POST, 失败再降级 no-cors/form, 否则浏览器拦截或路径 404 会被误报为"已发送"。
+- `www/index.html` 不要依赖 fetch 成功判断作为本地控制台首选路径; 直接双击本地 HTML 时 form POST 更稳定, fetch 只用于同源或诊断后备。
 - 网页版本变化时要重置浏览器保存的旧设备 IP 到当前默认值, 并支持 `?ip=192.168.x.x` 覆盖; 多次 OTA 测试会在 `.66/.97/.99` 间切换, stale localStorage 是网页控制失败的常见原因。
 
 改动文件: `www/index.html`, `智能前级蓝牙2.0.yaml` (firmware_version)
@@ -125,7 +125,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 按钮看似发送但实体不会执行。
 
 **修复**:
-- `www/index.html` 的 `sendRequest()` 使用非空 1 字节 body, 当前为字符串 `"1"`。
+- `www/index.html` 的 `sendRequest()` 使用非空 1 字节 body, 当前 fetch 后备路径为 `Uint8Array([49])`。
 - CORS 正常路径和 `no-cors` 兜底路径都必须使用同一非空 body。
 - 避免自定义 header 或非简单 `Content-Type` 触发浏览器 `OPTIONS` 预检; 实机验证 `web_server_idf` 对预检可能空回复。
 - curl/PowerShell 验证 REST 时也要用 `--data-raw "x"` 或等效方式, 不要只写 `-X POST`。
@@ -302,6 +302,21 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 改动文件: `智能前级蓝牙2.0.yaml` (LED interval)
 
+**56. v2.1.51 外部控制入口和编译警告清理规则**
+
+本条来自代码审核 2/3/4/5/6/7 项修复, 只处理外部控制、网页入口、频谱信号判定和可修编译警告。
+
+**规则**:
+- HA/API `set_input` 和 Web `select/输入源选择 Input` 一样, 目标输入等于 `current_input` 时必须跳过 `switch_input`, 只同步 select/UI, 防止同一路输入重复吸合继电器。
+- `www/index.html` 是唯一正式本地控制台; `网页控制/index.html` 只能作为跳转到 `../www/index.html` 的兼容入口, 不得再维护第二套控制逻辑。
+- 本地网页控制请求默认使用隐藏 iframe + form POST, `fetch`/`no-cors` 只作为后备路径; fetch body 必须保持 `Uint8Array([49])`, 不要改回空 body、字符串空值或自定义 header。
+- 修改网页控制逻辑、默认 IP 或固件控制入口时, 必须同步提升 `WEB_VERSION` 和页面显示版本, 当前为 `WEB v2.1.51`, 便于确认浏览器没有加载旧缓存。
+- 静音或视觉消隐期间, MSGEQ7 的 `s_signal_avg` 仍要从实时 frame 更新, 并用七段平均值 + 单频段峰值 + 当前输入 MCP gate 联合判定; 不要退回 `sum/7` 平均值单判定。
+- 清理 ESPHome 2026.7 编译警告时优先处理无风险项: 避免 `uint8_t > 255` 这类永假比较、中文 `snprintf` 小缓冲区、枚举 `switch` 缺少 `default`。未使用函数警告可保留, 因为部分是调试/未来入口。
+- 本条不修改 BLE HID 驱动、不修改输出模式防爆音时序、不删除 `.esphome`/PlatformIO/ESPHome 缓存。
+
+改动文件: `智能前级蓝牙2.0.yaml`, `www/index.html`, `网页控制/index.html`
+
 
 ## 强制性规则
 
@@ -320,7 +335,7 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.50
+**固件版本:** v2.1.51
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
