@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.48
+**固件版本:** v2.1.49
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -89,7 +89,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | GPA1 | 继电器2 (DAC输入) | |
 | GPA2 | 继电器3 (PC输入) | |
 | GPA3 | 继电器4 (AUX输入) | |
-| GPA6 | 硬件静音 | |
+| GPA6 | 硬件静音 | 高电平=开声, 低电平=静音; v2.1.49+ 仅开机保护使用 |
 | GPB0 | 音频检测 CD | GPB0=CD, GPB1=DAC, GPB2=PC, GPB3=AUX |
 | GPB1 | 音频检测 DAC | |
 | GPB2 | 音频检测 PC | |

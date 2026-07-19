@@ -1,3 +1,31 @@
+v2.1.49 - 2026-07-19
+  调整: 硬件静音仅保留在开机保护时序, 日常静音/待机/切换全部改用 PGA2311 软件静音
+    - 固件显示版本号更新为 v2.1.49
+    - `mute_switch` / MCP23017 GPA6 只在开机流程中先拉低保护, 开机流程结束后释放; 恢复到待机状态时也释放硬件静音
+    - `soft_mute_switch.turn_on_action` 不再打开硬件静音, 只先走 `anti_pop_fade_to_silence`, 再固定 `current_db/target_db=-96.0f` 并写 `pga2311::set_volume(0,0)`
+    - `soft_mute_switch.turn_off_action` 不再关闭硬件静音, 只在非待机/非保护/非切换时执行 `send_volume_to_pga` 软件恢复音量
+    - `enter_standby`、`exit_standby` 不再切 GPA6; 待机进入时只软降/PGA=0, 唤醒时直接由 PGA2311 渐变恢复
+    - `switch_input` 和 `switch_output_mode` 保留防爆音软降、PGA=0、继电器后保持窗口, 但不再在运行中打开/关闭硬件静音
+    - 温度保护路径也只触发软件静音/待机, 不再额外拉 GPA6
+    - AGENTS/README/CLAUDE 同步注明: v2.1.49 起硬件静音只属于开机保护, 以后不要把 `mute_switch` 加回日常运行路径
+  原因: 用户确认“静音只有在开机时序是硬件静音, 其他只用软件静音”。直通/变压器切换仍有轻微爆音时, GPA6 硬静音本身也可能引入动作瞬态,
+        因此本次不再扩大硬静音时间, 而是把运行期防爆音统一收敛到 PGA2311 软降到 -96dB + PGA=0 + 继电器保持窗口。
+  验证:
+    - YAML 守卫脚本通过: 非开机段没有 `id(mute_switch)->turn_on()` 或 `switch.turn_on: mute_switch`, 开机段仍保留硬件静音保护
+    - `git diff --check` 通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.49`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 19:11:54 +0800`, `config_hash=0x3e1d317d`
+    - OTA 上传到 `192.168.31.99` 成功
+    - OTA 后复测: 设备 HTTP/web_server 返回 200, API 端口 6053 可连接
+    - `/events` 复测设备在线, `静音-HW` 为 OFF, `静音-SW` 为 OFF, `待机模式` 为 OFF, 设备 IP 为 `192.168.31.99`
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, boot, soft_mute_switch, enter_standby, exit_standby, switch_input, switch_output_mode, temp_protect)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.48 - 2026-07-19
   修复: 直通/变压器输出模式切换继续残留爆音
     - 固件显示版本号更新为 v2.1.48

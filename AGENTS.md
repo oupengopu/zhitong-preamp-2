@@ -31,14 +31,14 @@ NV3007 需要 MODE0, 导致初始化失败 → 有背光无显示。
 
 **37. 防爆音路径必须先软降再硬切**
 
-开启静音、进入待机、变压器/直通输出模式切换都不能直接操作硬件静音或继电器。
+开启静音、进入待机、输入切换、变压器/直通输出模式切换都不能直接硬切。
 必须先让 `send_volume_to_pga` 把 PGA2311 渐变到 -96dB, 等 `current_db <= -95.5f`
-后, 再执行 `pga2311::set_volume(0,0)`、`mute_switch` 或 `relay_out`。
+后, 再执行 `pga2311::set_volume(0,0)` 或继电器动作。v2.1.49 起, 日常路径不再操作 `mute_switch`。
 
 已修复入口:
-- `soft_mute_switch.turn_on_action`: 先软降到 0, 再打开硬件静音
-- `enter_standby`: `power_transitioning` 期间允许音量渐变, 软降完成后再关屏/待机
-- `switch_output_mode`: 输出模式切换使用软降 -> 硬静音 -> 切 GPA4 -> 恢复音量
+- `soft_mute_switch.turn_on_action`: 先软降到 0, 再保持 PGA=0 软件静音
+- `enter_standby`: `power_transitioning` 期间允许音量渐变, 软降完成后再关屏/待机, 不再拉 GPA6
+- `switch_output_mode`: 输出模式切换使用软降 -> PGA=0 -> 切 GPA4 -> 保持软件静音窗口 -> 恢复音量
 - HA `set_mute` 服务必须调用 `soft_mute_switch`, 不要直接切 `mute_switch`
 
 改动文件: `智能前级蓝牙2.0.yaml` (switch/script/api 段)
@@ -49,7 +49,7 @@ v2.1.23 初版虽然已编译通过, 但 `wait_until` 超时后仍会继续硬�
 
 **修复**:
 - 新增 `anti_pop_fade_to_silence` 统一脚本, 负责停止旧音量脚本、设置 `target_db=-96.0f`、执行 `send_volume_to_pga` 并等待 `current_db <= -95.5f`。
-- 软降等待窗口为 5 秒; 超时记录 `current_db/target_db`, 再兜底 PGA=0。正常路径必须先软降完成再硬静音或切继电器。
+- 软降等待窗口为 5 秒; 超时记录 `current_db/target_db`, 再兜底 PGA=0。正常路径必须先软降完成再保持软件静音或切继电器。
 - `soft_mute_switch.turn_on_action` 在 `switching_input/power_transitioning` 忙碌期间只记录 `soft_mute=true`, 不再中途直接硬静音。
 - `enter_standby` 遇到输入/输出切换中则跳过本次进入待机, 避免两个音频路径状态机互相抢 `switching_input/saved_soft_mute`。
 - `switch_output_mode` 恢复阶段要保留切换期间用户发出的静音请求, 不得简单恢复切换前 `saved_soft_mute`。
@@ -190,7 +190,7 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 `anti_pop_fade_to_silence` 运行期间, 其他入口可能继续触发 `send_volume_to_pga`
 或 `soft_mute_switch.turn_off_action`。如果这时按普通音量重算 `target_db`, 软降目标会从
-`-96dB` 被抢回当前音量, 最后表现为 5 秒超时后才硬静音/硬切, 防爆音等于失效。
+`-96dB` 被抢回当前音量, 最后表现为 5 秒超时后才 PGA=0/硬切, 防爆音等于失效。
 
 **规则**:
 - `send_volume_to_pga` 在 `anti_pop_fade_to_silence->is_running()` 时必须强制保持 `target_db=-96.0f`。
@@ -270,12 +270,24 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 30ms/100ms 窗口。
 
 **规则**:
-- `switch_output_mode` 必须保持顺序: anti_pop 软降 -> `pga2311::set_volume(0,0)` -> `mute_switch` 硬静音 -> 等待 -> 切 `relay_out` -> 长等待 -> 取消硬静音 -> 等待 -> 音量渐变恢复。
-- 当前输出模式切换参数: 硬静音预稳定 150ms, `relay_out` 切换后静音保持 450ms, 取消硬静音后 120ms 再执行 `send_volume_to_pga`。
+- `switch_output_mode` 必须保持顺序: anti_pop 软降 -> `pga2311::set_volume(0,0)` -> 软件静音预稳定 -> 切 `relay_out` -> 长等待 -> 音量渐变恢复。
+- 当前输出模式切换参数: PGA=0 后预稳定 150ms, `relay_out` 切换后软件静音保持 450ms, 再等待 120ms 执行 `send_volume_to_pga`。
 - 切 `relay_out` 后要再次固定 `current_db/target_db=-96.0f` 并写 PGA=0, 不要只依赖前一次软降的状态。
-- 如果实机仍有输出模式爆音, 优先继续调 `switch_output_mode` 的静音保持窗口, 不要先改输入切换、MSGEQ7、网页控制或 BLE HID。
+- 如果实机仍有输出模式爆音, 优先继续调 `switch_output_mode` 的软件静音保持窗口, 不要先改输入切换、MSGEQ7、网页控制或 BLE HID。
 
 改动文件: `智能前级蓝牙2.0.yaml` (switch_output_mode)
+
+**54. 硬件静音只属于开机保护时序**
+
+用户确认: 静音只有在开机时序使用硬件静音, 其他场景只用 PGA2311 软件静音。
+
+**规则**:
+- `mute_switch` / MCP23017 GPA6 只允许在开机保护时序中拉低保护, 启动时序结束必须释放为开声状态。
+- 日常 `soft_mute_switch`、待机/唤醒、输入切换、直通/变压器输出切换、温度保护恢复都不得再打开硬件静音。
+- 运行时静音统一使用 `anti_pop_fade_to_silence`、`soft_mute=true`、`current_db/target_db=-96.0f` 和 `pga2311::set_volume(0,0)`。
+- 如果未来又出现爆音, 优先调 PGA 软件静音包络和继电器保持窗口, 不要把 `mute_switch` 重新加回运行路径。
+
+改动文件: `智能前级蓝牙2.0.yaml` (boot, soft_mute_switch, enter_standby, exit_standby, switch_input, switch_output_mode, temp_protect)
 
 
 ## 强制性规则
@@ -295,7 +307,7 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.48
+**固件版本:** v2.1.49
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -376,7 +388,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | GPA1 | 继电器2 (DAC输入) | |
 | GPA2 | 继电器3 (PC输入) | |
 | GPA3 | 继电器4 (AUX输入) | |
-| GPA6 | 硬件静音 | **高电平=开声, 低电平=静音** |
+| GPA6 | 硬件静音 | **高电平=开声, 低电平=静音**; v2.1.49+ 仅开机保护使用 |
 | GPB0 | 音频检测 CD | GPB0=CD, GPB1=DAC, GPB2=PC, GPB3=AUX |
 | GPB1 | 音频检测 DAC | |
 | GPB2 | 音频检测 PC | |
@@ -903,7 +915,7 @@ cd preview && py -3.11 -m http.server 8084
 
 11. **standby_switch 命名约定**: HA 实体名"待机模式"，ON=待机模式，OFF=设备运行中。`turn_on_action` → 进入待机，`turn_off_action` → 退出待机。新增待机相关逻辑时严格遵守此约定。
 
-12. **硬件静音 GPA6 极性**: 必须牢记硬件是 **高电平=开声, 低电平=静音**。固件里的 `mute_switch` 使用 `inverted: true`，让 HA 的"静音-HW"开关语义变成 ON=输出低电平=静音，OFF=输出高电平=开声。以后修改静音逻辑时不要把 `switch.turn_on` 当成开声。
+12. **硬件静音 GPA6 极性**: 必须牢记硬件是 **高电平=开声, 低电平=静音**。固件里的 `mute_switch` 使用 `inverted: true`，让 HA 的"静音-HW"开关语义变成 ON=输出低电平=静音，OFF=输出高电平=开声。v2.1.49 起 `mute_switch` 只属于开机保护时序, 日常静音/待机/切换只用 PGA2311 软件静音。以后修改静音逻辑时不要把 `switch.turn_on` 当成开声, 也不要把硬件静音重新加回运行路径。
 
 13. **font_cn_small 字体覆盖**: 作为 `default_font`，任何新增 UI 文字（尤其是 BLE 页状态文本）必须确保字符已加入 glyphs 列表（当前约 90 字）。缺字导致 LVGL 渲染空白框。此字体与 font_cn (18px) 独立维护，需分别添加。
 

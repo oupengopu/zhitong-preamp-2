@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.48"
+  firmware_version: "v2.1.49"
 
 esphome:
   name: ${device_name}
@@ -178,7 +178,7 @@ esphome:
                   id(target_db)  = -96.0f;
                   id(system_ready) = false;
                   id(power_transitioning) = false;
-              - switch.turn_on: mute_switch
+              - switch.turn_off: mute_switch
 
     - priority: -200
       then:
@@ -806,6 +806,7 @@ switch:
   # 硬件静音 — MCP23017 GPA6
   # 重点: 硬件高电平=开声, 低电平=静音。
   # 这里使用 inverted，让 HA 的“静音-HW”开关 ON=输出低电平=静音，OFF=输出高电平=开声。
+  # v2.1.49+: 仅用于开机保护时序；日常静音/待机/切换只用 PGA2311 软件静音。
   - platform: gpio
     id: mute_switch
     name: "静音-HW"
@@ -833,7 +834,6 @@ switch:
                 id(soft_mute) = true;
                 id(target_db) = -96.0f;
                 id(current_db) = -96.0f;
-                id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
           else:
             - if:
@@ -852,7 +852,6 @@ switch:
                         lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
                       timeout: 5500ms
                   - lambda: 'pga2311::set_volume(0, 0);'
-                  - switch.turn_on: mute_switch
       - script.execute: reset_idle_timer
     turn_off_action:
       - if:
@@ -871,11 +870,9 @@ switch:
                   - lambda: |-
                       id(soft_mute) = true;
                       id(soft_mute_switch)->publish_state(true);
-                      id(mute_switch)->turn_on();
                       pga2311::set_volume(0, 0);
                 else:
                   - globals.set: {id: soft_mute, value: 'false'}
-                  - switch.turn_off: mute_switch
                   - script.execute: send_volume_to_pga
       - script.execute: reset_idle_timer
 
@@ -5122,7 +5119,7 @@ script:
           if (!id(standby)) {
             id(display_idle_timer)->execute();
             id(apply_theme)->execute();
-            if (!id(soft_mute) && !id(temp_protect) && !id(ota_active)) id(mute_switch)->turn_off();
+            if (!id(temp_protect) && !id(ota_active)) id(mute_switch)->turn_off();
             id(send_volume_to_pga)->execute();
           }
           ESP_LOGI("BOOT_DIAG", "show_main_boot action: heap=%u", (unsigned)esp_get_free_heap_size());
@@ -5267,7 +5264,6 @@ script:
             - lambda: |-
                 id(target_db)       = -96.0f;
                 id(current_db)      = -96.0f;
-                id(mute_switch)->turn_on();
                 auto off = id(display_backlight)->turn_off();
                 off.set_transition_length(0);
                 off.perform();
@@ -5306,7 +5302,6 @@ script:
                 id(current_db) = -96.0f;
                 id(target_db)  = -96.0f;
                 id(system_ready) = false;
-                id(mute_switch)->turn_on();
                 pga2311::set_volume(0, 0);
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
                 id(standby_switch)->publish_state(false);  // HA 同步
@@ -5325,7 +5320,6 @@ script:
             - lambda: |-
                 id(power_transitioning) = false;
                 id(system_ready) = true;
-                if (!id(soft_mute) && !id(temp_protect) && !id(ota_active)) id(mute_switch)->turn_off();
             - script.execute: send_volume_to_pga
             - script.execute: display_idle_timer
 
@@ -5909,8 +5903,7 @@ script:
                       id(current_db) = -96.0f;
                       id(target_db) = -96.0f;
                       pga2311::set_volume(0, 0);
-                      id(mute_switch)->turn_on();
-                      ESP_LOGI("output_mode", "hard muted before output relay: target=%s",
+                      ESP_LOGI("output_mode", "software muted before output relay: target=%s",
                                id(output_mode) ? "direct" : "transformer");
                   - delay: 150ms
                   - lambda: |-
@@ -5927,9 +5920,6 @@ script:
                       id(soft_mute) = keep_muted;
                       id(soft_mute_switch)->publish_state(keep_muted);
                       id(switching_input) = false;
-                      if (!id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning)) {
-                        id(mute_switch)->turn_off();
-                      }
                   - delay: 120ms
                   - if:
                       condition:
@@ -5973,7 +5963,6 @@ script:
                 timeout: 5500ms
 
       - lambda: 'pga2311::set_volume(0, 0);'
-      - switch.turn_on: mute_switch
       - delay: 30ms
 
       - lambda: |-
@@ -5995,11 +5984,6 @@ script:
           id(input_select)->publish_state(names[target]);
       - delay: 100ms
 
-      - if:
-          condition:
-            lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
-          then:
-            - switch.turn_off: mute_switch
       - delay: 20ms
 
       - lambda: |-
@@ -6548,7 +6532,6 @@ sensor:
               - lambda: |-
                   id(temp_protect_forced_standby) = !id(standby);
                   id(temp_protect) = true;
-                  id(mute_switch)->turn_on();
                   id(send_volume_to_pga)->execute();
                   if (id(temp_protect_forced_standby)) {
                     id(standby_switch)->turn_on();
@@ -6565,7 +6548,6 @@ sensor:
                   if (wake_from_protect && id(standby)) {
                     id(standby_switch)->turn_off();
                   } else if (!id(standby)) {
-                    if (!id(soft_mute)) id(mute_switch)->turn_off();
                     id(send_volume_to_pga)->execute();
                   }
 
