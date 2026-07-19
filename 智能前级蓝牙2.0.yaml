@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.49"
+  firmware_version: "v2.1.50"
 
 esphome:
   name: ${device_name}
@@ -8512,13 +8512,16 @@ interval:
                 uint32_t mod = n % 300000;
                 if (mod < 2000) {
                   float t = (float)mod / 2000.0f;
-                  lvl = 0.30f * (sinf(t * M_PI - M_PI_2) + 1.0f) * 0.5f;
+                  float sv = sinf(t * M_PI);
+                  lvl = 0.30f * sv * sv;
                 }
                 // else lvl 保持 0.0
               } else {
-                // 待机 <1小时: 柔呼吸 3s 周期, 5%~55%
-                float t = fmod((float)n, 3000.0f) / 3000.0f;
-                lvl = 0.05f + 0.50f * (sinf(t * 2.0f * M_PI - M_PI_2) + 1.0f) * 0.5f;
+                // 待机 <1小时: 柔呼吸 4s 周期, 2%~65% (sin² 两端斜率归零, 缓起缓落更丝滑)
+                uint32_t mod = n % 4000;
+                float t = (float)mod / 4000.0f;
+                float sv = sinf(t * M_PI);
+                lvl = 0.02f + 0.63f * sv * sv;
               }
             }
             // 优先级 3: 开机闪屏期间 → 1 秒内渐亮到 70%
@@ -8539,12 +8542,8 @@ interval:
               lvl = 0.70f;
             }
 
-            // 变化检测写入 (避免每 50ms 刷输出)
-            static float last_lvl = -1.0f;
-            if (fabs(lvl - last_lvl) > 0.005f) {
-              last_lvl = lvl;
-              id(led_indicator)->set_level(lvl);
-            }
+            // 每 50ms 直接写入 (无阈值滤波; gamma≈2.2 人眼线性校正)
+            id(led_indicator)->set_level(lvl * lvl);
           }
 
           int64_t loop_elapsed_us = esp_timer_get_time() - loop_start_us;

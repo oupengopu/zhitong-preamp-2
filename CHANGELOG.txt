@@ -1,3 +1,32 @@
+v2.1.50 - 2026-07-19
+  修复: 待机呼吸灯历史修复方案丢失, IO16 LED 呼吸仍像未修复
+    - 固件显示版本号更新为 v2.1.50
+    - 恢复历史修复链 `98fb7b9` / `ef54de4` / `ff0ec2c` 的待机呼吸方案: 待机 1 小时内改为 4s 周期 `sin²` 柔呼吸, 逻辑亮度 `2% -> 65% -> 2%`
+    - 待机 1 小时后 5 分钟一次的省电脉冲改为 `sin²` 波形, 避免旧半余弦在边界处观感生硬
+    - 移除 IO16 LED 输出的 `last_lvl` / `fabs(lvl-last_lvl)` 阈值滤波, 每 50ms 直接写 PWM, 防止低点和慢变区被跳过
+    - 最终 PWM 写入恢复 `lvl * lvl` gamma 近似校正, 对应历史提交 `ff0ec2c breathing: fix float precision, >1h pulse truncation, gamma correction`
+    - 本次只改 IO16 面板 LED 的待机呼吸波形和写入方式, 不改 TFT 背光、输入卡片 LED、频谱 LED 点阵、音频防爆音、网页控制或 BLE HID
+    - AGENTS/README/CLAUDE 同步更新待机呼吸灯参数, 并在 AGENTS 增加“待机呼吸灯必须保留历史修复波形”规则
+  原因: 当前 v2.1.49 代码又回到了旧的 3s/5%~55% 半余弦波形, 并重新出现阈值滤波和线性 PWM 写入。
+        项目历史里已经修过这个问题: 需要 `sin²` 波形、无阈值直接写入、gamma 校正三件事同时保留, 否则实机上待机呼吸灯仍会像没有修好。
+  验证:
+    - RED 守卫在修改前失败: 版本号不是 v2.1.50、缺少 4s `sin²` 呼吸、缺少 >1h `sin²` 脉冲、仍有阈值滤波、缺少 gamma 写入
+    - 修改后 YAML 守卫通过: 版本号 v2.1.50、4s `sin²` 呼吸、>1h `sin²` 脉冲、无阈值滤波、`lvl * lvl` gamma 写入均匹配
+    - `git diff --check` 通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.50`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 21:37:58 +0800`, `config_hash=0x9b47a374`
+    - OTA 上传到 `192.168.31.99` 成功
+    - OTA 后复测: 设备 HTTP/web_server 返回 200, API 端口 6053 可连接
+    - REST `switch/待机模式/turn_on` 返回 200; `/events` 确认 `待机模式` 为 ON, `显示屏背光` 为 OFF, `静音-HW` 为 OFF
+    - IO16 实际呼吸效果需用户肉眼确认; 远程只能确认待机状态已进入、固件分支和 PWM 算法已匹配
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, IO16 LED standby breathing interval)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.49 - 2026-07-19
   调整: 硬件静音仅保留在开机保护时序, 日常静音/待机/切换全部改用 PGA2311 软件静音
     - 固件显示版本号更新为 v2.1.49

@@ -289,6 +289,19 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 
 改动文件: `智能前级蓝牙2.0.yaml` (boot, soft_mute_switch, enter_standby, exit_standby, switch_input, switch_output_mode, temp_protect)
 
+**55. 待机呼吸灯必须保留历史修复波形**
+
+IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
+
+**规则**:
+- 待机 1 小时内使用 4s 周期 `sin²` 呼吸波形, 逻辑亮度 `2% -> 65% -> 2%`, 两端斜率归零避免最低点突变。
+- 待机 1 小时后使用 5 分钟一次、2 秒宽的 `sin²` 平滑脉冲, 逻辑亮度 `0% -> 30% -> 0%`。
+- LED 输出必须每 50ms 直接写入, 不要用 `last_lvl` / `fabs(lvl-last_lvl)` 阈值滤波; 阈值会让波形低点和慢变区不连续。
+- 写入 PWM 前保留 `lvl * lvl` gamma 近似校正, 对应历史修复 `ff0ec2c breathing: fix float precision, >1h pulse truncation, gamma correction`。
+- 这条只管 IO16 面板 LED, 不影响 TFT 背光、输入卡片 LVGL LED、频谱 LED 点阵或音频状态机。
+
+改动文件: `智能前级蓝牙2.0.yaml` (LED interval)
+
 
 ## 强制性规则
 
@@ -307,7 +320,7 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.49
+**固件版本:** v2.1.50
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -637,8 +650,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 静音中 | 常亮 | 35% | 半亮区分静音状态 |
 | 未连 WiFi | 闪烁, 1s 周期 | 70% ↔ 0% | 500ms 亮 / 500ms 灭 |
 | 开机闪屏 | 渐亮 | 0% → 70%, 1秒渐变 | 配合开机仪式感 |
-| 待机 <1小时 | 呼吸灯, 3s 周期 | 5% ↔ 55% | 正弦波柔呼吸 |
-| 待机 >1小时 | 5分钟平滑脉冲, 2s 宽 | 0% → 30% → 0% | 深夜省电不扰眠 |
+| 待机 <1小时 | 呼吸灯, 4s 周期 | 2% ↔ 65% (gamma校正前) | sin² 柔呼吸, 两端斜率归零 |
+| 待机 >1小时 | 5分钟平滑脉冲, 2s 宽 | 0% → 30% → 0% (gamma校正前) | sin² 深夜省电脉冲 |
 | 温度保护 (≥72°C) | 快闪, 200ms 周期 | 80% ↔ 0% | 警示异常 |
 | 工厂重置按住 5~10s | 加速闪烁 | 80% ↔ 0%, 500ms→100ms | 按住越久闪越快 |
 
