@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.40"
+  firmware_version: "v2.1.41"
 
 esphome:
   name: ${device_name}
@@ -1933,6 +1933,26 @@ lvgl:
         - obj: { id: vu_tick_r_5, x: 388, y: 74, width: 12, height: 2, bg_color: 0x256DA6, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_l, x: 108, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r, x: 316, y: 107, width: 78, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_0, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_1, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_2, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_3, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_4, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_5, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_6, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_7, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_8, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_9, x: 108, y: 107, width: 5, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_0, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_1, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_2, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_3, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_4, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_5, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_6, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_7, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_8, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_9, x: 316, y: 107, width: 5, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
 
         # ── Sparkline spectrum overlay (hidden unless spectrum_theme == 5) ──
         # 真机版控制对象数量，避免 LVGL 运行堆压力过高导致启动期重启。
@@ -6960,7 +6980,10 @@ interval:
               id(lbl_vu_power_l), id(lbl_vu_power_r),
               id(vu_tick_l_0), id(vu_tick_l_1), id(vu_tick_l_2), id(vu_tick_l_3), id(vu_tick_l_4), id(vu_tick_l_5),
               id(vu_tick_r_0), id(vu_tick_r_1), id(vu_tick_r_2), id(vu_tick_r_3), id(vu_tick_r_4), id(vu_tick_r_5),
-              id(vu_needle_l), id(vu_needle_r)
+              id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
+              id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9),
+              id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
+              id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
             };
             lv_obj_t* spark_bars[] = {
               id(spark_bar_0), id(spark_bar_1), id(spark_bar_2), id(spark_bar_3), id(spark_bar_4), id(spark_bar_5),
@@ -7034,20 +7057,22 @@ interval:
                   lv_obj_set_style_transform_pivot_x(ticks[i], 6, LV_PART_MAIN);
                   lv_obj_set_style_transform_pivot_y(ticks[i], 1, LV_PART_MAIN);
                 }
-                lv_obj_set_style_bg_opa(id(vu_needle_l), LV_OPA_COVER, LV_PART_MAIN);
-                lv_obj_set_style_bg_opa(id(vu_needle_r), LV_OPA_COVER, LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(vu_needle_l), lv_color_hex(0x06111F), LV_PART_MAIN);
-                lv_obj_set_style_bg_color(id(vu_needle_r), lv_color_hex(0x06111F), LV_PART_MAIN);
-                lv_obj_set_width(id(vu_needle_l), 78);
-                lv_obj_set_width(id(vu_needle_r), 78);
-                lv_obj_set_height(id(vu_needle_l), 3);
-                lv_obj_set_height(id(vu_needle_r), 3);
-                lv_obj_set_pos(id(vu_needle_l), 108, 107);
-                lv_obj_set_pos(id(vu_needle_r), 316, 107);
-                lv_obj_set_style_transform_pivot_x(id(vu_needle_l), 0, LV_PART_MAIN);
-                lv_obj_set_style_transform_pivot_y(id(vu_needle_l), 1, LV_PART_MAIN);
-                lv_obj_set_style_transform_pivot_x(id(vu_needle_r), 0, LV_PART_MAIN);
-                lv_obj_set_style_transform_pivot_y(id(vu_needle_r), 1, LV_PART_MAIN);
+                lv_obj_add_flag(id(vu_needle_l), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(vu_needle_r), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_t* needle_segs[] = {
+                  id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
+                  id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9),
+                  id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
+                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
+                };
+                for (int i = 0; i < 20; i++) {
+                  lv_obj_set_width(needle_segs[i], (i % 10) == 9 ? 5 : 4);
+                  lv_obj_set_height(needle_segs[i], 3);
+                  lv_obj_set_style_bg_color(needle_segs[i], lv_color_hex(0x06111F), LV_PART_MAIN);
+                  lv_obj_set_style_bg_opa(needle_segs[i], LV_OPA_COVER, LV_PART_MAIN);
+                  lv_obj_set_style_radius(needle_segs[i], 1, LV_PART_MAIN);
+                  lv_obj_move_foreground(needle_segs[i]);
+                }
               } else if (sparkline) {
                 lv_obj_add_flag(id(vu_meter_l), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(id(vu_meter_r), LV_OBJ_FLAG_HIDDEN);
@@ -7201,16 +7226,37 @@ interval:
               int meter_l = std::min(255, avg_l * 2 + max_l);
               int meter_r = std::min(255, avg_r * 2 + max_r);
               if (style == 4) {
-                static float vu_angle_l = 2200.0f;
-                static float vu_angle_r = 2200.0f;
-                float target_l = 2200.0f + ((float)meter_l / 255.0f) * 1000.0f;
-                float target_r = 2200.0f + ((float)meter_r / 255.0f) * 1000.0f;
+                static float vu_angle_l = 225.0f;
+                static float vu_angle_r = 225.0f;
+                float target_l = 225.0f + ((float)meter_l / 255.0f) * 90.0f;
+                float target_r = 225.0f + ((float)meter_r / 255.0f) * 90.0f;
                 float k_l = target_l > vu_angle_l ? 0.42f : 0.10f;
                 float k_r = target_r > vu_angle_r ? 0.42f : 0.10f;
                 vu_angle_l += (target_l - vu_angle_l) * k_l;
                 vu_angle_r += (target_r - vu_angle_r) * k_r;
-                lv_obj_set_style_transform_angle(id(vu_needle_l), (int)vu_angle_l, LV_PART_MAIN);
-                lv_obj_set_style_transform_angle(id(vu_needle_r), (int)vu_angle_r, LV_PART_MAIN);
+                lv_obj_t* seg_l[] = {
+                  id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
+                  id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9)
+                };
+                lv_obj_t* seg_r[] = {
+                  id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
+                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
+                };
+                auto draw_segmented_needle = [](lv_obj_t** segs, int pivot_x, int pivot_y, float angle_deg) {
+                  float rad = angle_deg * 0.01745329252f;
+                  float dx = cosf(rad);
+                  float dy = sinf(rad);
+                  for (int i = 0; i < 10; i++) {
+                    float dist = 11.0f + (float)i * 6.0f;
+                    int x = pivot_x + (int)(dx * dist) - 2;
+                    int y = pivot_y + (int)(dy * dist) - 1;
+                    lv_obj_set_x(segs[i], x);
+                    lv_obj_set_y(segs[i], y);
+                    lv_obj_set_style_bg_opa(segs[i], (lv_opa_t)(i < 2 ? 190 : LV_OPA_COVER), LV_PART_MAIN);
+                  }
+                };
+                draw_segmented_needle(seg_l, 110, 107, vu_angle_l);
+                draw_segmented_needle(seg_r, 318, 107, vu_angle_r);
               }
               if (meter_l != last_vu_l) {
                 last_vu_l = meter_l;
