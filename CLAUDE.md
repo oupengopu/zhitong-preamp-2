@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.46
+**固件版本:** v2.1.47
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -145,7 +145,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 
 2. **MSGEQ7** (`PGA/msgeq7.h`) — 频谱分析 + NTC 温度
    - ADC1 oneshot API (ESP-IDF 5.x), 12-bit
-   - 双速率平滑 (上升 0.35, 下降 0.12)
+   - 双速率平滑 (显示用上升 1.00, 下降 0.42)
    - 帧率无关峰值衰减 (powf 解耦)
    - 零漂校准, 噪声门限, 频段增益补偿
    - 线程安全: 临界区保护共享数据, `get_frame()` 快照读取
@@ -237,7 +237,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 使用 `msgeq7::get_frame()` 获取 SpectrumFrame 快照
 - LVGL 绘制前使用显示专用视觉均衡: 当前输入检测无信号时 gate 归零; 有信号时按实机弱幅度低门槛软膝放大, 让 6.25k/16k 在 `raw_peak=1~15` 时也能跳动; 信号检测仍使用未放大的 raw frame 平均值
 - 所有输入无信号稳定后自动触发 MSGEQ7 静默重校准, 更新 offset 并清空旧平滑/峰值, 避免关信号后底噪继续显示
-- 更新 LVGL 频谱条 (L/R 独立, 显示层使用快攻 + gravity 回落和峰值保持线; LED点阵使用 24 条 audioMotion 风格窄列, 火花样式不再叠加人工抖动)
+- 更新 LVGL 频谱条 (L/R 独立, 显示层使用快攻 + gravity 回落和峰值保持线; LED点阵使用 24 条 audioMotion 风格窄列, 单列视图取左右声道峰值源)
 - 更新 VU 电平条/蓝表头指针 (平均值 60% + 峰值 40%, 40 段 2x1 密集细长指针, 225°~315° 表盘角度, 快起慢落)
 - 更新输入卡片 LED 信号灯 (MCP23017 `audio_cd/dac/pc/aux` 有信号常亮, 无信号熄灭)
 - 约 20Hz 刷新率

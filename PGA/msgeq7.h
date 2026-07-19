@@ -92,8 +92,8 @@ inline float _ntc_temperature = NTC_INVALID;
 inline float _smooth_r[MSGEQ7_NUM_BANDS] = {0};
 inline float _smooth_l[MSGEQ7_NUM_BANDS] = {0};
 
-static constexpr float SMOOTH_UP   = 0.72f;   // 上升快攻，低音瞬态要在下一帧明显响应
-static constexpr float SMOOTH_DOWN = 0.22f;   // 下降保留少量平滑，主要视觉回落交给 UI 层 gravity
+static constexpr float SMOOTH_UP   = 1.00f;   // 上升立即跟随，低音瞬态不能被驱动层拖慢
+static constexpr float SMOOTH_DOWN = 0.42f;   // 下降更快，保留少量抗抖后交给 UI 层 gravity
 
 // ── 峰值衰减 (帧率无关: 用 powf(DECAY, dt) 解耦 FPS) ──
 //   设计目标: 1 秒内峰值衰减到 ~50% (原 0.965 @20Hz ≈ 0.965^20 ≈ 0.49)

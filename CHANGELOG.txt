@@ -1,3 +1,30 @@
+v2.1.47 - 2026-07-19
+  调整: 频谱响应再加快, LED点阵和主页小频谱改用左右声道峰值源
+    - 固件显示版本号更新为 v2.1.47
+    - `PGA/msgeq7.h` 的 MSGEQ7 上升平滑改为 1.00, 真实瞬态不再先被驱动层慢平均; 下降改为 0.42, 保留少量抗抖但明显快于 v2.1.46
+    - 频谱显示层 attack 改为低/中频一帧贴近目标, 高频保留少量软化; gravity 回落速度和峰值衰减同步加快
+    - `LED点阵` 和主页小频谱不再使用 `frame.combined` 左右平均值, 改用 `max(frame.left, frame.right)` 后再插值, 避免单声道或左右声道瞬态被平均打平
+    - 主页小频谱高度从最高 20px 提到 22px, 但仍只使用显示层数据, 不反馈到自动跳转或输入判定
+    - 本次不改网页控制、BLE HID、输入继电器、防爆音、MSGEQ7 raw 门限或自动跳转阈值
+  原因: v2.1.46 实机反馈肉眼效果好了很多, 但频谱跳动仍“不真实、跟不上音乐速度”。
+        `/events` 播放音乐时 `target/draw` 已经接近, 说明 LVGL 绘制层不是主要滞后点; 剩余问题更可能来自 MSGEQ7 驱动层平滑和 LED 单列视图使用左右平均值。
+        因此这次只加快真实频谱进入显示层的路径, 并让单列 LED/mini spectrum 使用更能代表瞬态能量的左右声道峰值。
+  验证:
+    - 参数守卫脚本通过: v2.1.47 版本号、MSGEQ7 1.00/0.42 平滑、LED/mini 使用 `matrix_src`、gravity 新参数均匹配
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.47`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 15:30:01 +0800`, `config_hash=0xe211a333`
+    - OTA 上传到 `192.168.31.99` 成功, 设备 HTTP/web_server 重启后返回 200
+    - `/events` 复测: `style=2` LED点阵, DAC 输入 `mcp_active=1/gate=1`, `raw_peak=21~39` 时 `target/draw` 基本贴合
+    - 验证后已关闭 `switch/频谱诊断日志 SpectrumDiag`, 避免正式使用刷 INFO 日志
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, 频谱显示 attack/gravity/peak decay, LED点阵与主页小频谱数据源)
+  PGA/msgeq7.h (MSGEQ7 上升/下降平滑系数)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.46 - 2026-07-19
   调整: LED点阵改为 audioMotion 风格密集列, 频谱主柱改为快攻 + gravity 回落
     - 固件显示版本号更新为 v2.1.46

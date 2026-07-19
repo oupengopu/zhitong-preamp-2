@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.46"
+  firmware_version: "v2.1.47"
 
 esphome:
   name: ${device_name}
@@ -7083,7 +7083,7 @@ interval:
             float display_dt = last_display_ms ? (float)(display_now - last_display_ms) / 1000.0f : 0.05f;
             if (display_dt < 0.01f || display_dt > 0.25f) display_dt = 0.05f;
             last_display_ms = display_now;
-            float peak_decay = powf(0.30f, display_dt);
+            float peak_decay = powf(0.22f, display_dt);
             if (!spectrum_draw_allowed) {
               for (int i = 0; i < 7; i++) {
                 display_l[i] = 0.0f; display_r[i] = 0.0f; display_c[i] = 0.0f;
@@ -7091,8 +7091,8 @@ interval:
                 display_peak_l[i] = 0.0f; display_peak_r[i] = 0.0f; display_peak_c[i] = 0.0f;
               }
             }
-            static const float attack_k[7] = {0.90f, 0.90f, 0.86f, 0.82f, 0.78f, 0.74f, 0.72f};
-            static const float fall_gravity[7] = {1700.0f, 1650.0f, 1550.0f, 1450.0f, 1350.0f, 1250.0f, 1150.0f};
+            static const float attack_k[7] = {1.00f, 1.00f, 1.00f, 1.00f, 0.94f, 0.92f, 0.90f};
+            static const float fall_gravity[7] = {3600.0f, 3400.0f, 3200.0f, 3000.0f, 2800.0f, 2600.0f, 2400.0f};
             auto follow_display_value = [display_dt](float current, int target, int band, float &velocity) -> float {
               if (band < 0) band = 0;
               if (band > 6) band = 6;
@@ -7109,8 +7109,8 @@ interval:
                 return tgt;
               }
               velocity += fall_gravity[band] * display_dt;
-              if (velocity < 48.0f) velocity = 48.0f;
-              if (velocity > 280.0f) velocity = 280.0f;
+              if (velocity < 140.0f) velocity = 140.0f;
+              if (velocity > 720.0f) velocity = 720.0f;
               float next = current - velocity * display_dt;
               if (next <= tgt) {
                 velocity = 0.0f;
@@ -7134,6 +7134,10 @@ interval:
               frame.peak_l[i] = std::min(255, (int)(display_peak_l[i] + 0.5f));
               frame.peak_r[i] = std::min(255, (int)(display_peak_r[i] + 0.5f));
               frame.peak[i] = std::min(255, (int)(display_peak_c[i] + 0.5f));
+            }
+            int matrix_src[7];
+            for (int i = 0; i < 7; i++) {
+              matrix_src[i] = std::max(frame.left[i], frame.right[i]);
             }
             if (id(spectrum_diag_log)) {
               static uint32_t last_spectrum_diag_ms = 0;
@@ -7441,7 +7445,7 @@ interval:
                   if (band > 6) band = 6;
                   int next = band < 6 ? band + 1 : band;
                   int frac = pos_q8 & 0xFF;
-                  int v = (frame.combined[band] * (256 - frac) + frame.combined[next] * frac) >> 8;
+                  int v = (matrix_src[band] * (256 - frac) + matrix_src[next] * frac) >> 8;
                   v = std::max(0, std::min(255, v));
                   int h = v <= 1 ? 2 : 7 + v * 88 / 255;
                   h = ((h + 2) / 4) * 4 - 1;
@@ -7486,7 +7490,7 @@ interval:
                   if (band > 6) band = 6;
                   int next = band < 6 ? band + 1 : band;
                   int frac = pos_q8 & 0xFF;
-                  int v = (frame.combined[band] * (256 - frac) + frame.combined[next] * frac) >> 8;
+                  int v = (matrix_src[band] * (256 - frac) + matrix_src[next] * frac) >> 8;
                   v = std::max(0, std::min(255, v));
                   spark_vals[i] = v;
                   int h = 2 + v * 86 / 255;
@@ -7603,10 +7607,10 @@ interval:
               for (int i = 0; i < 12; i++) {
                 int band = (i * 7) / 12;
                 int next_band = band < 6 ? band + 1 : band;
-                int raw = (frame.combined[band] * 2 + frame.combined[next_band]) / 3;
-                int h = 4 + raw * 16 / 255;
+                int raw = (matrix_src[band] * 2 + matrix_src[next_band]) / 3;
+                int h = 4 + raw * 18 / 255;
                 if (h < 4) h = 4;
-                if (h > 20) h = 20;
+                if (h > 22) h = 22;
                 if (h != last_h[i]) {
                   last_h[i] = h;
                   lv_obj_set_height(mini_specs[i], h);

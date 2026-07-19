@@ -249,6 +249,20 @@ v2.1.45 的双层平滑让频谱看起来顺, 但实机反馈低音出来后柱�
 
 改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / LED点阵 / 主页小频谱), `PGA/msgeq7.h` (MSGEQ7 平滑系数)
 
+**52. 频谱“跟不上音乐”先区分驱动层和显示层**
+
+v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
+`/events` 播放音乐时 `target/draw` 已接近, 说明显示层 gravity 不是主要滞后点,
+应优先检查 MSGEQ7 驱动平滑和单列视图的数据源。
+
+**规则**:
+- 如果 `target` 与 `draw` 已经接近, 不要继续只加 LVGL attack; 先看 `PGA/msgeq7.h` 的驱动层 `SMOOTH_UP/SMOOTH_DOWN`。
+- 当前 MSGEQ7 显示用平滑为 `SMOOTH_UP=1.00`, `SMOOTH_DOWN=0.42`; 自动跳转仍不得使用显示层放大或 gravity 后的数据。
+- `LED点阵`、主页小频谱这类单列/单声道视觉应使用 `max(frame.left, frame.right)` 后插值, 不要用左右平均 `frame.combined`, 否则单边瞬态会被打平。
+- 这条只改变频谱视觉响应, 不改 `RAW_NOISE_FLOOR`、`NOISE_GATE`、`SIGNAL_FULL_SCALE_RAW`、输入 MCP gate、防爆音和网页控制。
+
+改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / LED点阵 / 主页小频谱), `PGA/msgeq7.h` (MSGEQ7 平滑系数)
+
 
 ## 强制性规则
 
@@ -267,7 +281,7 @@ v2.1.45 的双层平滑让频谱看起来顺, 但实机反馈低音出来后柱�
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.46
+**固件版本:** v2.1.47
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
