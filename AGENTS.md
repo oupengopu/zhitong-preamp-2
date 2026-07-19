@@ -329,6 +329,19 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 改动文件: `PGA/pga2311.h`, `PGA/msgeq7.h`, `PGA/ble_hid_host.h`
 
+**58. v2.1.53 待机必须释放所有音频继电器**
+
+历史功能: 待机时音频继电器不能继续吸合。v2.1.9 曾在 `enter_standby` 释放输入继电器, 后续重构丢失; 当前硬件还包括 GPA4 输出继电器。
+
+**规则**:
+- `enter_standby` 必须先完成 anti-pop 软降并写 `pga2311::set_volume(0,0)`, 再释放 `relay_in1~relay_in4` 和 `relay_out`。
+- 如果设备开机恢复在 `standby=true`, boot 初始化也必须强制释放 GPA0~GPA4, 不得因为 `output_mode=true` 吸合 GPA4。
+- 待机期间修改输出模式只能保存 `output_mode` 目标状态, `switch_output_mode` 不能在 standby 中吸合 `relay_out`。
+- `exit_standby` 必须在输入继电器接通和音量恢复前, 按 `output_mode` 恢复 `relay_out`; 输入继电器仍由 `switch_input` 恢复当前输入。
+- 这条只管音频继电器释放/恢复顺序, 不改变 PGA2311 渐变、硬件静音 boot-only 策略、BLE HID、网页控制或 MSGEQ7。
+
+改动文件: `智能前级蓝牙2.0.yaml` (boot relay init, enter_standby, exit_standby, switch_output_mode)
+
 
 ## 强制性规则
 
@@ -347,7 +360,7 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.52
+**固件版本:** v2.1.53
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

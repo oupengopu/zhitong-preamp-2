@@ -1,3 +1,27 @@
+v2.1.53 - 2026-07-20
+  修复: 待机时释放所有音频继电器的历史功能丢失
+    - 固件显示版本号更新为 v2.1.53
+    - `enter_standby` 在 anti-pop 软降完成、PGA2311 写 0 后, 释放 GPA0~GPA3 输入继电器和 GPA4 输出继电器
+    - 开机恢复到已待机状态时, 不再按 `output_mode` 吸合 GPA4, 而是强制释放 GPA0~GPA4
+    - 待机状态下切换输出模式只保存目标模式, GPA4 保持释放; 退出待机时再按 `output_mode` 恢复 GPA4
+    - `exit_standby` 在音量恢复和输入切换前先恢复 GPA4 输出继电器, 然后继续由 `switch_input` 接通当前输入
+    - 本次不改 PGA2311 音量渐变、不改硬件静音策略、不改 BLE HID、不删除缓存
+  原因: 历史提交 `889935e v2.1.9` 在 `enter_standby` 中释放了输入继电器, 后续 anti-pop/待机语义重构时该功能丢失。当前硬件又增加了 GPA4 输出继电器, 所以待机应释放 GPA0~GPA4, 退出待机再按保存状态恢复。
+  验证:
+    - RED 守卫在修改前失败: `enter_standby` 未释放 GPA0~GPA4, boot 待机恢复未强制释放 GPA4, standby 中 `switch_output_mode` 可能吸合 GPA4, `exit_standby` 未在恢复音频前恢复 GPA4
+    - 修改后待机继电器守卫通过
+    - `git diff --check` 通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.53`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-20 00:35:41 +0800`, `config_hash=0x4f49912e`
+    - 固件产物生成: `firmware.factory.bin`, `firmware.ota.bin`, `firmware.elf`; `zhitong-preamp-2.bin` 大小 `0x1e1570`, app 分区剩余约 69%
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, boot relay init, enter_standby, exit_standby, switch_output_mode)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.52 - 2026-07-19
   修复: 清理 ESPHome 2026.7 编译时的项目头文件 unused-function warning
     - 固件显示版本号更新为 v2.1.52

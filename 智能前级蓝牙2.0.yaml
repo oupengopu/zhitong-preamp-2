@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.52"
+  firmware_version: "v2.1.53"
 
 esphome:
   name: ${device_name}
@@ -129,11 +129,18 @@ esphome:
             id(spectrum_style_select)->publish_state(spectrum_names[id(spectrum_theme)]);
             id(standby_switch)->publish_state(id(standby));
 
-            // 初始化输出继电器状态 (GPA4)
-            if (id(output_mode))
-              id(relay_out)->turn_on();
-            else
+            // 初始化输出继电器状态 (GPA4). 待机恢复时必须释放所有音频继电器。
+            if (id(standby)) {
+              id(relay_in1)->turn_off();
+              id(relay_in2)->turn_off();
+              id(relay_in3)->turn_off();
+              id(relay_in4)->turn_off();
               id(relay_out)->turn_off();
+            } else if (id(output_mode)) {
+              id(relay_out)->turn_on();
+            } else {
+              id(relay_out)->turn_off();
+            }
 
             id(power_transitioning) = !id(standby);
             id(system_ready) = false;
@@ -5274,6 +5281,12 @@ script:
                 off.set_transition_length(0);
                 off.perform();
                 pga2311::set_volume(0, 0);
+                id(relay_in1)->turn_off();
+                id(relay_in2)->turn_off();
+                id(relay_in3)->turn_off();
+                id(relay_in4)->turn_off();
+                id(relay_out)->turn_off();
+                ESP_LOGI("standby", "all audio relays released for standby");
                 id(display_is_off)  = true;   // 同步显示状态
                 id(standby)         = true;
                 id(standby_switch)->publish_state(true);  // HA 同步
@@ -5309,6 +5322,8 @@ script:
                 id(target_db)  = -96.0f;
                 id(system_ready) = false;
                 pga2311::set_volume(0, 0);
+                if (id(output_mode)) id(relay_out)->turn_on();
+                else id(relay_out)->turn_off();
                 if (id(volume_val) > id(power_on_limit)) id(volume_val) = id(power_on_limit);
                 id(standby_switch)->publish_state(false);  // HA 同步
             - light.turn_on:
@@ -5884,8 +5899,15 @@ script:
             lambda: 'return id(standby) || id(temp_protect) || id(ota_active);'
           then:
             - lambda: |-
-                if (id(output_mode)) id(relay_out)->turn_on();
-                else id(relay_out)->turn_off();
+                if (id(standby)) {
+                  id(relay_out)->turn_off();
+                  ESP_LOGI("output_mode", "standby keeps output relay released, saved target=%s",
+                           id(output_mode) ? "direct" : "transformer");
+                } else if (id(output_mode)) {
+                  id(relay_out)->turn_on();
+                } else {
+                  id(relay_out)->turn_off();
+                }
           else:
             - if:
                 condition:
