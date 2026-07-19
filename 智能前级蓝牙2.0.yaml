@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.37"
+  firmware_version: "v2.1.38"
 
 esphome:
   name: ${device_name}
@@ -6871,21 +6871,27 @@ interval:
               }
             }
             // MSGEQ7 weak-signal values are valid but too small on a 0-255 LVGL bar.
-            // Keep detection on raw frame values, and boost only the pixels that are drawn.
-            auto boost_spectrum_value = [](int v) -> int {
+            // Keep detection on raw frame values, and equalize only the pixels that are drawn.
+            auto boost_spectrum_value = [](int v, int band) -> int {
               if (v <= 0) return 0;
-              int out = v * 4;
-              if (out < 10) out = 10;
+              static const int visual_floor[7] = {1, 1, 1, 1, 1, 5, 22};
+              static const int visual_gain_q8[7] = {1280, 1280, 1280, 1152, 1024, 768, 512};
+              if (band < 0) band = 0;
+              if (band > 6) band = 6;
+              int x = v - visual_floor[band];
+              if (x <= 0) return 0;
+              int out = (x * visual_gain_q8[band]) >> 8;
+              if (out > 0 && out < 6) out = 6;
               if (out > 255) out = 255;
               return out;
             };
             for (int i = 0; i < 7; i++) {
-              frame.left[i] = boost_spectrum_value(frame.left[i]);
-              frame.right[i] = boost_spectrum_value(frame.right[i]);
-              frame.combined[i] = boost_spectrum_value(frame.combined[i]);
-              frame.peak[i] = boost_spectrum_value(frame.peak[i]);
-              frame.peak_l[i] = boost_spectrum_value(frame.peak_l[i]);
-              frame.peak_r[i] = boost_spectrum_value(frame.peak_r[i]);
+              frame.left[i] = boost_spectrum_value(frame.left[i], i);
+              frame.right[i] = boost_spectrum_value(frame.right[i], i);
+              frame.combined[i] = boost_spectrum_value(frame.combined[i], i);
+              frame.peak[i] = boost_spectrum_value(frame.peak[i], i);
+              frame.peak_l[i] = boost_spectrum_value(frame.peak_l[i], i);
+              frame.peak_r[i] = boost_spectrum_value(frame.peak_r[i], i);
             }
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
@@ -7229,6 +7235,19 @@ interval:
               }
               frame_avg /= 7;
               raw_avg /= 7;
+              int raw_diff[7];
+              for (int i = 0; i < 7; i++) {
+                int dr = raw_dbg.raw_r[i] - raw_dbg.offset_r[i];
+                int dl = raw_dbg.raw_l[i] - raw_dbg.offset_l[i];
+                if (dr < 0) dr = 0;
+                if (dl < 0) dl = 0;
+                raw_diff[i] = std::max(dr, dl);
+              }
+              ESP_LOGD("msgeq7_bands", "diff=%d/%d/%d/%d/%d/%d/%d L=%d/%d/%d/%d/%d/%d/%d R=%d/%d/%d/%d/%d/%d/%d signal=%d",
+                       raw_diff[0], raw_diff[1], raw_diff[2], raw_diff[3], raw_diff[4], raw_diff[5], raw_diff[6],
+                       frame_dbg.left[0], frame_dbg.left[1], frame_dbg.left[2], frame_dbg.left[3], frame_dbg.left[4], frame_dbg.left[5], frame_dbg.left[6],
+                       frame_dbg.right[0], frame_dbg.right[1], frame_dbg.right[2], frame_dbg.right[3], frame_dbg.right[4], frame_dbg.right[5], frame_dbg.right[6],
+                       s_signal_avg);
               ESP_LOGD("msgeq7_diag", "ready=%d raw_peak=%d raw_avg=%d off_peak=%d frame_peak=%d frame_avg=%d signal=%d soft=%d mcp=%d/%d/%d/%d",
                        msgeq7::is_ready() ? 1 : 0, raw_peak, raw_avg, off_peak, frame_peak, frame_avg, s_signal_avg,
                        id(soft_mute) ? 1 : 0,
