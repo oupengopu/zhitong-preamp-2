@@ -354,6 +354,18 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, factory_reset, 恢复出厂 10 秒检测, LED interval)
 
+**60. v2.1.55 待机软件静音实体必须同步**
+
+待机路径不能只改内部 `soft_mute` 全局变量, 还必须同步 `静音-SW` 模板开关状态。否则 HA/网页/实机实体会显示未静音, 用户会误以为待机没有启用软件静音。
+
+**规则**:
+- 开机恢复到 `standby=true` 时, 必须设置 `soft_mute=true` 并 `soft_mute_switch->publish_state(true)`。
+- `enter_standby` 保存原始 `saved_soft_mute` 后, 必须设置 `soft_mute=true` 并发布 `静音-SW` 为 ON。
+- `exit_standby` 恢复 `soft_mute=saved_soft_mute` 后, 必须把 `静音-SW` 发布为同一个状态, 保持实体状态和内部状态一致。
+- 这条只同步软件静音实体状态, 不得重新引入运行期 `mute_switch` 硬件静音。
+
+改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, boot standby restore, enter_standby, exit_standby)
+
 
 ## 强制性规则
 
@@ -372,7 +384,7 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.54
+**固件版本:** v2.1.55
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -738,8 +750,8 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - <55°C 退出保护，恢复正常显示
 
 ### 待机
-- 彻底关屏 + 静音 + 暂停 LVGL，WiFi 保持连接
-- 唤醒时 800ms 渐变亮度恢复 → 应用主题 → 恢复音量 → 自动切换输入
+- 彻底关屏 + 软件静音 + 释放音频继电器 + 暂停 LVGL，WiFi 保持连接
+- 待机时 `soft_mute=true` 且 `静音-SW` 实体显示 ON；唤醒时 800ms 渐变亮度恢复 → 应用主题 → 恢复进入待机前的静音状态与音量 → 自动切换输入
 
 ### 开机闪屏 (Splash Screen)
 - 上电后立即显示 splash_page: 中央 "Zhitong Audio" 品牌标识 (翠绿 0x10B981)

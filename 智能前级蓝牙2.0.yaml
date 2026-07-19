@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.54"
+  firmware_version: "v2.1.55"
 
 esphome:
   name: ${device_name}
@@ -180,6 +180,7 @@ esphome:
             then:
               - lambda: |-
                   id(soft_mute) = true;
+                  id(soft_mute_switch)->publish_state(true);
                   pga2311::set_volume(0, 0);
                   id(current_db) = -96.0f;
                   id(target_db)  = -96.0f;
@@ -5283,6 +5284,7 @@ script:
                 id(standby_wake_block_until_ms) = millis() + 2500;
                 id(saved_soft_mute) = id(soft_mute);
                 id(soft_mute)       = true;
+                id(soft_mute_switch)->publish_state(true);
                 id(target_db)       = -96.0f;
                 id(system_ready)    = false;
             - script.execute: anti_pop_fade_to_silence
@@ -5334,6 +5336,7 @@ script:
                 id(standby)    = false;
                 id(last_manual_input_ms) = 0;   // 退出待机 → 重新启用自动选择
                 id(soft_mute)  = id(saved_soft_mute);
+                id(soft_mute_switch)->publish_state(id(soft_mute));
                 id(current_db) = -96.0f;
                 id(target_db)  = -96.0f;
                 id(system_ready) = false;
