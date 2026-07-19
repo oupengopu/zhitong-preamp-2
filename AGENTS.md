@@ -263,6 +263,20 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 
 改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / LED点阵 / 主页小频谱), `PGA/msgeq7.h` (MSGEQ7 平滑系数)
 
+**53. 输出模式切换比输入切换需要更长静音包络**
+
+直通/变压器 `relay_out` 直接改变后级输出路径, 比输入源继电器更容易产生触点弹跳、
+变压器磁化或直流瞬态。即使已经走 `anti_pop_fade_to_silence`, 也不能照搬输入切换的
+30ms/100ms 窗口。
+
+**规则**:
+- `switch_output_mode` 必须保持顺序: anti_pop 软降 -> `pga2311::set_volume(0,0)` -> `mute_switch` 硬静音 -> 等待 -> 切 `relay_out` -> 长等待 -> 取消硬静音 -> 等待 -> 音量渐变恢复。
+- 当前输出模式切换参数: 硬静音预稳定 150ms, `relay_out` 切换后静音保持 450ms, 取消硬静音后 120ms 再执行 `send_volume_to_pga`。
+- 切 `relay_out` 后要再次固定 `current_db/target_db=-96.0f` 并写 PGA=0, 不要只依赖前一次软降的状态。
+- 如果实机仍有输出模式爆音, 优先继续调 `switch_output_mode` 的静音保持窗口, 不要先改输入切换、MSGEQ7、网页控制或 BLE HID。
+
+改动文件: `智能前级蓝牙2.0.yaml` (switch_output_mode)
+
 
 ## 强制性规则
 
@@ -281,7 +295,7 @@ v2.1.46 实机反馈 LED点阵好看很多, 但仍不像按音乐速度跳动。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.47
+**固件版本:** v2.1.48
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

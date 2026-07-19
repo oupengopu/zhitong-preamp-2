@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.47"
+  firmware_version: "v2.1.48"
 
 esphome:
   name: ${device_name}
@@ -5906,13 +5906,22 @@ script:
                         lambda: 'return !id(anti_pop_fade_to_silence)->is_running();'
                       timeout: 5500ms
                   - lambda: |-
+                      id(current_db) = -96.0f;
+                      id(target_db) = -96.0f;
                       pga2311::set_volume(0, 0);
                       id(mute_switch)->turn_on();
-                  - delay: 30ms
+                      ESP_LOGI("output_mode", "hard muted before output relay: target=%s",
+                               id(output_mode) ? "direct" : "transformer");
+                  - delay: 150ms
                   - lambda: |-
                       if (id(output_mode)) id(relay_out)->turn_on();
                       else id(relay_out)->turn_off();
-                  - delay: 100ms
+                      id(current_db) = -96.0f;
+                      id(target_db) = -96.0f;
+                      pga2311::set_volume(0, 0);
+                      ESP_LOGI("output_mode", "relay switched, holding mute for settle: target=%s",
+                               id(output_mode) ? "direct" : "transformer");
+                  - delay: 450ms
                   - lambda: |-
                       bool keep_muted = id(saved_soft_mute) || id(soft_mute_switch)->state;
                       id(soft_mute) = keep_muted;
@@ -5921,7 +5930,7 @@ script:
                       if (!id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning)) {
                         id(mute_switch)->turn_off();
                       }
-                  - delay: 20ms
+                  - delay: 120ms
                   - if:
                       condition:
                         lambda: 'return !id(soft_mute) && !id(temp_protect) && !id(standby) && !id(ota_active) && !id(power_transitioning);'
