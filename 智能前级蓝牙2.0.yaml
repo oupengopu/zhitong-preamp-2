@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.39"
+  firmware_version: "v2.1.40"
 
 esphome:
   name: ${device_name}
@@ -6878,28 +6878,58 @@ interval:
             }
             if (volume_pct < 0) volume_pct = 0;
             if (volume_pct > 100) volume_pct = 100;
-            int volume_visual_q8 = (id(volume_val) > 0) ? (32 + volume_pct * 736 / 100) : 0;
+            int volume_visual_q8 = (id(volume_val) > 0) ? (64 + volume_pct * 512 / 100) : 0;
             auto boost_spectrum_value = [volume_visual_q8](int v, int band) -> int {
               if (v <= 0) return 0;
-              static const int visual_floor[7] = {0, 0, 0, 0, 0, 4, 18};
-              static const int visual_gain_q8[7] = {3072, 3072, 2816, 2560, 2304, 1536, 768};
+              static const int visual_floor[7] = {0, 0, 0, 0, 1, 8, 36};
+              static const int visual_gain_q8[7] = {2560, 2560, 2432, 2304, 2048, 896, 256};
               if (band < 0) band = 0;
               if (band > 6) band = 6;
               int x = v - visual_floor[band];
               if (x <= 0) return 0;
               int out = (x * visual_gain_q8[band]) >> 8;
               out = (out * volume_visual_q8) >> 8;
-              if (out > 0 && out < 8) out = 8;
+              if (out > 0 && out < 4) out = 4;
               if (out > 255) out = 255;
               return out;
             };
+            int target_l[7], target_r[7], target_c[7];
             for (int i = 0; i < 7; i++) {
-              frame.left[i] = boost_spectrum_value(frame.left[i], i);
-              frame.right[i] = boost_spectrum_value(frame.right[i], i);
-              frame.combined[i] = boost_spectrum_value(frame.combined[i], i);
-              frame.peak[i] = boost_spectrum_value(frame.peak[i], i);
-              frame.peak_l[i] = boost_spectrum_value(frame.peak_l[i], i);
-              frame.peak_r[i] = boost_spectrum_value(frame.peak_r[i], i);
+              target_l[i] = boost_spectrum_value(frame.left[i], i);
+              target_r[i] = boost_spectrum_value(frame.right[i], i);
+              target_c[i] = (target_l[i] + target_r[i]) / 2;
+            }
+            static float display_l[7] = {0};
+            static float display_r[7] = {0};
+            static float display_c[7] = {0};
+            static float display_peak_l[7] = {0};
+            static float display_peak_r[7] = {0};
+            static float display_peak_c[7] = {0};
+            static uint32_t last_display_ms = 0;
+            uint32_t display_now = millis();
+            float display_dt = last_display_ms ? (float)(display_now - last_display_ms) / 1000.0f : 0.05f;
+            if (display_dt < 0.01f || display_dt > 0.25f) display_dt = 0.05f;
+            last_display_ms = display_now;
+            float peak_decay = powf(0.42f, display_dt);
+            for (int i = 0; i < 7; i++) {
+              float k_l = target_l[i] > display_l[i] ? 0.58f : 0.16f;
+              float k_r = target_r[i] > display_r[i] ? 0.58f : 0.16f;
+              float k_c = target_c[i] > display_c[i] ? 0.58f : 0.16f;
+              display_l[i] += ((float)target_l[i] - display_l[i]) * k_l;
+              display_r[i] += ((float)target_r[i] - display_r[i]) * k_r;
+              display_c[i] += ((float)target_c[i] - display_c[i]) * k_c;
+              if (display_l[i] < 0.5f) display_l[i] = 0.0f;
+              if (display_r[i] < 0.5f) display_r[i] = 0.0f;
+              if (display_c[i] < 0.5f) display_c[i] = 0.0f;
+              display_peak_l[i] = std::max(display_l[i], display_peak_l[i] * peak_decay);
+              display_peak_r[i] = std::max(display_r[i], display_peak_r[i] * peak_decay);
+              display_peak_c[i] = std::max(display_c[i], display_peak_c[i] * peak_decay);
+              frame.left[i] = std::min(255, (int)(display_l[i] + 0.5f));
+              frame.right[i] = std::min(255, (int)(display_r[i] + 0.5f));
+              frame.combined[i] = std::min(255, (int)(display_c[i] + 0.5f));
+              frame.peak_l[i] = std::min(255, (int)(display_peak_l[i] + 0.5f));
+              frame.peak_r[i] = std::min(255, (int)(display_peak_r[i] + 0.5f));
+              frame.peak[i] = std::min(255, (int)(display_peak_c[i] + 0.5f));
             }
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
@@ -7006,6 +7036,14 @@ interval:
                 }
                 lv_obj_set_style_bg_opa(id(vu_needle_l), LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(id(vu_needle_r), LV_OPA_COVER, LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(vu_needle_l), lv_color_hex(0x06111F), LV_PART_MAIN);
+                lv_obj_set_style_bg_color(id(vu_needle_r), lv_color_hex(0x06111F), LV_PART_MAIN);
+                lv_obj_set_width(id(vu_needle_l), 78);
+                lv_obj_set_width(id(vu_needle_r), 78);
+                lv_obj_set_height(id(vu_needle_l), 3);
+                lv_obj_set_height(id(vu_needle_r), 3);
+                lv_obj_set_pos(id(vu_needle_l), 108, 107);
+                lv_obj_set_pos(id(vu_needle_r), 316, 107);
                 lv_obj_set_style_transform_pivot_x(id(vu_needle_l), 0, LV_PART_MAIN);
                 lv_obj_set_style_transform_pivot_y(id(vu_needle_l), 1, LV_PART_MAIN);
                 lv_obj_set_style_transform_pivot_x(id(vu_needle_r), 0, LV_PART_MAIN);
@@ -7163,10 +7201,10 @@ interval:
               int meter_l = std::min(255, avg_l * 2 + max_l);
               int meter_r = std::min(255, avg_r * 2 + max_r);
               if (style == 4) {
-                static float vu_angle_l = -420.0f;
-                static float vu_angle_r = -420.0f;
-                float target_l = -420.0f + ((float)meter_l / 255.0f) * 840.0f;
-                float target_r = -420.0f + ((float)meter_r / 255.0f) * 840.0f;
+                static float vu_angle_l = 2200.0f;
+                static float vu_angle_r = 2200.0f;
+                float target_l = 2200.0f + ((float)meter_l / 255.0f) * 1000.0f;
+                float target_r = 2200.0f + ((float)meter_r / 255.0f) * 1000.0f;
                 float k_l = target_l > vu_angle_l ? 0.42f : 0.10f;
                 float k_r = target_r > vu_angle_r ? 0.42f : 0.10f;
                 vu_angle_l += (target_l - vu_angle_l) * k_l;
