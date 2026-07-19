@@ -1,3 +1,26 @@
+v2.1.37 - 2026-07-19
+  修复: MSGEQ7 已有弱信号数据但实机频谱柱仍几乎看不见
+    - 固件显示版本号更新为 v2.1.37
+    - 频谱 UI 在绘制前增加显示专用增益: 非零值按 4 倍放大, 最低可见值为 10, 最高限制 255
+    - 信号检测仍使用未放大的 raw frame 平均值, 不把显示增益反馈到自动跳转/LED 判定
+    - `s_signal_avg` 改为快速上升、慢速回落, 避免弱信号短暂掉底后立即清零
+    - 频谱自动跳转阈值从 `s_signal_avg > 2` 改为 `s_signal_avg >= 2`, 并增加 1.5 秒弱信号保持窗口
+  原因: v2.1.36 实机诊断已确认 DAC 输入下 `frame_peak` 可到 9~17, `signal` 可到 4~9, 说明 MSGEQ7 驱动已经不再全 0。
+        但 9~17 直接映射到 78/88px 高的 LVGL bar 时只有几像素, 看起来仍像没有频谱; 同时弱信号偶尔等于 2 时, 旧 `>2`
+        判断会重置自动跳转计时。
+  验证:
+    - ESPHome 2026.7.0 本地 `config` 通过
+    - ESPHome 2026.7.0 本地 `compile` 通过, 生成 `firmware.ota.bin`
+    - OTA 上传到 `192.168.31.99` 成功
+    - OTA 后 `/events` 确认 DAC=ON, 静音=OFF, 待机=OFF, 背光=ON, 音量约 44%
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, 频谱显示增益, 弱信号检测抗抖)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.36 - 2026-07-19
   修复: MSGEQ7 弱信号无显示 + 本地网页按钮提示已发送但实机仍无动作
     - `PGA/msgeq7.h` 新增 `RAW_NOISE_FLOOR=6`, 在 raw-offset 后先扣除 ADC 底噪

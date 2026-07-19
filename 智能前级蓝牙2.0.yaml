@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.36"
+  firmware_version: "v2.1.37"
 
 esphome:
   name: ${device_name}
@@ -6859,7 +6859,7 @@ interval:
               live_signal_sum_l += frame.left[i];
               live_signal_sum_r += frame.right[i];
             }
-            int live_signal_avg = std::max(live_signal_sum_l / 7, live_signal_sum_r / 7);
+            int live_signal_avg_raw = std::max(live_signal_sum_l / 7, live_signal_sum_r / 7);
             if (spectrum_frame_peak <= 1 && spectrum_frame_avg <= 0) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
@@ -6869,6 +6869,23 @@ interval:
                 frame.peak_l[i] = 0;
                 frame.peak_r[i] = 0;
               }
+            }
+            // MSGEQ7 weak-signal values are valid but too small on a 0-255 LVGL bar.
+            // Keep detection on raw frame values, and boost only the pixels that are drawn.
+            auto boost_spectrum_value = [](int v) -> int {
+              if (v <= 0) return 0;
+              int out = v * 4;
+              if (out < 10) out = 10;
+              if (out > 255) out = 255;
+              return out;
+            };
+            for (int i = 0; i < 7; i++) {
+              frame.left[i] = boost_spectrum_value(frame.left[i]);
+              frame.right[i] = boost_spectrum_value(frame.right[i]);
+              frame.combined[i] = boost_spectrum_value(frame.combined[i]);
+              frame.peak[i] = boost_spectrum_value(frame.peak[i]);
+              frame.peak_l[i] = boost_spectrum_value(frame.peak_l[i]);
+              frame.peak_r[i] = boost_spectrum_value(frame.peak_r[i]);
             }
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
@@ -7172,7 +7189,11 @@ interval:
 
             // ═══ 信号强度 (供 LED 呼吸用, 取 L/R 较大值) ═══
             {
-              s_signal_avg = live_signal_avg;
+              if (live_signal_avg_raw > s_signal_avg) {
+                s_signal_avg = live_signal_avg_raw;
+              } else {
+                s_signal_avg = (s_signal_avg * 9 + live_signal_avg_raw) / 10;
+              }
             }
           }  // end if (!id(soft_mute))
           else {
@@ -7316,9 +7337,13 @@ interval:
             static uint32_t signal_lost_ms = 0;
             static uint32_t signal_stable_ms = 0;
 
-            bool has_signal = s_signal_avg > 2;  // 跟随 NOISE_GATE=2, 保留弱信号触发
+            static uint32_t last_signal_seen_ms = 0;
 
             uint32_t now = millis();
+            bool raw_has_signal = s_signal_avg >= 2;  // 跟随 NOISE_GATE=2, 保留弱信号触发
+            if (raw_has_signal) last_signal_seen_ms = now;
+            bool has_signal = raw_has_signal || (last_signal_seen_ms > 0 && now - last_signal_seen_ms < 1500);
+
             if (has_signal) {
               signal_lost_ms = 0;
               if (!was_signal) signal_stable_ms = now;

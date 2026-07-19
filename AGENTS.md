@@ -95,8 +95,9 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `anti_pop_fade_to_silence` 保留 DEBUG 级起止日志, 验证时可临时把 logger 调到 DEBUG; 最终固件保持 INFO。
 - MSGEQ7 启动零漂 offset 必须接受实机 3.3V 下约 `3200 raw` 的直流偏置, 当前上限为 `3600`; 不要改回过低阈值, 否则 offset 会被丢弃, 频谱常满格/信号判断失真。
 - MSGEQ7 弱信号必须先在 raw 域扣除 `RAW_NOISE_FLOOR=6`, 再做频段增益, 最后按 `SIGNAL_FULL_SCALE_RAW=128` 映射到 0-255; 当前 `NOISE_GATE=2`。不要改回 4095 全量程缩放或“缩放后先门限再增益”, 否则十几个 raw count 的有效变化会被整数截断成 0。
-- 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg > 2`; 不要保留旧的 `> 8` 阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
+- 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg >= 2` 并带 1.5 秒弱信号保持窗口; 不要保留旧的 `> 8` 或 `> 2` 硬阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
+- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用增益, 当前非零值 `v*4`, 最低可见值 `10`, 最高限制 `255`; 这个增益只用于绘制, 不得反馈到自动输入、自动跳转或 LED 信号判定。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
 - 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
 
@@ -198,6 +199,16 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 改动文件: `智能前级蓝牙2.0.yaml` (soft_mute_switch/send_volume_to_pga)
 
+**49. MSGEQ7 弱信号显示增益与自动跳转抗抖**
+
+v2.1.36 已确认 DAC 输入下 MSGEQ7 不再全 0, 但 `frame_peak=9~17` 直接画到 78/88px 高的 LVGL bar 时只有几像素, 实机仍像没有频谱。
+**规则**:
+- 驱动侧继续保持 raw 域底噪扣除与 `SIGNAL_FULL_SCALE_RAW=128`; 不要为了“看得见”再粗暴调大驱动全局缩放, 否则会影响信号判定和 LED。
+- UI 绘制前才做显示专用增益: 非零值 `v*4`, 最低可见值 `10`, 最高 `255`。
+- 自动频谱页跳转使用未放大前的 `s_signal_avg`, 当前阈值为 `>=2` 并保留 1.5 秒弱信号保持窗口, 防止弱信号瞬间掉到底后重新计时。
+- 如果以后实机又说“有声音但没频谱”, 先看 `/events` 中静音/待机/背光/输入状态, 再临时把 `msgeq7_diag` 调到 INFO 验证 raw/frame, 不要先删缓存。
+改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / 自动跳转)
+
 
 ## 强制性规则
 
@@ -216,7 +227,7 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.36
+**固件版本:** v2.1.37
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
