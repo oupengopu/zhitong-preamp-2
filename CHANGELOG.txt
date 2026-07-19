@@ -1,3 +1,71 @@
+v2.1.46 - 2026-07-19
+  调整: LED点阵改为 audioMotion 风格密集列, 频谱主柱改为快攻 + gravity 回落
+    - 固件显示版本号更新为 v2.1.46
+    - 参考 `audioMotion-analyzer` 的视觉策略, 只借鉴 LED bars / gravity / peak hold 的设计思想, 不拷贝其 AGPL-3.0 源码
+    - `PGA/msgeq7.h` 的 MSGEQ7 上升平滑从 0.35 提到 0.72, 下降从 0.12 提到 0.22, 让低音瞬态更快进入显示帧
+    - 频谱显示层从双时间常数慢平滑改为快攻 + 每频段 gravity 回落: 大动态上升可一帧贴近目标, 下降用速度累积保持顺滑
+    - `boost_spectrum_value` 的显示专用增益整体再抬一档, 同时降低软膝 knee, 让全屏柱条和主页小频谱都更高一点
+    - `LED点阵` 不再使用原来的 7 段左右声道粗 bar, 改用 24 条窄列铺满全屏, 高度按 4px 网格量化, 颜色按强度切换绿/黄/橙/红
+    - LED点阵样式下隐藏底部 VU 横条, 底部频率标签改为全宽分布, 更接近参考图的频谱布局
+    - 无信号 gate 关闭时同步清空显示值、峰值和 gravity 速度, 避免断信号后旧柱条拖尾
+  原因: 实机反馈 v2.1.45 虽然“丝滑”, 但低音出来后柱条要等一阵才明显变化。
+        `/events` 诊断也看到 `target` 已变化而 `draw` 仍停在旧高度, 说明主要延迟来自显示层双重平滑。
+        这次保留真实 raw 判定和 MCP gate, 只把视觉运动改成更贴音乐节拍的快攻/重力模型。
+  验证:
+    - 已添加参数守卫脚本并先确认旧参数失败
+    - ESPHome 2026.7.0 本地 `config` 通过, 固件版本显示 v2.1.46
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 15:04:14 +0800`, `config_hash=0x85bb902d`
+    - OTA 上传到 `192.168.31.99` 成功
+    - `/events` 确认设备上线、`select/频谱样式 Spectrum=LED点阵`, `switch/频谱诊断日志 SpectrumDiag` 可开关
+    - `/events` 无音乐输入时确认 `raw/target/draw` 全 0; 低音同步效果需实机播放音乐后由肉眼确认
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, 频谱显示增益, 快攻/gravity 回落, LED点阵 24 列布局, 主页小频谱高度)
+  PGA/msgeq7.h (MSGEQ7 上升/下降平滑系数)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
+v2.1.45 - 2026-07-19
+  调整: 频谱柱条恢复动态, 蓝表 VU 指针改为细长麦景图风格
+    - 固件显示版本号更新为 v2.1.45
+    - `boost_spectrum_value` 从 v2.1.43 的强压缩改为低门槛软膝压缩, 实机 `raw_peak=1~15` 的弱信号也能推动柱条; 按实机反馈再整体抬高约一档
+    - 6.25k/16k 两段显示门槛降到与弱信号匹配, 提高显示增益, 避免最后两条几乎不跳
+    - 频谱显示平滑略加快, 保留顺滑感但让高频瞬态能跟随音乐起落
+    - 主页中间小频谱改用同一套真实频谱显示值, 并把高度从 4~16px 提到 4~18px, 透明度随频谱强度变化
+    - 蓝表 VU 指针从 10 个粗点改为每声道 40 个 2x1 密集细段 + 6px 底部轴心, 观感接近麦景图表头的一根细长黑针
+    - 蓝表 VU 电平从旧的 `avg*2+max` 降为 `avg*60%+peak*40%`, 避免指针长期顶在高位, 恢复低/中/高起落
+    - 继续不依赖 `LV_USE_LINE`/`LV_USE_CANVAS`, 因当前 ESPHome LVGL 配置二者均为 0
+    - 新增 `switch/频谱诊断日志 SpectrumDiag`, 默认关闭; 测试时每秒输出 raw/target/draw 7 段数据, 并附带 `mcp_active/gate/idle_cal` 与 ADC diff/offset
+    - 当前输入 MCP 检测无信号时, 频谱显示 gate 直接归零, 且所有输入无信号稳定 3 秒后自动触发 MSGEQ7 静默重校准
+    - `msgeq7::recalibrate()` 更新 offset 后同步清空平滑值、峰值和最后 raw 快照, 避免旧底噪残留继续显示
+    - 自动跳转信号判定从只看七段平均值改为“七段平均 + 单频段峰值”联合值, 并要求当前输入 MCP 检测有效
+    - 自动跳转弱信号保持窗口从 1.5 秒放宽到 5 秒, 避免音乐间隙或只有少数频段跳动时反复清零 15 秒稳定计时
+  原因: 实机照片显示 v2.1.43 把频谱视觉压得过低, 尤其最后两段失去动态。
+        蓝表 VU 的粗点阵斜线不像真实模拟功率表, 需要向麦景图蓝表头的细长指针靠拢。
+        同时关信号后频谱仍会跳动, `/events` 验证 MCP 检测全 OFF 但旧 offset 下 `raw_peak` 可到 20~69,
+        说明不能继续靠压低显示层解决, 必须在无信号时重新采静默基线; 重新校准后开信号实测 `raw_peak` 多数只有 1~15,
+        因此有信号状态下显示门槛必须按弱信号幅度重新拉低。之后又验证到 MCP 已 ON 时 `raw_avg` 仍常为 0/1,
+        但 `raw_peak` 有 4~6 的单频段跳动, 旧自动跳转只看平均值会导致稳定计时反复清零。
+  验证:
+    - ESPHome 2026.7.0 本地 `config` 通过
+    - ESPHome 2026.7.0 本地 `compile` 通过, 生成 `firmware.ota.bin`
+    - OTA 上传到 `192.168.31.99` 成功
+    - `/events` 关信号验证: `mcp_active=0 mcp_any=0 gate=0 idle_cal=1`, `target/draw` 全 0
+    - `/events` 开信号验证: `mcp_active=1 mcp_any=1 gate=1`, 实测 `raw_peak` 多数 1~15, 因此二次调低显示门槛并提高增益
+    - 二次 OTA 后开信号复测: `raw_peak=12~42` 时 `target/draw` 约 80~200, 6.25k/16k 不再长期为 0
+    - 二次 OTA 后关信号复测: `mcp_active=0 mcp_any=0 gate=0 idle_cal=1`, `raw/target/draw` 全 0
+    - 待三次 OTA 后验证: 有信号且输入检测 ON 时 `sig>=2` 能稳定保持并自动跳到频谱页
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, 频谱显示映射, 高频响应, 主页小频谱, 蓝表 VU 细长指针和电平权重, 频谱诊断日志, 无信号 gate/静默重校准, 自动跳转弱信号判定)
+  PGA/msgeq7.h (recalibrate 清空平滑/峰值/last_raw)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.44 - 2026-07-19
   调整: 频谱样式暴露到 Web/HA, 便于确认蓝表 VU 指针
     - 固件显示版本号更新为 v2.1.44

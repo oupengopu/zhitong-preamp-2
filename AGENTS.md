@@ -95,9 +95,9 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - `anti_pop_fade_to_silence` 保留 DEBUG 级起止日志, 验证时可临时把 logger 调到 DEBUG; 最终固件保持 INFO。
 - MSGEQ7 启动零漂 offset 必须接受实机 3.3V 下约 `3200 raw` 的直流偏置, 当前上限为 `3600`; 不要改回过低阈值, 否则 offset 会被丢弃, 频谱常满格/信号判断失真。
 - MSGEQ7 弱信号必须先在 raw 域扣除 `RAW_NOISE_FLOOR=6`, 再做频段增益, 最后按 `SIGNAL_FULL_SCALE_RAW=128` 映射到 0-255; 当前 `NOISE_GATE=2`。不要改回 4095 全量程缩放或“缩放后先门限再增益”, 否则十几个 raw count 的有效变化会被整数截断成 0。
-- 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg >= 2` 并带 1.5 秒弱信号保持窗口; 不要保留旧的 `> 8` 或 `> 2` 硬阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
+- 频谱自动跳转的 `has_signal` 必须先要求当前输入 MCP 检测有效, 再用 `s_signal_avg >= 2` 判定; `s_signal_avg` 由七段平均值和单频段峰值联合得出, 并带 5 秒弱信号保持窗口。不要只看七段平均值, 否则只有少数频段跳动时 15 秒稳定计时会被反复清零。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
-- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前按频段扣显示底噪并使用不同 `visual_gain_q8` + `visual_knee` 软膝压缩; 这个增益只用于绘制, 不得反馈到自动输入或自动跳转判定。输入卡片 LED 单独使用 MCP23017 `audio_*` 状态。
+- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前输入无信号时先由 MCP gate 消隐, 有信号时再按低门槛 `visual_floor/visual_gain_q8/visual_knee` 软膝压缩显示; 这个增益只用于绘制, 不得反馈到自动输入或自动跳转判定。输入卡片 LED 单独使用 MCP23017 `audio_*` 状态。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
 - 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
 
@@ -204,8 +204,8 @@ CORS/Private Network Access 的 `OPTIONS` 预检, ESPHome 2026.7 `web_server_idf
 v2.1.36 已确认 DAC 输入下 MSGEQ7 不再全 0, 但 `frame_peak=9~17` 直接画到 78/88px 高的 LVGL bar 时只有几像素, 实机仍像没有频谱。
 **规则**:
 - 驱动侧继续保持 raw 域底噪扣除与 `SIGNAL_FULL_SCALE_RAW=128`; 不要为了“看得见”再粗暴调大驱动全局缩放, 否则会影响信号判定和 LED。
-- UI 绘制前才做显示专用视觉均衡: 低/中频提高可见度, 6.25k/16k 先扣显示底噪再降低显示倍率, 避免高频底噪长期霸屏。
-- 自动频谱页跳转使用未放大前的 `s_signal_avg`, 当前阈值为 `>=2` 并保留 1.5 秒弱信号保持窗口, 防止弱信号瞬间掉到底后重新计时。
+- UI 绘制前才做显示专用视觉均衡: 无信号由 MCP gate + 静默重校准归零, 有信号时 6.25k/16k 也必须按弱信号低门槛显示, 避免最后两段完全不跳。
+- 自动频谱页跳转使用未放大前的 `s_signal_avg`, 当前阈值为 `>=2`, 但 `s_signal_avg` 必须同时考虑七段平均值和单频段峰值, 并保留 5 秒弱信号保持窗口, 防止弱信号瞬间掉到底后重新计时。
 - `msgeq7_bands` 七段明细日志只能保留 DEBUG 级; 验证时可临时调 INFO, 最终固件不能刷屏。
 - 如果以后实机又说“有声音但没频谱”, 先看 `/events` 中静音/待机/背光/输入状态, 再临时把 `msgeq7_diag` 调到 INFO 验证 raw/frame, 不要先删缓存。
 改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / 自动跳转)
@@ -217,17 +217,37 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 
 **规则**:
 - 频谱柱显示可以跟随 `volume_val/max_volume` 做视觉缩放, 但不得把音量缩放后的值写回 `s_signal_avg` 或自动输入/自动跳转逻辑。
+- 自动跳转不得只看七段平均值; 实机弱信号可能表现为 `raw_avg=0/1` 但 `raw_peak=4~6`, 这时仍应通过峰值联合判定维持稳定计时。
 - 频谱显示层必须有独立时间常数平滑和峰值衰减; 不要把每帧整数值直接硬写到 LVGL bar, 否则实机跳动会不丝滑。
-- 16kHz/6.25kHz 的显示底噪必须比低频扣得更多、倍率更低; 实机若高频柱长期偏高, 优先调显示侧 `visual_floor/visual_gain_q8/visual_knee` 和高频平滑时间常数, 不要动 MSGEQ7 驱动 raw 缩放。
+- 无信号底噪由 MCP `audio_*` gate 和静默重校准处理, 不要再靠把 `visual_floor` 压到很高来消隐。当前输入检测无信号时频谱显示必须归零; 所有输入无信号稳定后可自动 `msgeq7::recalibrate()` 更新静默基线。
+- 16kHz/6.25kHz 的有信号显示门槛必须按实机弱信号幅度调, 不能高到 `raw_peak=1~15` 时完全不动; 若高频柱长期偏高, 优先看 `SPECTRUM_DIAG_RAW diff/offset` 和 MCP gate, 再调显示侧 `visual_floor/visual_gain_q8/visual_knee`。
 - 频谱显示映射必须保留软膝压缩, 不要回到纯线性大倍率放大; 线性放大会让弱信号或残留值轻易顶满, 看起来不像自然频谱。
 - 火花/流光频谱样式不能再加人工 `flicker` 抖动; 柱高必须来自真实七段频谱插值, 否则会看起来不像按频率跳动。
-- 蓝表头 VU 指针不要只用七段平均值, 应使用平均值 + 峰值并保持快起慢落, 否则实机会像表针卡在一个位置。
-- 蓝表头指针使用 10 个小 `obj` 点段按 225°~315° 直接计算 x/y 坐标, 不依赖 `LV_USE_LINE` 或 `transform_angle`。旧旋转指针对象保留但应隐藏, 不要再回到 -42°~+42° 水平线摆法。
+- 蓝表头 VU 指针不要只用七段平均值, 应使用平均值 + 峰值并保持快起慢落; 但电平权重必须低于频谱柱显示层, 当前约为 `avg*60%+peak*40%`, 避免指针长期顶在高位。
+- 蓝表头指针使用每声道 40 个 2x1 密集细 `obj` 段 + 6px 轴心, 按 225°~315° 直接计算 x/y 坐标, 模拟麦景图表头的一根细长黑针; 不依赖 `LV_USE_LINE`、`LV_USE_CANVAS` 或 `transform_angle`。旧旋转指针对象保留但应隐藏, 不要再回到 -42°~+42° 水平线摆法。
+- v2.1.45 的频谱视觉是中等软膝压缩: 不能再把 6.25k/16k 的 floor/gain 压到 v2.1.43 那种几乎不跳的程度。
 - 频谱样式必须通过 `select/频谱样式 Spectrum` 暴露到 Web/HA, 选项值要和设置页 Row 12 一致; 远程确认蓝表指针时先看该 select 是否为“蓝表VU”。
+- 频谱底噪/门限调试必须先打开 `switch/频谱诊断日志 SpectrumDiag`, 对比 `mcp_active/gate/idle_cal`、`rawL/rawR`、`targetL/targetR`、`drawL/drawR` 以及 `SPECTRUM_DIAG_RAW diff/offset`; 不要只看屏幕跳动就继续调 `visual_floor`。
 - 主页面输入卡片上的 `led_src_0~3` 是 MCP23017 输入信号状态灯: `audio_cd/dac/pc/aux` 有信号就常亮, 无信号就灭。不要再用 MSGEQ7 `s_signal_avg` 做呼吸闪动。
 - `msgeq7_bands` 仍只用于 DEBUG 诊断, 不要为了观察视觉效果把正式固件调成 INFO 刷屏。
 
 改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / VU / 输入卡片 LED)
+
+**51. 频谱响应优先快攻, 顺滑交给 gravity 回落**
+
+v2.1.45 的双层平滑让频谱看起来顺, 但实机反馈低音出来后柱条慢半拍。
+诊断时如果 `SPECTRUM_DIAG targetL/targetR` 已经变化, 但 `drawL/drawR` 还长时间停在旧高度,
+说明问题在显示层运动模型, 不要继续改 MSGEQ7 底噪或自动跳转阈值。
+
+**规则**:
+- MSGEQ7 驱动层允许较快攻击, 让真实瞬态尽快进入 `frame.left/right`; 当前 `SMOOTH_UP=0.72`, `SMOOTH_DOWN=0.22`。
+- UI 显示层主柱使用 fast attack + per-band gravity fall: 上升要跟拍, 下降用速度累积保持顺滑。
+- `s_signal_avg`、自动跳转和输入卡片 LED 仍只能使用未视觉放大的 raw/框架值或 MCP 状态, 不得使用 gravity 后的 `draw` 值。
+- `LED点阵` 样式参考 audioMotion LED bars 的视觉, 使用 24 条窄列、量化高度和绿/黄/橙/红分区; 为了实机稳定, 不新增几百个 LVGL cell 对象。
+- audioMotion-analyzer 是 AGPL-3.0-or-later, 本项目只借鉴视觉/算法思想, 不直接复制其源码。
+- 调高柱条可调显示侧 `visual_gain_q8/visual_knee` 和主页小频谱高度, 不要改 `RAW_NOISE_FLOOR`、`NOISE_GATE` 或 `SIGNAL_FULL_SCALE_RAW`。
+
+改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / LED点阵 / 主页小频谱), `PGA/msgeq7.h` (MSGEQ7 平滑系数)
 
 
 ## 强制性规则
@@ -247,7 +267,7 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.44
+**固件版本:** v2.1.46
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -419,6 +439,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `target_db` | float | 目标 dB (渐变更新的目标) |
 | `theme` | int | 颜色主题索引 (0~7) |
 | `spectrum_style_select` | select | Web/HA 频谱样式选择, 与设置页 Row 12 同步 |
+| `spectrum_diag_log` | bool | 频谱诊断日志开关状态, 默认关闭, 开启后每秒输出 mcp/gate/raw/target/draw/diff/offset |
 | `display_timeout_min` | int | 显示超时分钟数 |
 | `display_brightness` | int | 显示亮度 (0~100) |
 | `last_manual_input_ms` | uint32_t | 手动选择输入的时间戳 (0=自动模式) |
@@ -475,7 +496,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 调用 `msgeq7::read_ntc()` 读取 NTC 温度 (带中值滤波 + IIR)
 - 使用 `msgeq7::get_frame()` 获取 SpectrumFrame 快照
 - 更新 LVGL 频谱条 (L/R 独立, 含 peak 保持线; 显示层按音量联动放大, 时间常数平滑, 不影响信号判定)
-- 更新 VU 电平条/蓝表头指针 (平均值 + 峰值, 点段式指针, 225°~315° 表盘角度, 快起慢落)
+- 更新 VU 电平条/蓝表头指针 (平均值 60% + 峰值 40%, 40 段 2x1 密集细长指针, 225°~315° 表盘角度, 快起慢落)
 - 更新输入卡片 LED 信号灯 (MCP23017 `audio_cd/dac/pc/aux` 有信号常亮, 无信号熄灭)
 - 约 20Hz 刷新率
 

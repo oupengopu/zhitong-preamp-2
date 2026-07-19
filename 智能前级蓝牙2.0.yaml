@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.44"
+  firmware_version: "v2.1.46"
 
 esphome:
   name: ${device_name}
@@ -970,6 +970,19 @@ switch:
       - globals.set: {id: auto_input, value: 'false'}
       - script.execute: sync_settings_ui
       - script.execute: reset_idle_timer
+
+  - platform: template
+    name: "频谱诊断日志 SpectrumDiag"
+    id: spectrum_diag_log_switch
+    icon: mdi:chart-line
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - globals.set: {id: spectrum_diag_log, value: 'true'}
+      - lambda: 'ESP_LOGI("SPECTRUM_DIAG", "enabled: close/open signal and watch raw vs draw values");'
+    turn_off_action:
+      - globals.set: {id: spectrum_diag_log, value: 'false'}
+      - lambda: 'ESP_LOGI("SPECTRUM_DIAG", "disabled");'
 
 # ═══════════════════════════════════════════════════════════════
 # NV3007 2.79" TFT 显示 — ESPHome 官方 mipi_spi 驱动 (CUSTOM 模式)
@@ -1945,6 +1958,36 @@ lvgl:
         - obj: { id: vu_needle_l_7, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_l_8, x: 108, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_l_9, x: 108, y: 107, width: 5, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_10, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_11, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_12, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_13, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_14, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_15, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_16, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_17, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_18, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_19, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_20, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_21, x: 108, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_l_22, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_23, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_24, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_25, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_26, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_27, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_28, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_29, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_30, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_31, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_32, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_33, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_34, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_35, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_36, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_37, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_38, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_l_39, x: 108, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
         - obj: { id: vu_needle_r_0, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r_1, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r_2, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
@@ -1955,6 +1998,38 @@ lvgl:
         - obj: { id: vu_needle_r_7, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r_8, x: 316, y: 107, width: 4, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
         - obj: { id: vu_needle_r_9, x: 316, y: 107, width: 5, height: 3, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_10, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_11, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_12, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_13, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_14, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_15, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_16, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_17, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_18, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_19, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_20, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_21, x: 316, y: 107, width: 2, height: 2, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 1, hidden: true }
+        - obj: { id: vu_needle_r_22, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_23, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_24, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_25, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_26, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_27, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_28, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_29, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_30, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_31, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_32, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_33, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_34, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_35, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_36, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_37, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_38, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_needle_r_39, x: 316, y: 107, width: 2, height: 1, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 0, hidden: true }
+        - obj: { id: vu_pivot_l, x: 106, y: 103, width: 8, height: 8, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 4, hidden: true }
+        - obj: { id: vu_pivot_r, x: 314, y: 103, width: 8, height: 8, bg_color: 0x06111F, bg_opa: 0%, border_width: 0, radius: 4, hidden: true }
 
         # ── Sparkline spectrum overlay (hidden unless spectrum_theme == 5) ──
         # 真机版控制对象数量，避免 LVGL 运行堆压力过高导致启动期重启。
@@ -3896,6 +3971,10 @@ globals:
     type: int
     restore_value: true
     initial_value: '2'
+  - id: spectrum_diag_log
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   # ── 防抖与原子锁 ──
   - id: last_saved_vol_0
@@ -6866,10 +6945,43 @@ interval:
           static float s_cpu_load = 0.0f;
           // 信号强度 (跨块共享: 频谱块写入, LED 块读取)
           static int s_signal_avg = 0;
+          bool input_signal_states[4] = {
+            id(audio_cd)->state, id(audio_dac)->state, id(audio_pc)->state, id(audio_aux)->state
+          };
+          bool any_input_has_signal = input_signal_states[0] || input_signal_states[1] ||
+                                      input_signal_states[2] || input_signal_states[3];
+          int cur_input_for_gate = id(current_input);
+          if (cur_input_for_gate < 0 || cur_input_for_gate > 3) cur_input_for_gate = 0;
+          bool active_input_has_signal = input_signal_states[cur_input_for_gate];
+          uint32_t audio_gate_now = millis();
+          static uint32_t last_active_input_signal_ms = 0;
+          static uint32_t no_audio_since_ms = 0;
+          static bool idle_recalibrated = false;
+          if (active_input_has_signal) last_active_input_signal_ms = audio_gate_now;
+          bool active_input_recent_signal =
+              active_input_has_signal ||
+              (last_active_input_signal_ms > 0 && audio_gate_now - last_active_input_signal_ms < 1500);
 
           // ── MSGEQ7 频谱读取 (20Hz, 仅非待机时) ──
           if (!id(standby)) {
             msgeq7::read();
+          }
+          bool allow_idle_recal = id(system_ready) && !id(standby) && !id(switching_input) && !id(ota_active);
+          if (allow_idle_recal && !any_input_has_signal) {
+            if (no_audio_since_ms == 0) no_audio_since_ms = audio_gate_now;
+            if (!idle_recalibrated && audio_gate_now - no_audio_since_ms >= 3000) {
+              bool ok = msgeq7::recalibrate();
+              idle_recalibrated = ok;
+              s_signal_avg = 0;
+              ESP_LOGI("SPECTRUM_DIAG", "idle recalibrate ok=%d no_audio_ms=%u current_input=%d",
+                       ok ? 1 : 0, (unsigned)(audio_gate_now - no_audio_since_ms), id(current_input));
+            }
+          } else if (any_input_has_signal) {
+            no_audio_since_ms = 0;
+            idle_recalibrated = false;
+          } else {
+            no_audio_since_ms = 0;
+            idle_recalibrated = false;
           }
 
           // ── NTC 温度读取 (每10秒) ──
@@ -6891,6 +7003,11 @@ interval:
             // 替代原来的 7×get_combined() + 7×get_peak() = 14 次加锁
             msgeq7::SpectrumFrame frame;
             msgeq7::get_frame(&frame);
+            int raw_l[7], raw_r[7];
+            for (int i = 0; i < 7; i++) {
+              raw_l[i] = frame.left[i];
+              raw_r[i] = frame.right[i];
+            }
             int spectrum_frame_peak = 0;
             int spectrum_frame_avg = 0;
             for (int i = 0; i < 7; i++) {
@@ -6904,7 +7021,13 @@ interval:
               live_signal_sum_r += frame.right[i];
             }
             int live_signal_avg_raw = std::max(live_signal_sum_l / 7, live_signal_sum_r / 7);
-            if (spectrum_frame_peak <= 1 && spectrum_frame_avg <= 0) {
+            int live_signal_detect_raw = std::max(live_signal_avg_raw, (spectrum_frame_peak + 1) / 2);
+            bool spectrum_draw_allowed = active_input_recent_signal;
+            if (!spectrum_draw_allowed) {
+              live_signal_avg_raw = 0;
+              live_signal_detect_raw = 0;
+            }
+            if (!spectrum_draw_allowed || (spectrum_frame_peak <= 1 && spectrum_frame_avg <= 0)) {
               for (int i = 0; i < 7; i++) {
                 frame.left[i] = 0;
                 frame.right[i] = 0;
@@ -6925,9 +7048,9 @@ interval:
             int volume_visual_q8 = (id(volume_val) > 0) ? (64 + volume_pct * 512 / 100) : 0;
             auto boost_spectrum_value = [volume_visual_q8](int v, int band) -> int {
               if (v <= 0) return 0;
-              static const int visual_floor[7] = {2, 2, 3, 4, 7, 24, 70};
-              static const int visual_gain_q8[7] = {1792, 1792, 1664, 1536, 1280, 512, 96};
-              static const int visual_knee[7] = {220, 220, 210, 200, 190, 170, 150};
+              static const int visual_floor[7] = {0, 0, 0, 0, 1, 1, 1};
+              static const int visual_gain_q8[7] = {3072, 3072, 2944, 2816, 2816, 2688, 2432};
+              static const int visual_knee[7] = {120, 120, 116, 112, 108, 102, 98};
               if (band < 0) band = 0;
               if (band > 6) band = 6;
               int x = v - visual_floor[band];
@@ -6949,6 +7072,9 @@ interval:
             static float display_l[7] = {0};
             static float display_r[7] = {0};
             static float display_c[7] = {0};
+            static float display_vel_l[7] = {0};
+            static float display_vel_r[7] = {0};
+            static float display_vel_c[7] = {0};
             static float display_peak_l[7] = {0};
             static float display_peak_r[7] = {0};
             static float display_peak_c[7] = {0};
@@ -6958,21 +7084,44 @@ interval:
             if (display_dt < 0.01f || display_dt > 0.25f) display_dt = 0.05f;
             last_display_ms = display_now;
             float peak_decay = powf(0.30f, display_dt);
-            static const float rise_tau_s[7] = {0.12f, 0.12f, 0.13f, 0.14f, 0.16f, 0.20f, 0.24f};
-            static const float fall_tau_s[7] = {0.34f, 0.34f, 0.38f, 0.42f, 0.50f, 0.62f, 0.78f};
-            auto smooth_display_value = [display_dt](float current, int target, int band) -> float {
+            if (!spectrum_draw_allowed) {
+              for (int i = 0; i < 7; i++) {
+                display_l[i] = 0.0f; display_r[i] = 0.0f; display_c[i] = 0.0f;
+                display_vel_l[i] = 0.0f; display_vel_r[i] = 0.0f; display_vel_c[i] = 0.0f;
+                display_peak_l[i] = 0.0f; display_peak_r[i] = 0.0f; display_peak_c[i] = 0.0f;
+              }
+            }
+            static const float attack_k[7] = {0.90f, 0.90f, 0.86f, 0.82f, 0.78f, 0.74f, 0.72f};
+            static const float fall_gravity[7] = {1700.0f, 1650.0f, 1550.0f, 1450.0f, 1350.0f, 1250.0f, 1150.0f};
+            auto follow_display_value = [display_dt](float current, int target, int band, float &velocity) -> float {
               if (band < 0) band = 0;
               if (band > 6) band = 6;
-              float tau = ((float)target > current) ? rise_tau_s[band] : fall_tau_s[band];
-              float k = 1.0f - expf(-display_dt / tau);
-              if (k < 0.02f) k = 0.02f;
-              if (k > 0.65f) k = 0.65f;
-              return current + ((float)target - current) * k;
+              float tgt = (float)target;
+              if (tgt >= current) {
+                velocity = 0.0f;
+                float delta = tgt - current;
+                float k = delta >= 72.0f ? 1.0f : attack_k[band];
+                return current + delta * k;
+              }
+              float delta_down = current - tgt;
+              if (delta_down <= 2.5f) {
+                velocity = 0.0f;
+                return tgt;
+              }
+              velocity += fall_gravity[band] * display_dt;
+              if (velocity < 48.0f) velocity = 48.0f;
+              if (velocity > 280.0f) velocity = 280.0f;
+              float next = current - velocity * display_dt;
+              if (next <= tgt) {
+                velocity = 0.0f;
+                return tgt;
+              }
+              return next;
             };
             for (int i = 0; i < 7; i++) {
-              display_l[i] = smooth_display_value(display_l[i], target_l[i], i);
-              display_r[i] = smooth_display_value(display_r[i], target_r[i], i);
-              display_c[i] = smooth_display_value(display_c[i], target_c[i], i);
+              display_l[i] = follow_display_value(display_l[i], target_l[i], i, display_vel_l[i]);
+              display_r[i] = follow_display_value(display_r[i], target_r[i], i, display_vel_r[i]);
+              display_c[i] = follow_display_value(display_c[i], target_c[i], i, display_vel_c[i]);
               if (display_l[i] < 0.5f) display_l[i] = 0.0f;
               if (display_r[i] < 0.5f) display_r[i] = 0.0f;
               if (display_c[i] < 0.5f) display_c[i] = 0.0f;
@@ -6985,6 +7134,41 @@ interval:
               frame.peak_l[i] = std::min(255, (int)(display_peak_l[i] + 0.5f));
               frame.peak_r[i] = std::min(255, (int)(display_peak_r[i] + 0.5f));
               frame.peak[i] = std::min(255, (int)(display_peak_c[i] + 0.5f));
+            }
+            if (id(spectrum_diag_log)) {
+              static uint32_t last_spectrum_diag_ms = 0;
+              uint32_t diag_now = millis();
+              if (diag_now - last_spectrum_diag_ms >= 1000) {
+                last_spectrum_diag_ms = diag_now;
+                msgeq7::DebugFrame diag_raw;
+                msgeq7::get_debug_frame(&diag_raw);
+                int diff[7];
+                for (int i = 0; i < 7; i++) {
+                  int dl = diag_raw.raw_l[i] - diag_raw.offset_l[i];
+                  int dr = diag_raw.raw_r[i] - diag_raw.offset_r[i];
+                  if (dl < 0) dl = 0;
+                  if (dr < 0) dr = 0;
+                  diff[i] = std::max(dl, dr);
+                }
+                ESP_LOGI("SPECTRUM_DIAG",
+                  "style=%d vol=%d mcp_active=%d mcp_any=%d gate=%d idle_cal=%d sig=%d detect=%d raw_peak=%d raw_avg=%d rawL=%d,%d,%d,%d,%d,%d,%d rawR=%d,%d,%d,%d,%d,%d,%d targetL=%d,%d,%d,%d,%d,%d,%d targetR=%d,%d,%d,%d,%d,%d,%d drawL=%d,%d,%d,%d,%d,%d,%d drawR=%d,%d,%d,%d,%d,%d,%d",
+                  id(spectrum_theme), id(volume_val), active_input_has_signal ? 1 : 0, any_input_has_signal ? 1 : 0,
+                  spectrum_draw_allowed ? 1 : 0, idle_recalibrated ? 1 : 0, s_signal_avg, live_signal_detect_raw,
+                  spectrum_frame_peak, spectrum_frame_avg,
+                  raw_l[0], raw_l[1], raw_l[2], raw_l[3], raw_l[4], raw_l[5], raw_l[6],
+                  raw_r[0], raw_r[1], raw_r[2], raw_r[3], raw_r[4], raw_r[5], raw_r[6],
+                  target_l[0], target_l[1], target_l[2], target_l[3], target_l[4], target_l[5], target_l[6],
+                  target_r[0], target_r[1], target_r[2], target_r[3], target_r[4], target_r[5], target_r[6],
+                  frame.left[0], frame.left[1], frame.left[2], frame.left[3], frame.left[4], frame.left[5], frame.left[6],
+                  frame.right[0], frame.right[1], frame.right[2], frame.right[3], frame.right[4], frame.right[5], frame.right[6]);
+                ESP_LOGI("SPECTRUM_DIAG_RAW",
+                  "diff=%d,%d,%d,%d,%d,%d,%d adcL=%d,%d,%d,%d,%d,%d,%d adcR=%d,%d,%d,%d,%d,%d,%d offL=%d,%d,%d,%d,%d,%d,%d offR=%d,%d,%d,%d,%d,%d,%d",
+                  diff[0], diff[1], diff[2], diff[3], diff[4], diff[5], diff[6],
+                  diag_raw.raw_l[0], diag_raw.raw_l[1], diag_raw.raw_l[2], diag_raw.raw_l[3], diag_raw.raw_l[4], diag_raw.raw_l[5], diag_raw.raw_l[6],
+                  diag_raw.raw_r[0], diag_raw.raw_r[1], diag_raw.raw_r[2], diag_raw.raw_r[3], diag_raw.raw_r[4], diag_raw.raw_r[5], diag_raw.raw_r[6],
+                  diag_raw.offset_l[0], diag_raw.offset_l[1], diag_raw.offset_l[2], diag_raw.offset_l[3], diag_raw.offset_l[4], diag_raw.offset_l[5], diag_raw.offset_l[6],
+                  diag_raw.offset_r[0], diag_raw.offset_r[1], diag_raw.offset_r[2], diag_raw.offset_r[3], diag_raw.offset_r[4], diag_raw.offset_r[5], diag_raw.offset_r[6]);
+              }
             }
 
             // 频谱条和峰值线的 LVGL 对象指针 (14条: 7左 + 7右)
@@ -7017,8 +7201,21 @@ interval:
               id(vu_tick_r_0), id(vu_tick_r_1), id(vu_tick_r_2), id(vu_tick_r_3), id(vu_tick_r_4), id(vu_tick_r_5),
               id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
               id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9),
+              id(vu_needle_l_10), id(vu_needle_l_11), id(vu_needle_l_12), id(vu_needle_l_13), id(vu_needle_l_14),
+              id(vu_needle_l_15), id(vu_needle_l_16), id(vu_needle_l_17), id(vu_needle_l_18), id(vu_needle_l_19),
+              id(vu_needle_l_20), id(vu_needle_l_21), id(vu_needle_l_22), id(vu_needle_l_23), id(vu_needle_l_24),
+              id(vu_needle_l_25), id(vu_needle_l_26), id(vu_needle_l_27), id(vu_needle_l_28), id(vu_needle_l_29),
+              id(vu_needle_l_30), id(vu_needle_l_31), id(vu_needle_l_32), id(vu_needle_l_33), id(vu_needle_l_34),
+              id(vu_needle_l_35), id(vu_needle_l_36), id(vu_needle_l_37), id(vu_needle_l_38), id(vu_needle_l_39),
               id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
-              id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
+              id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9),
+              id(vu_needle_r_10), id(vu_needle_r_11), id(vu_needle_r_12), id(vu_needle_r_13), id(vu_needle_r_14),
+              id(vu_needle_r_15), id(vu_needle_r_16), id(vu_needle_r_17), id(vu_needle_r_18), id(vu_needle_r_19),
+              id(vu_needle_r_20), id(vu_needle_r_21), id(vu_needle_r_22), id(vu_needle_r_23), id(vu_needle_r_24),
+              id(vu_needle_r_25), id(vu_needle_r_26), id(vu_needle_r_27), id(vu_needle_r_28), id(vu_needle_r_29),
+              id(vu_needle_r_30), id(vu_needle_r_31), id(vu_needle_r_32), id(vu_needle_r_33), id(vu_needle_r_34),
+              id(vu_needle_r_35), id(vu_needle_r_36), id(vu_needle_r_37), id(vu_needle_r_38), id(vu_needle_r_39),
+              id(vu_pivot_l), id(vu_pivot_r)
             };
             lv_obj_t* spark_bars[] = {
               id(spark_bar_0), id(spark_bar_1), id(spark_bar_2), id(spark_bar_3), id(spark_bar_4), id(spark_bar_5),
@@ -7037,29 +7234,47 @@ interval:
               last_style = style;
               bool retro_vu = style == 4;
               bool scope = style == 3;
+              bool led_matrix = style == 2;
               bool sparkline = style == 5;
               for (auto *o : vu_objs) {
                 if (retro_vu) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
                 else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
               }
               for (auto *o : spark_bars) {
-                if (sparkline) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+                if (sparkline || led_matrix) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
                 else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
               }
               for (auto *o : spark_dots) {
                 if (sparkline) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
                 else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
               }
-              if (sparkline) {
-                for (int i = 0; i < 24; i++) lv_obj_set_x(spark_bars[i], 18 + i * 16);
+              if (led_matrix) {
+                for (int i = 0; i < 24; i++) {
+                  lv_obj_set_x(spark_bars[i], 11 + i * 17);
+                  lv_obj_set_width(spark_bars[i], 10);
+                  lv_obj_set_style_radius(spark_bars[i], 0, LV_PART_MAIN);
+                }
+              } else if (sparkline) {
+                for (int i = 0; i < 24; i++) {
+                  lv_obj_set_x(spark_bars[i], 18 + i * 16);
+                  lv_obj_set_width(spark_bars[i], 3);
+                  lv_obj_set_style_radius(spark_bars[i], 1, LV_PART_MAIN);
+                }
+              }
+              int normal_freq_x[7] = {120, 149, 178, 207, 236, 265, 294};
+              int led_freq_x[7] = {7, 69, 131, 193, 255, 317, 379};
+              for (int i = 0; i < 7; i++) {
+                lv_obj_set_x(freqs[i], led_matrix ? led_freq_x[i] : normal_freq_x[i]);
+                lv_obj_set_width(freqs[i], led_matrix ? 42 : 29);
               }
               for (int i = 0; i < 7; i++) {
-                if (retro_vu || sparkline) {
+                if (retro_vu || sparkline || led_matrix) {
                   lv_obj_add_flag(bars_L[i], LV_OBJ_FLAG_HIDDEN);
                   lv_obj_add_flag(bars_R[i], LV_OBJ_FLAG_HIDDEN);
                   lv_obj_add_flag(peaks_L[i], LV_OBJ_FLAG_HIDDEN);
                   lv_obj_add_flag(peaks_R[i], LV_OBJ_FLAG_HIDDEN);
-                  lv_obj_add_flag(freqs[i], LV_OBJ_FLAG_HIDDEN);
+                  if (led_matrix) lv_obj_remove_flag(freqs[i], LV_OBJ_FLAG_HIDDEN);
+                  else lv_obj_add_flag(freqs[i], LV_OBJ_FLAG_HIDDEN);
                 } else {
                   lv_obj_remove_flag(bars_L[i], LV_OBJ_FLAG_HIDDEN);
                   lv_obj_remove_flag(bars_R[i], LV_OBJ_FLAG_HIDDEN);
@@ -7097,18 +7312,39 @@ interval:
                 lv_obj_t* needle_segs[] = {
                   id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
                   id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9),
+                  id(vu_needle_l_10), id(vu_needle_l_11), id(vu_needle_l_12), id(vu_needle_l_13), id(vu_needle_l_14),
+                  id(vu_needle_l_15), id(vu_needle_l_16), id(vu_needle_l_17), id(vu_needle_l_18), id(vu_needle_l_19),
+                  id(vu_needle_l_20), id(vu_needle_l_21), id(vu_needle_l_22), id(vu_needle_l_23), id(vu_needle_l_24),
+                  id(vu_needle_l_25), id(vu_needle_l_26), id(vu_needle_l_27), id(vu_needle_l_28), id(vu_needle_l_29),
+                  id(vu_needle_l_30), id(vu_needle_l_31), id(vu_needle_l_32), id(vu_needle_l_33), id(vu_needle_l_34),
+                  id(vu_needle_l_35), id(vu_needle_l_36), id(vu_needle_l_37), id(vu_needle_l_38), id(vu_needle_l_39),
                   id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
-                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
+                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9),
+                  id(vu_needle_r_10), id(vu_needle_r_11), id(vu_needle_r_12), id(vu_needle_r_13), id(vu_needle_r_14),
+                  id(vu_needle_r_15), id(vu_needle_r_16), id(vu_needle_r_17), id(vu_needle_r_18), id(vu_needle_r_19),
+                  id(vu_needle_r_20), id(vu_needle_r_21), id(vu_needle_r_22), id(vu_needle_r_23), id(vu_needle_r_24),
+                  id(vu_needle_r_25), id(vu_needle_r_26), id(vu_needle_r_27), id(vu_needle_r_28), id(vu_needle_r_29),
+                  id(vu_needle_r_30), id(vu_needle_r_31), id(vu_needle_r_32), id(vu_needle_r_33), id(vu_needle_r_34),
+                  id(vu_needle_r_35), id(vu_needle_r_36), id(vu_needle_r_37), id(vu_needle_r_38), id(vu_needle_r_39)
                 };
-                for (int i = 0; i < 20; i++) {
-                  lv_obj_set_width(needle_segs[i], (i % 10) == 9 ? 5 : 4);
-                  lv_obj_set_height(needle_segs[i], 3);
+                for (int i = 0; i < (int)(sizeof(needle_segs) / sizeof(needle_segs[0])); i++) {
+                  lv_obj_set_width(needle_segs[i], 2);
+                  lv_obj_set_height(needle_segs[i], 1);
                   lv_obj_set_style_bg_color(needle_segs[i], lv_color_hex(0x06111F), LV_PART_MAIN);
                   lv_obj_set_style_bg_opa(needle_segs[i], LV_OPA_COVER, LV_PART_MAIN);
-                  lv_obj_set_style_radius(needle_segs[i], 1, LV_PART_MAIN);
+                  lv_obj_set_style_radius(needle_segs[i], 0, LV_PART_MAIN);
                   lv_obj_move_foreground(needle_segs[i]);
                 }
-              } else if (sparkline) {
+                lv_obj_t* pivots[] = { id(vu_pivot_l), id(vu_pivot_r) };
+                for (auto *p : pivots) {
+                  lv_obj_set_width(p, 6);
+                  lv_obj_set_height(p, 6);
+                  lv_obj_set_style_bg_color(p, lv_color_hex(0x06111F), LV_PART_MAIN);
+                  lv_obj_set_style_bg_opa(p, LV_OPA_COVER, LV_PART_MAIN);
+                  lv_obj_set_style_radius(p, 3, LV_PART_MAIN);
+                  lv_obj_move_foreground(p);
+                }
+              } else if (sparkline || led_matrix) {
                 lv_obj_add_flag(id(vu_meter_l), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(id(vu_meter_r), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_set_style_bg_color(id(spectrum_page)->obj, lv_color_hex(0x03070C), LV_PART_MAIN);
@@ -7190,7 +7426,46 @@ interval:
 
             // ═══ VU 电平条 (L/R 声道独立) ═══
             {
-              if (style == 5) {
+              if (style == 2) {
+                static int last_led_h[24] = {
+                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+                };
+                static int last_led_y[24] = {
+                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+                };
+                for (int i = 0; i < 24; i++) {
+                  int pos_q8 = i * 6 * 256 / 23;
+                  int band = pos_q8 >> 8;
+                  if (band > 6) band = 6;
+                  int next = band < 6 ? band + 1 : band;
+                  int frac = pos_q8 & 0xFF;
+                  int v = (frame.combined[band] * (256 - frac) + frame.combined[next] * frac) >> 8;
+                  v = std::max(0, std::min(255, v));
+                  int h = v <= 1 ? 2 : 7 + v * 88 / 255;
+                  h = ((h + 2) / 4) * 4 - 1;
+                  if (h < 2) h = 2;
+                  if (h > 91) h = 91;
+                  int y = 121 - h;
+                  if (h != last_led_h[i]) {
+                    last_led_h[i] = h;
+                    lv_obj_set_height(spark_bars[i], h);
+                  }
+                  if (y != last_led_y[i]) {
+                    last_led_y[i] = y;
+                    lv_obj_set_y(spark_bars[i], y);
+                  }
+                  lv_color_t led_color =
+                    v > 218 ? lv_color_hex(0xEF4444) :
+                    v > 174 ? lv_color_hex(0xF97316) :
+                    v > 112 ? lv_color_hex(0xFACC15) :
+                    v > 48  ? lv_color_hex(0x84CC16) :
+                               lv_color_hex(0x22C55E);
+                  lv_obj_set_style_bg_color(spark_bars[i], led_color, LV_PART_MAIN);
+                  lv_obj_set_style_bg_opa(spark_bars[i], (lv_opa_t)(v > 1 ? 230 : 32), LV_PART_MAIN);
+                }
+              } else if (style == 5) {
                 static int last_spark_h[24] = {
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
                   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
@@ -7257,8 +7532,8 @@ interval:
               }
               int avg_l = sum_l / 7;
               int avg_r = sum_r / 7;
-              int meter_l = std::min(255, avg_l * 2 + max_l);
-              int meter_r = std::min(255, avg_r * 2 + max_r);
+              int meter_l = std::min(255, (avg_l * 3 + max_l * 2) / 5);
+              int meter_r = std::min(255, (avg_r * 3 + max_r * 2) / 5);
               if (style == 4) {
                 static float vu_angle_l = 225.0f;
                 static float vu_angle_r = 225.0f;
@@ -7270,23 +7545,37 @@ interval:
                 vu_angle_r += (target_r - vu_angle_r) * k_r;
                 lv_obj_t* seg_l[] = {
                   id(vu_needle_l_0), id(vu_needle_l_1), id(vu_needle_l_2), id(vu_needle_l_3), id(vu_needle_l_4),
-                  id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9)
+                  id(vu_needle_l_5), id(vu_needle_l_6), id(vu_needle_l_7), id(vu_needle_l_8), id(vu_needle_l_9),
+                  id(vu_needle_l_10), id(vu_needle_l_11), id(vu_needle_l_12), id(vu_needle_l_13), id(vu_needle_l_14),
+                  id(vu_needle_l_15), id(vu_needle_l_16), id(vu_needle_l_17), id(vu_needle_l_18), id(vu_needle_l_19),
+                  id(vu_needle_l_20), id(vu_needle_l_21), id(vu_needle_l_22), id(vu_needle_l_23), id(vu_needle_l_24),
+                  id(vu_needle_l_25), id(vu_needle_l_26), id(vu_needle_l_27), id(vu_needle_l_28), id(vu_needle_l_29),
+                  id(vu_needle_l_30), id(vu_needle_l_31), id(vu_needle_l_32), id(vu_needle_l_33), id(vu_needle_l_34),
+                  id(vu_needle_l_35), id(vu_needle_l_36), id(vu_needle_l_37), id(vu_needle_l_38), id(vu_needle_l_39)
                 };
                 lv_obj_t* seg_r[] = {
                   id(vu_needle_r_0), id(vu_needle_r_1), id(vu_needle_r_2), id(vu_needle_r_3), id(vu_needle_r_4),
-                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9)
+                  id(vu_needle_r_5), id(vu_needle_r_6), id(vu_needle_r_7), id(vu_needle_r_8), id(vu_needle_r_9),
+                  id(vu_needle_r_10), id(vu_needle_r_11), id(vu_needle_r_12), id(vu_needle_r_13), id(vu_needle_r_14),
+                  id(vu_needle_r_15), id(vu_needle_r_16), id(vu_needle_r_17), id(vu_needle_r_18), id(vu_needle_r_19),
+                  id(vu_needle_r_20), id(vu_needle_r_21), id(vu_needle_r_22), id(vu_needle_r_23), id(vu_needle_r_24),
+                  id(vu_needle_r_25), id(vu_needle_r_26), id(vu_needle_r_27), id(vu_needle_r_28), id(vu_needle_r_29),
+                  id(vu_needle_r_30), id(vu_needle_r_31), id(vu_needle_r_32), id(vu_needle_r_33), id(vu_needle_r_34),
+                  id(vu_needle_r_35), id(vu_needle_r_36), id(vu_needle_r_37), id(vu_needle_r_38), id(vu_needle_r_39)
                 };
                 auto draw_segmented_needle = [](lv_obj_t** segs, int pivot_x, int pivot_y, float angle_deg) {
                   float rad = angle_deg * 0.01745329252f;
                   float dx = cosf(rad);
                   float dy = sinf(rad);
-                  for (int i = 0; i < 10; i++) {
-                    float dist = 11.0f + (float)i * 6.0f;
-                    int x = pivot_x + (int)(dx * dist) - 2;
-                    int y = pivot_y + (int)(dy * dist) - 1;
+                  const int count = 40;
+                  for (int i = 0; i < count; i++) {
+                    float t = (float)i / (float)(count - 1);
+                    float dist = 4.0f + t * 75.0f;
+                    int x = pivot_x + (int)(dx * dist + (dx >= 0.0f ? 0.5f : -0.5f)) - 1;
+                    int y = pivot_y + (int)(dy * dist + (dy >= 0.0f ? 0.5f : -0.5f));
                     lv_obj_set_x(segs[i], x);
                     lv_obj_set_y(segs[i], y);
-                    lv_obj_set_style_bg_opa(segs[i], (lv_opa_t)(i < 2 ? 190 : LV_OPA_COVER), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(segs[i], (lv_opa_t)(i < 2 ? 210 : 255), LV_PART_MAIN);
                   }
                 };
                 draw_segmented_needle(seg_l, 110, 107, vu_angle_l);
@@ -7315,23 +7604,24 @@ interval:
                 int band = (i * 7) / 12;
                 int next_band = band < 6 ? band + 1 : band;
                 int raw = (frame.combined[band] * 2 + frame.combined[next_band]) / 3;
-                int h = 4 + raw * 12 / 255;
+                int h = 4 + raw * 16 / 255;
                 if (h < 4) h = 4;
-                if (h > 16) h = 16;
+                if (h > 20) h = 20;
                 if (h != last_h[i]) {
                   last_h[i] = h;
                   lv_obj_set_height(mini_specs[i], h);
                   lv_obj_set_y(mini_specs[i], base_y - h);
                 }
+                lv_obj_set_style_bg_opa(mini_specs[i], (lv_opa_t)std::max(28, std::min(210, 45 + raw * 150 / 255)), LV_PART_MAIN);
               }
             }
 
             // ═══ 信号强度 (供 LED 呼吸用, 取 L/R 较大值) ═══
             {
-              if (live_signal_avg_raw > s_signal_avg) {
-                s_signal_avg = live_signal_avg_raw;
+              if (live_signal_detect_raw > s_signal_avg) {
+                s_signal_avg = live_signal_detect_raw;
               } else {
-                s_signal_avg = (s_signal_avg * 9 + live_signal_avg_raw) / 10;
+                s_signal_avg = (s_signal_avg * 9 + live_signal_detect_raw) / 10;
               }
             }
           }  // end if (!id(soft_mute))
@@ -7492,9 +7782,11 @@ interval:
             static uint32_t last_signal_seen_ms = 0;
 
             uint32_t now = millis();
-            bool raw_has_signal = s_signal_avg >= 2;  // 跟随 NOISE_GATE=2, 保留弱信号触发
+            bool raw_has_signal = active_input_recent_signal && s_signal_avg >= 2;  // 平均值+峰值联合判定弱信号
             if (raw_has_signal) last_signal_seen_ms = now;
-            bool has_signal = raw_has_signal || (last_signal_seen_ms > 0 && now - last_signal_seen_ms < 1500);
+            if (!active_input_recent_signal) last_signal_seen_ms = 0;
+            bool has_signal = raw_has_signal ||
+                              (active_input_recent_signal && last_signal_seen_ms > 0 && now - last_signal_seen_ms < 5000);
 
             if (has_signal) {
               signal_lost_ms = 0;

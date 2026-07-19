@@ -92,8 +92,8 @@ inline float _ntc_temperature = NTC_INVALID;
 inline float _smooth_r[MSGEQ7_NUM_BANDS] = {0};
 inline float _smooth_l[MSGEQ7_NUM_BANDS] = {0};
 
-static constexpr float SMOOTH_UP   = 0.35f;   // 上升平滑系数 (快响应)
-static constexpr float SMOOTH_DOWN = 0.12f;    // 下降平滑系数 (慢衰减, 视觉更自然)
+static constexpr float SMOOTH_UP   = 0.72f;   // 上升快攻，低音瞬态要在下一帧明显响应
+static constexpr float SMOOTH_DOWN = 0.22f;   // 下降保留少量平滑，主要视觉回落交给 UI 层 gravity
 
 // ── 峰值衰减 (帧率无关: 用 powf(DECAY, dt) 解耦 FPS) ──
 //   设计目标: 1 秒内峰值衰减到 ~50% (原 0.965 @20Hz ≈ 0.965^20 ≈ 0.49)
@@ -307,6 +307,8 @@ static bool recalibrate() {
 
   int r_sum[MSGEQ7_NUM_BANDS] = {0};
   int l_sum[MSGEQ7_NUM_BANDS] = {0};
+  int new_r_offset[MSGEQ7_NUM_BANDS] = {0};
+  int new_l_offset[MSGEQ7_NUM_BANDS] = {0};
   for (int i = 0; i < 3; i++) {
     gpio_set_level((gpio_num_t)MSGEQ7_RESET_PIN, 1);
     esp_rom_delay_us(100);
@@ -326,9 +328,23 @@ static bool recalibrate() {
   for (int j = 0; j < MSGEQ7_NUM_BANDS; j++) {
     int avg_r = r_sum[j] / 3;
     int avg_l = l_sum[j] / 3;
-    _r_offset[j] = (avg_r < OFFSET_CALIBRATION_MAX_RAW) ? avg_r : 0;
-    _l_offset[j] = (avg_l < OFFSET_CALIBRATION_MAX_RAW) ? avg_l : 0;
+    new_r_offset[j] = (avg_r < OFFSET_CALIBRATION_MAX_RAW) ? avg_r : 0;
+    new_l_offset[j] = (avg_l < OFFSET_CALIBRATION_MAX_RAW) ? avg_l : 0;
   }
+  portENTER_CRITICAL(&_mux);
+  memcpy(_r_offset, new_r_offset, sizeof(_r_offset));
+  memcpy(_l_offset, new_l_offset, sizeof(_l_offset));
+  memset(_r_bands, 0, sizeof(_r_bands));
+  memset(_l_bands, 0, sizeof(_l_bands));
+  memset(_combined, 0, sizeof(_combined));
+  memset(_peak, 0, sizeof(_peak));
+  memset(_peak_l, 0, sizeof(_peak_l));
+  memset(_peak_r, 0, sizeof(_peak_r));
+  memcpy(_last_raw_r, new_r_offset, sizeof(_last_raw_r));
+  memcpy(_last_raw_l, new_l_offset, sizeof(_last_raw_l));
+  portEXIT_CRITICAL(&_mux);
+  memset(_smooth_r, 0, sizeof(_smooth_r));
+  memset(_smooth_l, 0, sizeof(_smooth_l));
   ESP_LOGI("msgeq7", "重校准: R_offset[0~6]=%d/%d/%d/%d/%d/%d/%d",
            _r_offset[0], _r_offset[1], _r_offset[2], _r_offset[3],
            _r_offset[4], _r_offset[5], _r_offset[6]);
