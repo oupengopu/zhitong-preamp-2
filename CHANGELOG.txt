@@ -1,3 +1,29 @@
+v2.1.52 - 2026-07-19
+  修复: 清理 ESPHome 2026.7 编译时的项目头文件 unused-function warning
+    - 固件显示版本号更新为 v2.1.52
+    - `PGA/pga2311.h` 的测试/诊断保留接口加 `[[maybe_unused]]`: `reset_for_test`, `get_last_values`, `is_initialized`, `set_initialized`, `clamp`, `to_db`
+    - `PGA/msgeq7.h` 的频谱便捷/诊断接口加 `[[maybe_unused]]`: `get_combined`, `get_peak`, `get_peak_left`, `get_peak_right`, `is_ready`
+    - `PGA/ble_hid_host.h` 的 BLE 遥控调试/配对维护接口加 `[[maybe_unused]]`: 电池文本、学习清除、raw usage/page、BDA copy-out、配对状态/清除等
+    - 本次不删除任何备用函数, 不改 BLE HID 行为, 不改 MSGEQ7 算法, 不改 PGA2311 写入时序, 不碰 ESPHome/PlatformIO 缓存
+  原因: 这些 warning 功能上不紧急, 但每次编译会刷屏, 容易遮住真正需要处理的 warning。相关函数是调试、测试或后续入口保留 API, 直接删除风险更高; 使用标准 C++ `[[maybe_unused]]` 可以保留接口并消除噪声。
+  验证:
+    - RED 守卫在修改前失败: 上述保留 API 均缺少 `[[maybe_unused]]`
+    - 修改后 unused 标记守卫通过
+    - `git diff --check` 通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.52`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-19 23:53:18 +0800`, `config_hash=0x3be4cca9`
+    - 主 `main.cpp` 编译阶段未再出现 `PGA/*.h defined but not used` warning
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version)
+  PGA/pga2311.h
+  PGA/msgeq7.h
+  PGA/ble_hid_host.h
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.51 - 2026-07-19
   修复: 代码审核确认的 2/3/4/5/6/7 项问题
     - 固件显示版本号更新为 v2.1.51, 本地网页显示更新为 WEB v2.1.51

@@ -623,7 +623,7 @@ static bool get_debug_frame(DebugFrame* out) {
 }
 
 // 获取单个 combined 值 (便捷接口, 用于 LVGL widget update)
-static int get_combined(int band) {
+[[maybe_unused]] static int get_combined(int band) {
   if (band < 0 || band >= MSGEQ7_NUM_BANDS) return 0;
   int val = 0;
   portENTER_CRITICAL(&_mux);
@@ -633,7 +633,7 @@ static int get_combined(int band) {
 }
 
 // 获取单个 peak 值 (combined)
-static int get_peak(int band) {
+[[maybe_unused]] static int get_peak(int band) {
   if (band < 0 || band >= MSGEQ7_NUM_BANDS) return 0;
   int val = 0;
   portENTER_CRITICAL(&_mux);
@@ -643,7 +643,7 @@ static int get_peak(int band) {
 }
 
 // 获取左声道峰值
-static int get_peak_left(int band) {
+[[maybe_unused]] static int get_peak_left(int band) {
   if (band < 0 || band >= MSGEQ7_NUM_BANDS) return 0;
   int val = 0;
   portENTER_CRITICAL(&_mux);
@@ -653,7 +653,7 @@ static int get_peak_left(int band) {
 }
 
 // 获取右声道峰值
-static int get_peak_right(int band) {
+[[maybe_unused]] static int get_peak_right(int band) {
   if (band < 0 || band >= MSGEQ7_NUM_BANDS) return 0;
   int val = 0;
   portENTER_CRITICAL(&_mux);
@@ -673,6 +673,6 @@ static float get_temperature() {
 
 
 // ADC 是否可用
-static bool is_ready() { return _initialized && _adc_ok; }
+[[maybe_unused]] static bool is_ready() { return _initialized && _adc_ok; }
 
 }  // namespace msgeq7

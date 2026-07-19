@@ -109,11 +109,11 @@ static void set_volume(int right_vol, int left_vol) {
            left_vol,  _to_db(left_vol));
 }
 
-static void reset_for_test() { _initialized = false; _last_r = -1; _last_l = -1; }
-static void get_last_values(int& r, int& l) { r = _last_r; l = _last_l; }
-static bool is_initialized() { return _initialized; }
-static void set_initialized(bool val) { _initialized = val; }
-static int clamp(int v, int lo, int hi) { return _clamp(v, lo, hi); }
-static float to_db(int v) { return _to_db(v); }
+[[maybe_unused]] static void reset_for_test() { _initialized = false; _last_r = -1; _last_l = -1; }
+[[maybe_unused]] static void get_last_values(int& r, int& l) { r = _last_r; l = _last_l; }
+[[maybe_unused]] static bool is_initialized() { return _initialized; }
+[[maybe_unused]] static void set_initialized(bool val) { _initialized = val; }
+[[maybe_unused]] static int clamp(int v, int lo, int hi) { return _clamp(v, lo, hi); }
+[[maybe_unused]] static float to_db(int v) { return _to_db(v); }
 
 }  // namespace pga2311

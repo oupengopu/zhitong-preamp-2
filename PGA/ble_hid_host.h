@@ -1752,7 +1752,7 @@ static bool get_discovered_device(int i, DeviceInfo& out) {
     return ok;
 }
 
-static std::string get_peer_bda_string() {
+[[maybe_unused]] static std::string get_peer_bda_string() {
     if (S().mux == nullptr) return "";
     if (xSemaphoreTake(S().mux, 0)) {
         bool ok = (S().paired || S().state == BLE_CONNECTED) &&
@@ -1799,7 +1799,7 @@ static int get_battery_level() {
     return level;
 }
 
-static std::string get_battery_level_string() {
+[[maybe_unused]] static std::string get_battery_level_string() {
     int level = get_battery_level();
     if (level < 0) return "未知";
     if (level > 100) return "未知";
@@ -1908,7 +1908,7 @@ static void set_learned_key(HidEventType action, uint16_t handle, uint16_t len,
     }
 }
 
-static void clear_learned_key(HidEventType action) {
+[[maybe_unused]] static void clear_learned_key(HidEventType action) {
     if (S().mux == nullptr) return;
     int idx = (int)action;
     if (idx < (int)HID_EVT_VOLUME_UP || idx > (int)HID_EVT_CYCLE_INPUT) return;
@@ -1928,7 +1928,7 @@ static void clear_all_learned_keys() {
     }
 }
 
-static uint16_t get_raw_event_page() {
+[[maybe_unused]] static uint16_t get_raw_event_page() {
     if (S().mux == nullptr) return 0;
     uint16_t v = 0;
     if (xSemaphoreTake(S().mux, 0)) {
@@ -1938,7 +1938,7 @@ static uint16_t get_raw_event_page() {
     return v;
 }
 
-static uint16_t get_raw_event_usage() {
+[[maybe_unused]] static uint16_t get_raw_event_usage() {
     if (S().mux == nullptr) return 0;
     uint16_t v = 0;
     if (xSemaphoreTake(S().mux, 0)) {
@@ -1952,7 +1952,7 @@ static uint16_t get_raw_event_usage() {
 // BDA 持久化 (hex string ↔ uint8[6])
 // ═══════════════════════════════════════════════════
 
-static bool get_peer_bda_string(char* out, size_t out_len) {
+[[maybe_unused]] static bool get_peer_bda_string(char* out, size_t out_len) {
     if (S().mux == nullptr) return false;
     if (xSemaphoreTake(S().mux, 0)) {
         bool ok = (S().paired || S().state == BLE_CONNECTED) &&
@@ -1988,7 +1988,7 @@ static bool set_peer_bda_from_string(const char* str) {
     return ok;
 }
 
-static bool has_paired_device() {
+[[maybe_unused]] static bool has_paired_device() {
     if (S().mux == nullptr) return false;
     bool v = false;
     if (xSemaphoreTake(S().mux, 0)) {
@@ -1998,7 +1998,7 @@ static bool has_paired_device() {
     return v;
 }
 
-static void clear_paired() {
+[[maybe_unused]] static void clear_paired() {
     if (S().mux == nullptr) return;
     if (xSemaphoreTake(S().mux, 0)) {
         memset(S().peer_bda, 0, 6);

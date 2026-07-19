@@ -317,6 +317,18 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 改动文件: `智能前级蓝牙2.0.yaml`, `www/index.html`, `网页控制/index.html`
 
+**57. v2.1.52 保留 API 的 unused warning 处理方式**
+
+`PGA/*.h` 中部分函数是测试、诊断或后续维护入口, 当前固件主路径暂时不用, 但不要为了清理 warning 直接删除。
+
+**规则**:
+- 对确认需要保留的头文件级 `static` 辅助 API, 使用标准 C++ `[[maybe_unused]]` 标记, 让编译器知道这是有意保留。
+- 不要删除 `pga2311` 的测试/诊断接口、`msgeq7` 的单频段/ready 查询接口、`ble_hid_host` 的配对/学习/raw 调试接口来压 warning。
+- 如果未来把这些接口接入 YAML、调试页或单元测试, 可以保留 `[[maybe_unused]]`; 该属性不改变调用行为。
+- 这条只处理项目头文件 warning, 不改 ESPHome 生成目录或 `.esphome`/PlatformIO/ESPHome 缓存。若 warning 来自 ESPHome managed component 自身, 优先记录来源, 不直接改生成缓存。
+
+改动文件: `PGA/pga2311.h`, `PGA/msgeq7.h`, `PGA/ble_hid_host.h`
+
 
 ## 强制性规则
 
@@ -335,7 +347,7 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.51
+**固件版本:** v2.1.52
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
