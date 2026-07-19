@@ -1,3 +1,27 @@
+v2.1.54 - 2026-07-20
+  修复: 恢复出厂长按入口收口到待机起按, 并在恢复出厂前进入音频安全态
+    - 固件显示版本号更新为 v2.1.54
+    - `factory_reset` 开始时先停止显示空闲、音量渐变、输入切换、输出模式切换和 anti-pop 脚本
+    - 恢复出厂提示窗口前强制 `system_ready=false`, `switching_input=false`, `soft_mute=true`, `current_db/target_db=-96.0f`, 并写 `pga2311::set_volume(0,0)`
+    - 恢复出厂提示窗口前释放 GPA0~GPA3 输入继电器和 GPA4 输出继电器, 避免长按待机时 1.5 秒唤醒后音频路径又被接回
+    - 10 秒恢复出厂仍只允许“按下瞬间处于待机”的路径触发, 5 秒屏幕提示和 LED 加速闪烁也同步改为只在待机起按路径出现
+    - README/CLAUDE/AGENTS 修正“任何状态按住 10 秒”的旧说明, 明确工作状态开始长按只进入待机、不恢复出厂
+    - 本次不改 BLE HID、不改网页控制、不改 MSGEQ7、不删除缓存、不把 `mute_switch` 加回运行期
+  原因: v2.1.5 已修复为仅待机起按可恢复出厂, 但文档和 5 秒提示仍像“任何状态都可恢复”。同时从待机起按时 1.5 秒长按会先执行 `exit_standby`, 到 10 秒执行 `factory_reset` 前音频路径可能已经恢复, 所以正式版前必须在恢复出厂脚本入口重新拉回 PGA=0 并释放全部音频继电器。
+  验证:
+    - RED 守卫在修改前失败: `factory_reset` 未完整释放 GPA0~GPA4/写 PGA=0, 5 秒屏幕提示未受 `started_from_standby` 保护, LED 恢复出厂反馈未按待机起按限制
+    - 修改后恢复出厂安全守卫通过
+    - ESPHome 2026.7.0 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.54`
+    - ESPHome 2026.7.0 本地 `compile` 通过, `build_time_str=2026-07-20 01:03:49 +0800`, `config_hash=0x0f523d83`
+    - 固件产物生成: `firmware.factory.bin`, `firmware.ota.bin`, `firmware.elf`; `zhitong-preamp-2.bin` 大小 `0x1e1650`, app 分区剩余约 69%
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, factory_reset, 恢复出厂 10 秒检测, LED interval)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.53 - 2026-07-20
   修复: 待机时释放所有音频继电器的历史功能丢失
     - 固件显示版本号更新为 v2.1.53

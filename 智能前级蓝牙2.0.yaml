@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.53"
+  firmware_version: "v2.1.54"
 
 esphome:
   name: ${device_name}
@@ -5176,12 +5176,30 @@ script:
       - lambda: 'App.safe_reboot();'
 
   # ── 恢复出厂设置: 重置所有存储值 + 清除 WiFi + 重启 ──
-  # 触发方式: 待机或工作状态下长按编码器按键 10 秒
-  # 流程: 重置变量 → 屏幕显示提示 → 清除 WiFi → 重启进入 AP 配网模式
+  # 触发方式: 从待机状态开始长按编码器按键 10 秒
+  # 流程: 音频安全静音 → 重置变量 → 屏幕显示提示 → 清除 WiFi → 重启进入 AP 配网模式
   - id: factory_reset
     mode: restart
     then:
+      - script.stop: display_idle_timer
+      - script.stop: send_volume_to_pga
+      - script.stop: switch_input
+      - script.stop: switch_output_mode
+      - script.stop: anti_pop_fade_to_silence
       - lambda: |-
+          // 恢复出厂会清 WiFi 并重启。先进入音频安全态, 避免 3 秒提示窗口内残留输出。
+          id(system_ready) = false;
+          id(switching_input) = false;
+          id(soft_mute) = true;
+          id(current_db) = -96.0f;
+          id(target_db) = -96.0f;
+          pga2311::set_volume(0, 0);
+          id(relay_in1)->turn_off();
+          id(relay_in2)->turn_off();
+          id(relay_in3)->turn_off();
+          id(relay_in4)->turn_off();
+          id(relay_out)->turn_off();
+
           // 重置所有 restore_value 全局变量到安全默认值
           id(volume_val)          = 160;
           id(v210_migrated)       = true;  // 重置后标记已迁移, 不再二次缩放
@@ -5207,8 +5225,6 @@ script:
           id(input_bal_1)         = 0;
           id(input_bal_2)         = 0;
           id(input_bal_3)         = 0;
-          id(soft_mute)           = false;
-          id(relay_out)->turn_off();
           // 重置按键映射为恒等映射
           id(key_map_1) = 1; id(key_map_2) = 2; id(key_map_3) = 3;
           id(key_map_4) = 4; id(key_map_5) = 5; id(key_map_6) = 6;
@@ -7712,8 +7728,8 @@ interval:
           }
 
           // ═══ 恢复出厂设置: 编码器按键 10 秒检测 ═══
-          //   待机或工作状态下, 长按编码器按键 10 秒触发。
-          //   LVGL 恢复后 (exit_standby 在 800ms 长按后唤醒) 显示倒计时。
+          //   只有按下瞬间处于待机时, 长按 10 秒才触发。
+          //   1.5s 长按可能先唤醒屏幕, 因此用 started_from_standby 记住起点状态。
           {
             static uint32_t hold_start = 0;
             static bool triggered = false;
@@ -7732,8 +7748,8 @@ interval:
               if (elapsed >= 10000 && started_from_standby) {
                 triggered = true;
                 id(factory_reset)->execute();
-              } else if (elapsed >= 5000) {
-                // 5 秒后给视觉反馈: 非待机时更新 LVGL, 待机时仅靠 LED 加速闪烁
+              } else if (elapsed >= 5000 && started_from_standby) {
+                // 待机起按 5 秒后给视觉反馈: 已唤醒时更新 LVGL, 待机时仅靠 LED 加速闪烁
                 if (!id(standby)) {
                   // switch to main_page + bring to front
                   if (lv_scr_act() != id(main_page)->obj) {
@@ -8509,6 +8525,7 @@ interval:
           {
             static uint32_t standby_entry_ms = 0;
             static uint32_t fw_hold_start = 0;     // 工厂重置按键计时
+            static bool fw_started_from_standby = false;
             float lvl = 0.0f;
             bool fw_active = false;
             uint32_t fw_hold_dur = 0;
@@ -8521,15 +8538,19 @@ interval:
               standby_entry_ms = n;   // 记录进入待机时间戳
             }
 
-            // 工厂重置按键跟踪 (5s 后 LED 开始加速闪烁反馈)
+            // 工厂重置按键跟踪 (从待机起按 5s 后 LED 开始加速闪烁反馈)
             {
               bool pressed = id(encoder_button).state;
               if (pressed) {
-                if (fw_hold_start == 0) fw_hold_start = n;
+                if (fw_hold_start == 0) {
+                  fw_hold_start = n;
+                  fw_started_from_standby = id(standby);
+                }
                 fw_hold_dur = n - fw_hold_start;
-                if (fw_hold_dur >= 5000 && fw_hold_dur < 10000) fw_active = true;
+                if (fw_started_from_standby && fw_hold_dur >= 5000 && fw_hold_dur < 10000) fw_active = true;
               } else {
                 fw_hold_start = 0;
+                fw_started_from_standby = false;
               }
             }
 
