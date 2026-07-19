@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.38"
+  firmware_version: "v2.1.39"
 
 esphome:
   name: ${device_name}
@@ -6872,16 +6872,24 @@ interval:
             }
             // MSGEQ7 weak-signal values are valid but too small on a 0-255 LVGL bar.
             // Keep detection on raw frame values, and equalize only the pixels that are drawn.
-            auto boost_spectrum_value = [](int v, int band) -> int {
+            int volume_pct = 0;
+            if (id(max_volume) > 0) {
+              volume_pct = id(volume_val) * 100 / id(max_volume);
+            }
+            if (volume_pct < 0) volume_pct = 0;
+            if (volume_pct > 100) volume_pct = 100;
+            int volume_visual_q8 = (id(volume_val) > 0) ? (32 + volume_pct * 736 / 100) : 0;
+            auto boost_spectrum_value = [volume_visual_q8](int v, int band) -> int {
               if (v <= 0) return 0;
-              static const int visual_floor[7] = {1, 1, 1, 1, 1, 5, 22};
-              static const int visual_gain_q8[7] = {1280, 1280, 1280, 1152, 1024, 768, 512};
+              static const int visual_floor[7] = {0, 0, 0, 0, 0, 4, 18};
+              static const int visual_gain_q8[7] = {3072, 3072, 2816, 2560, 2304, 1536, 768};
               if (band < 0) band = 0;
               if (band > 6) band = 6;
               int x = v - visual_floor[band];
               if (x <= 0) return 0;
               int out = (x * visual_gain_q8[band]) >> 8;
-              if (out > 0 && out < 6) out = 6;
+              out = (out * volume_visual_q8) >> 8;
+              if (out > 0 && out < 8) out = 8;
               if (out > 255) out = 255;
               return out;
             };
@@ -7143,29 +7151,36 @@ interval:
 
               static int last_vu_l = -1, last_vu_r = -1;
               int sum_l = 0, sum_r = 0;
+              int max_l = 0, max_r = 0;
               for (int i = 0; i < 7; i++) {
                 sum_l += frame.left[i];
                 sum_r += frame.right[i];
+                max_l = std::max(max_l, frame.left[i]);
+                max_r = std::max(max_r, frame.right[i]);
               }
               int avg_l = sum_l / 7;
               int avg_r = sum_r / 7;
+              int meter_l = std::min(255, avg_l * 2 + max_l);
+              int meter_r = std::min(255, avg_r * 2 + max_r);
               if (style == 4) {
                 static float vu_angle_l = -420.0f;
                 static float vu_angle_r = -420.0f;
-                float target_l = -420.0f + ((float)avg_l / 255.0f) * 840.0f;
-                float target_r = -420.0f + ((float)avg_r / 255.0f) * 840.0f;
-                vu_angle_l += (target_l - vu_angle_l) * 0.18f;
-                vu_angle_r += (target_r - vu_angle_r) * 0.18f;
+                float target_l = -420.0f + ((float)meter_l / 255.0f) * 840.0f;
+                float target_r = -420.0f + ((float)meter_r / 255.0f) * 840.0f;
+                float k_l = target_l > vu_angle_l ? 0.42f : 0.10f;
+                float k_r = target_r > vu_angle_r ? 0.42f : 0.10f;
+                vu_angle_l += (target_l - vu_angle_l) * k_l;
+                vu_angle_r += (target_r - vu_angle_r) * k_r;
                 lv_obj_set_style_transform_angle(id(vu_needle_l), (int)vu_angle_l, LV_PART_MAIN);
                 lv_obj_set_style_transform_angle(id(vu_needle_r), (int)vu_angle_r, LV_PART_MAIN);
               }
-              if (avg_l != last_vu_l) {
-                last_vu_l = avg_l;
-                lv_bar_set_value(id(vu_meter_l), avg_l, LV_ANIM_OFF);
+              if (meter_l != last_vu_l) {
+                last_vu_l = meter_l;
+                lv_bar_set_value(id(vu_meter_l), meter_l, LV_ANIM_OFF);
               }
-              if (avg_r != last_vu_r) {
-                last_vu_r = avg_r;
-                lv_bar_set_value(id(vu_meter_r), avg_r, LV_ANIM_OFF);
+              if (meter_r != last_vu_r) {
+                last_vu_r = meter_r;
+                lv_bar_set_value(id(vu_meter_r), meter_r, LV_ANIM_OFF);
               }
             }
 
@@ -7596,24 +7611,15 @@ interval:
               lv_label_set_text(id(lbl_main_active_input), input_names[cur]);
             }
             {
-              static uint32_t breath_tick = 0;
-              breath_tick++;
-              float breath = (sinf(breath_tick * 0.06f) + 1.0f) * 0.5f;
-              int b;
-              if (s_signal_avg > 80)
-                b = 255;
-              else if (s_signal_avg > 5)
-                b = 140 + (int)(breath * 115.0f);
-              else
-                b = 0;
               lv_obj_t* leds[] = { id(led_src_0), id(led_src_1), id(led_src_2), id(led_src_3) };
               for (int i = 0; i < 4; i++) {
                 if (!leds[i]) continue;
-                bool active_led = (i == cur && b > 0);
+                bool signal_led = sigs[i];
+                int brightness = signal_led ? (i == cur ? 220 : 150) : 0;
                 lv_led_set_color(leds[i], _accent);
-                lv_led_set_brightness(leds[i], i == cur ? b : 0);
-                lv_obj_set_style_bg_color(leds[i], active_led ? _accent : lv_color_hex(0x1F2937), LV_PART_MAIN);
-                lv_obj_set_style_bg_opa(leds[i], active_led ? (lv_opa_t)b : LV_OPA_50, LV_PART_MAIN);
+                lv_led_set_brightness(leds[i], brightness);
+                lv_obj_set_style_bg_color(leds[i], signal_led ? _accent : lv_color_hex(0x1F2937), LV_PART_MAIN);
+                lv_obj_set_style_bg_opa(leds[i], signal_led ? LV_OPA_COVER : LV_OPA_40, LV_PART_MAIN);
               }
             }
           }

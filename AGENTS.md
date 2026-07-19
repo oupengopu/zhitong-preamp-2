@@ -97,7 +97,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - MSGEQ7 弱信号必须先在 raw 域扣除 `RAW_NOISE_FLOOR=6`, 再做频段增益, 最后按 `SIGNAL_FULL_SCALE_RAW=128` 映射到 0-255; 当前 `NOISE_GATE=2`。不要改回 4095 全量程缩放或“缩放后先门限再增益”, 否则十几个 raw count 的有效变化会被整数截断成 0。
 - 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg >= 2` 并带 1.5 秒弱信号保持窗口; 不要保留旧的 `> 8` 或 `> 2` 硬阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
-- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前按频段扣显示底噪并使用不同 `visual_gain_q8`; 这个增益只用于绘制, 不得反馈到自动输入、自动跳转或 LED 信号判定。
+- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前按频段扣显示底噪并使用不同 `visual_gain_q8`; 这个增益只用于绘制, 不得反馈到自动输入或自动跳转判定。输入卡片 LED 单独使用 MCP23017 `audio_*` 状态。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
 - 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
 
@@ -210,6 +210,19 @@ v2.1.36 已确认 DAC 输入下 MSGEQ7 不再全 0, 但 `frame_peak=9~17` 直接
 - 如果以后实机又说“有声音但没频谱”, 先看 `/events` 中静音/待机/背光/输入状态, 再临时把 `msgeq7_diag` 调到 INFO 验证 raw/frame, 不要先删缓存。
 改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / 自动跳转)
 
+**50. 频谱视觉、蓝表头和输入信号 LED 职责分离**
+
+v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/信号判定仍看未放大的 raw frame,
+屏幕绘制才做音量联动和视觉增益。
+
+**规则**:
+- 频谱柱显示可以跟随 `volume_val/max_volume` 做视觉缩放, 但不得把音量缩放后的值写回 `s_signal_avg` 或自动输入/自动跳转逻辑。
+- 蓝表头 VU 指针不要只用七段平均值, 应使用平均值 + 峰值并保持快起慢落, 否则实机会像表针卡在一个位置。
+- 主页面输入卡片上的 `led_src_0~3` 是 MCP23017 输入信号状态灯: `audio_cd/dac/pc/aux` 有信号就常亮, 无信号就灭。不要再用 MSGEQ7 `s_signal_avg` 做呼吸闪动。
+- `msgeq7_bands` 仍只用于 DEBUG 诊断, 不要为了观察视觉效果把正式固件调成 INFO 刷屏。
+
+改动文件: `智能前级蓝牙2.0.yaml` (频谱 interval / VU / 输入卡片 LED)
+
 
 ## 强制性规则
 
@@ -228,7 +241,7 @@ v2.1.36 已确认 DAC 输入下 MSGEQ7 不再全 0, 但 `frame_peak=9~17` 直接
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.38
+**固件版本:** v2.1.39
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -454,9 +467,9 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 调用 `msgeq7::read()` 读取 MSGEQ7 七段频谱
 - 调用 `msgeq7::read_ntc()` 读取 NTC 温度 (带中值滤波 + IIR)
 - 使用 `msgeq7::get_frame()` 获取 SpectrumFrame 快照
-- 更新 LVGL 频谱条 (L/R 独立, 含 peak 保持线)
-- 更新 VU 电平条 (L/R 独立, 每声道 7 段平均)
-- 更新 LED 信号强度 (取 L/R 较大值: >80 常亮, >5 呼吸, 否则微光)
+- 更新 LVGL 频谱条 (L/R 独立, 含 peak 保持线; 显示层按音量联动放大, 不影响信号判定)
+- 更新 VU 电平条/蓝表头指针 (平均值 + 峰值, 快起慢落)
+- 更新输入卡片 LED 信号灯 (MCP23017 `audio_cd/dac/pc/aux` 有信号常亮, 无信号熄灭)
 - 约 20Hz 刷新率
 
 ### 频谱页自动切换 (基于 MSGEQ7 信号)

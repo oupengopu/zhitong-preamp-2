@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.38
+**固件版本:** v2.1.39
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -233,10 +233,10 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 - 调用 `msgeq7::read()` 读取 MSGEQ7 七段频谱
 - 调用 `msgeq7::read_ntc()` 读取 NTC 温度 (带中值滤波 + IIR)
 - 使用 `msgeq7::get_frame()` 获取 SpectrumFrame 快照
-- LVGL 绘制前使用显示专用视觉均衡: 低/中频提高可见度, 6.25k/16k 扣显示底噪并降低倍率; 信号检测仍使用未放大的 raw frame 平均值
+- LVGL 绘制前使用显示专用视觉均衡: 低/中频提高可见度, 6.25k/16k 扣显示底噪并降低倍率; 频谱柱按当前音量做显示缩放, 信号检测仍使用未放大的 raw frame 平均值
 - 更新 LVGL 频谱条 (L/R 独立, 含 peak 保持线)
-- 更新 VU 电平条 (L/R 独立, 每声道 7 段平均)
-- 更新 LED 信号强度 (取 L/R 较大值: >80 常亮, >5 呼吸, 否则微光)
+- 更新 VU 电平条/蓝表头指针 (平均值 + 峰值, 快起慢落)
+- 更新输入卡片 LED 信号灯 (MCP23017 `audio_cd/dac/pc/aux` 有信号常亮, 无信号熄灭)
 - 约 20Hz 刷新率
 
 ### 频谱页自动切换 (基于 MSGEQ7 信号)
