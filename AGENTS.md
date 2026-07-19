@@ -97,7 +97,7 @@ ESPHome 2026.7.0 下, 命令行不带 `Origin` 的 REST 请求可以成功, 但�
 - MSGEQ7 弱信号必须先在 raw 域扣除 `RAW_NOISE_FLOOR=6`, 再做频段增益, 最后按 `SIGNAL_FULL_SCALE_RAW=128` 映射到 0-255; 当前 `NOISE_GATE=2`。不要改回 4095 全量程缩放或“缩放后先门限再增益”, 否则十几个 raw count 的有效变化会被整数截断成 0。
 - 频谱自动跳转的 `has_signal` 阈值必须跟随弱信号门限, 当前使用 `s_signal_avg >= 2` 并带 1.5 秒弱信号保持窗口; 不要保留旧的 `> 8` 或 `> 2` 硬阈值, 否则驱动已有弱信号输出但页面仍判断为无信号。
 - MSGEQ7 的 `s_signal_avg` 必须来自未显示消隐前的实时频谱平均值, 并且静音时也继续更新; 频谱视觉可以冻结/消隐, 信号判定不能冻结在旧值。
-- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前按频段扣显示底噪并使用不同 `visual_gain_q8`; 这个增益只用于绘制, 不得反馈到自动输入或自动跳转判定。输入卡片 LED 单独使用 MCP23017 `audio_*` 状态。
+- LVGL 频谱柱/VU/主页 mini spectrum 使用显示专用视觉均衡, 当前按频段扣显示底噪并使用不同 `visual_gain_q8` + `visual_knee` 软膝压缩; 这个增益只用于绘制, 不得反馈到自动输入或自动跳转判定。输入卡片 LED 单独使用 MCP23017 `audio_*` 状态。
 - `PGA/msgeq7.h` 的 `DebugFrame` 只读快照用于临时 DEBUG 日志区分 raw、offset、frame 三层数据, 不主动产生日志。
 - 网页/手机 BLE 的 `媒体控制 Media` 必须复用 `ble_hid_event_text` 推送 `esphome.hid_events`: `播放=PLAY`, `暂停=PAUSE`, `下一首=NEXT_TRACK`, `上一首=PREV_TRACK`。不要只 publish select 状态后复位, 否则 HA 播放控制不会执行。
 
@@ -218,7 +218,8 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 **规则**:
 - 频谱柱显示可以跟随 `volume_val/max_volume` 做视觉缩放, 但不得把音量缩放后的值写回 `s_signal_avg` 或自动输入/自动跳转逻辑。
 - 频谱显示层必须有独立时间常数平滑和峰值衰减; 不要把每帧整数值直接硬写到 LVGL bar, 否则实机跳动会不丝滑。
-- 16kHz/6.25kHz 的显示底噪必须比低频扣得更多、倍率更低; 实机若高频柱长期偏高, 优先调显示侧 `visual_floor/visual_gain_q8` 和高频平滑时间常数, 不要动 MSGEQ7 驱动 raw 缩放。
+- 16kHz/6.25kHz 的显示底噪必须比低频扣得更多、倍率更低; 实机若高频柱长期偏高, 优先调显示侧 `visual_floor/visual_gain_q8/visual_knee` 和高频平滑时间常数, 不要动 MSGEQ7 驱动 raw 缩放。
+- 频谱显示映射必须保留软膝压缩, 不要回到纯线性大倍率放大; 线性放大会让弱信号或残留值轻易顶满, 看起来不像自然频谱。
 - 火花/流光频谱样式不能再加人工 `flicker` 抖动; 柱高必须来自真实七段频谱插值, 否则会看起来不像按频率跳动。
 - 蓝表头 VU 指针不要只用七段平均值, 应使用平均值 + 峰值并保持快起慢落, 否则实机会像表针卡在一个位置。
 - 蓝表头指针使用 10 个小 `obj` 点段按 225°~315° 直接计算 x/y 坐标, 不依赖 `LV_USE_LINE` 或 `transform_angle`。旧旋转指针对象保留但应隐藏, 不要再回到 -42°~+42° 水平线摆法。
@@ -245,7 +246,7 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.42
+**固件版本:** v2.1.43
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2

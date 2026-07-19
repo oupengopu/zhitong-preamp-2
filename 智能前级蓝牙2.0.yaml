@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.42"
+  firmware_version: "v2.1.43"
 
 esphome:
   name: ${device_name}
@@ -6901,15 +6901,18 @@ interval:
             int volume_visual_q8 = (id(volume_val) > 0) ? (64 + volume_pct * 512 / 100) : 0;
             auto boost_spectrum_value = [volume_visual_q8](int v, int band) -> int {
               if (v <= 0) return 0;
-              static const int visual_floor[7] = {0, 0, 1, 2, 5, 18, 58};
-              static const int visual_gain_q8[7] = {2432, 2432, 2304, 2048, 1536, 512, 128};
+              static const int visual_floor[7] = {2, 2, 3, 4, 7, 24, 70};
+              static const int visual_gain_q8[7] = {1792, 1792, 1664, 1536, 1280, 512, 96};
+              static const int visual_knee[7] = {220, 220, 210, 200, 190, 170, 150};
               if (band < 0) band = 0;
               if (band > 6) band = 6;
               int x = v - visual_floor[band];
               if (x <= 0) return 0;
-              int out = (x * visual_gain_q8[band]) >> 8;
-              out = (out * volume_visual_q8) >> 8;
-              if (out > 0 && out < 4) out = 4;
+              int energy = (x * visual_gain_q8[band]) >> 8;
+              energy = (energy * volume_visual_q8) >> 8;
+              if (energy <= 0) return 0;
+              int out = (energy * 255) / (energy + visual_knee[band]);
+              if (out > 0 && out < 3) out = 3;
               if (out > 255) out = 255;
               return out;
             };
