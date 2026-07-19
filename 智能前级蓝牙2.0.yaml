@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.41"
+  firmware_version: "v2.1.42"
 
 esphome:
   name: ${device_name}
@@ -6901,8 +6901,8 @@ interval:
             int volume_visual_q8 = (id(volume_val) > 0) ? (64 + volume_pct * 512 / 100) : 0;
             auto boost_spectrum_value = [volume_visual_q8](int v, int band) -> int {
               if (v <= 0) return 0;
-              static const int visual_floor[7] = {0, 0, 0, 0, 1, 8, 36};
-              static const int visual_gain_q8[7] = {2560, 2560, 2432, 2304, 2048, 896, 256};
+              static const int visual_floor[7] = {0, 0, 1, 2, 5, 18, 58};
+              static const int visual_gain_q8[7] = {2432, 2432, 2304, 2048, 1536, 512, 128};
               if (band < 0) band = 0;
               if (band > 6) band = 6;
               int x = v - visual_floor[band];
@@ -6930,14 +6930,22 @@ interval:
             float display_dt = last_display_ms ? (float)(display_now - last_display_ms) / 1000.0f : 0.05f;
             if (display_dt < 0.01f || display_dt > 0.25f) display_dt = 0.05f;
             last_display_ms = display_now;
-            float peak_decay = powf(0.42f, display_dt);
+            float peak_decay = powf(0.30f, display_dt);
+            static const float rise_tau_s[7] = {0.12f, 0.12f, 0.13f, 0.14f, 0.16f, 0.20f, 0.24f};
+            static const float fall_tau_s[7] = {0.34f, 0.34f, 0.38f, 0.42f, 0.50f, 0.62f, 0.78f};
+            auto smooth_display_value = [display_dt](float current, int target, int band) -> float {
+              if (band < 0) band = 0;
+              if (band > 6) band = 6;
+              float tau = ((float)target > current) ? rise_tau_s[band] : fall_tau_s[band];
+              float k = 1.0f - expf(-display_dt / tau);
+              if (k < 0.02f) k = 0.02f;
+              if (k > 0.65f) k = 0.65f;
+              return current + ((float)target - current) * k;
+            };
             for (int i = 0; i < 7; i++) {
-              float k_l = target_l[i] > display_l[i] ? 0.58f : 0.16f;
-              float k_r = target_r[i] > display_r[i] ? 0.58f : 0.16f;
-              float k_c = target_c[i] > display_c[i] ? 0.58f : 0.16f;
-              display_l[i] += ((float)target_l[i] - display_l[i]) * k_l;
-              display_r[i] += ((float)target_r[i] - display_r[i]) * k_r;
-              display_c[i] += ((float)target_c[i] - display_c[i]) * k_c;
+              display_l[i] = smooth_display_value(display_l[i], target_l[i], i);
+              display_r[i] = smooth_display_value(display_r[i], target_r[i], i);
+              display_c[i] = smooth_display_value(display_c[i], target_c[i], i);
               if (display_l[i] < 0.5f) display_l[i] = 0.0f;
               if (display_r[i] < 0.5f) display_r[i] = 0.0f;
               if (display_c[i] < 0.5f) display_c[i] = 0.0f;
@@ -7177,8 +7185,7 @@ interval:
                   int next = band < 6 ? band + 1 : band;
                   int frac = pos_q8 & 0xFF;
                   int v = (frame.combined[band] * (256 - frac) + frame.combined[next] * frac) >> 8;
-                  int flicker = ((int)((t + i * 17) % 23) - 11) * 2;
-                  v = std::max(0, std::min(255, v + flicker));
+                  v = std::max(0, std::min(255, v));
                   spark_vals[i] = v;
                   int h = 2 + v * 86 / 255;
                   int y = 118 - h;
