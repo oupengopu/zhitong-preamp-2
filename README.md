@@ -4,7 +4,7 @@
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.43
+**固件版本:** v2.1.44
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 
@@ -174,6 +174,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `current_db` | float | 当前实际 dB |
 | `target_db` | float | 目标 dB (渐变更新的目标) |
 | `theme` | int | 颜色主题索引 (0~7) |
+| `spectrum_style_select` | select | Web/HA 频谱样式选择, 与设置页 Row 12 同步 |
 | `display_timeout_min` | int | 显示超时分钟数 |
 | `display_brightness` | int | 显示亮度 (0~100) |
 | `last_manual_input_ms` | uint32_t | 手动选择输入的时间戳 (0=自动模式) |

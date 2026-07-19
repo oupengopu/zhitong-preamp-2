@@ -7,7 +7,7 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.43"
+  firmware_version: "v2.1.44"
 
 esphome:
   name: ${device_name}
@@ -125,6 +125,8 @@ esphome:
 
             const char* names[] = {"CD", "DAC", "PC", "AUX"};
             id(input_select)->publish_state(names[id(current_input)]);
+            const char* spectrum_names[] = {"经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU", "星点火线"};
+            id(spectrum_style_select)->publish_state(spectrum_names[id(spectrum_theme)]);
             id(standby_switch)->publish_state(id(standby));
 
             // 初始化输出继电器状态 (GPA4)
@@ -6270,6 +6272,7 @@ sensor:
                     id(spectrum_theme) = v;
                     const char* names[] = {"经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU", "星点火线"};
                     lv_label_set_text(id(val_spectrum_theme), names[v]);
+                    id(spectrum_style_select)->publish_state(names[v]);
                     break;
                   }
                 }
@@ -6824,6 +6827,27 @@ select:
           id(current_input) = target;
           id(sync_settings_ui)->execute();
           id(switch_input)->execute();
+          id(reset_idle_timer)->execute();
+
+  - platform: template
+    name: "频谱样式 Spectrum"
+    id: spectrum_style_select
+    icon: mdi:chart-bar
+    options: ["经典柱状", "镜像频谱", "LED点阵", "示波线", "蓝表VU", "星点火线"]
+    set_action:
+      - lambda: |-
+          if (!id(system_ready)) return;
+          int target = -1;
+          if      (x == "经典柱状") target = 0;
+          else if (x == "镜像频谱") target = 1;
+          else if (x == "LED点阵") target = 2;
+          else if (x == "示波线")   target = 3;
+          else if (x == "蓝表VU")   target = 4;
+          else if (x == "星点火线") target = 5;
+          if (target < 0) return;
+          id(spectrum_theme) = target;
+          id(spectrum_style_select)->publish_state(x);
+          id(sync_settings_ui)->execute();
           id(reset_idle_timer)->execute();
 
 # ═══════════════════════════════════════════════════════════════

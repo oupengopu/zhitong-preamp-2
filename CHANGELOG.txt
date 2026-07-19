@@ -1,3 +1,26 @@
+v2.1.44 - 2026-07-19
+  调整: 频谱样式暴露到 Web/HA, 便于确认蓝表 VU 指针
+    - 固件显示版本号更新为 v2.1.44
+    - 新增 `select/频谱样式 Spectrum`, 选项与机身设置页一致: 经典柱状/镜像频谱/LED点阵/示波线/蓝表VU/星点火线
+    - 开机恢复状态时发布当前 `spectrum_theme`, 让 `/events` 能看到当前频谱样式
+    - 机身设置页旋钮切换频谱样式时同步发布到 `spectrum_style_select`
+    - 远程选择“蓝表VU”时写入 `spectrum_theme` 并刷新设置页, 用于确认蓝表头点段式指针是否显示
+    - 本次不改频谱软膝映射、不改高频压制、不改输入卡片 LED
+  原因: 蓝表头指针只在 `spectrum_theme == 4` 时显示, 但此前该状态没有导出到 Web/HA。
+        远程看不到当前是否处于“蓝表VU”, 容易把“没有切到蓝表样式”误判成“指针消失”。
+  验证:
+    - ESPHome 2026.7.0 本地 `config` 通过
+    - ESPHome 2026.7.0 本地 `compile` 通过, 生成 `firmware.ota.bin`
+    - OTA 上传到 `192.168.31.99` 成功
+    - `/events` 确认 `select/频谱样式 Spectrum` 可见, 并已远程切到“蓝表VU”
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, spectrum_style_select, 频谱样式状态发布)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.43 - 2026-07-19
   调整: 频谱显示映射改为软膝压缩, 避免低中频/高频残留顶满
     - 固件显示版本号更新为 v2.1.43

@@ -223,6 +223,7 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 - 火花/流光频谱样式不能再加人工 `flicker` 抖动; 柱高必须来自真实七段频谱插值, 否则会看起来不像按频率跳动。
 - 蓝表头 VU 指针不要只用七段平均值, 应使用平均值 + 峰值并保持快起慢落, 否则实机会像表针卡在一个位置。
 - 蓝表头指针使用 10 个小 `obj` 点段按 225°~315° 直接计算 x/y 坐标, 不依赖 `LV_USE_LINE` 或 `transform_angle`。旧旋转指针对象保留但应隐藏, 不要再回到 -42°~+42° 水平线摆法。
+- 频谱样式必须通过 `select/频谱样式 Spectrum` 暴露到 Web/HA, 选项值要和设置页 Row 12 一致; 远程确认蓝表指针时先看该 select 是否为“蓝表VU”。
 - 主页面输入卡片上的 `led_src_0~3` 是 MCP23017 输入信号状态灯: `audio_cd/dac/pc/aux` 有信号就常亮, 无信号就灭。不要再用 MSGEQ7 `s_signal_avg` 做呼吸闪动。
 - `msgeq7_bands` 仍只用于 DEBUG 诊断, 不要为了观察视觉效果把正式固件调成 INFO 刷屏。
 
@@ -246,7 +247,7 @@ v2.1.39 起频谱页面的“好看”和自动判定继续分离: 自动跳转/
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.43
+**固件版本:** v2.1.44
 **MCU:** ESP32-S3 @ 240MHz
 **框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
@@ -417,6 +418,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | `current_db` | float | 当前实际 dB |
 | `target_db` | float | 目标 dB (渐变更新的目标) |
 | `theme` | int | 颜色主题索引 (0~7) |
+| `spectrum_style_select` | select | Web/HA 频谱样式选择, 与设置页 Row 12 同步 |
 | `display_timeout_min` | int | 显示超时分钟数 |
 | `display_brightness` | int | 显示亮度 (0~100) |
 | `last_manual_input_ms` | uint32_t | 手动选择输入的时间戳 (0=自动模式) |
@@ -654,7 +656,7 @@ NTC 参数: B=3950, 参考电阻 9.4kΩ@25°C
 | 9 | 遥控器按键 | mdi-keyboard-settings | label | 已映射 | 导航到遥控器按键映射页 |
 | 10 | 输出模式 | mdi-swap-vertical-bold | label | 变压器/直通 | 切换输出模式 |
 | 11 | 频谱跳转 | mdi-chart-timeline-variant | label | 禁用/5~60秒 | 主屏自动跳转频谱屏时间 |
-| 12 | 频谱样式 | mdi-chart-bar | label+色点 | 5 种样式 | 经典柱状/镜像频谱/LED点阵/示波线/蓝表VU |
+| 12 | 频谱样式 | mdi-chart-bar | label+色点 | 6 种样式 | 经典柱状/镜像频谱/LED点阵/示波线/蓝表VU/星点火线 |
 | 13 | 固件版本 | mdi-information-outline | label (只读) | — | 显示当前固件版本，三击进入诊断页 |
 | 14 | IP地址 | mdi-ip-network | label (只读) | — | 显示设备 IP |
 
