@@ -366,6 +366,19 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, boot standby restore, enter_standby, exit_standby)
 
+**61. v2.1.56 ESPHome 2026.7.1 / ESP-IDF 5.5.5 升级**
+
+ESPHome 2026.7.1 会把 ESP32 推荐 ESP-IDF 更新到 5.5.5, 首次编译会自动重新生成本设备 build 目录并安装 5.5.5 工具链。
+
+**规则**:
+- 项目最低 ESPHome 版本为 `2026.7.1`, 本地虚拟环境升级后必须先跑 `esphome config`, 再跑 `esphome compile`。
+- 不要手动删除 `.esphome`、PlatformIO 或 ESPHome cache; 版本变化时 ESPHome 自己执行的 build 目录重建可以接受。
+- ESP-IDF 5.5+ 下使用新 Kconfig 名称: `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240`, `CONFIG_SPIRAM`, `CONFIG_BT_GATTC_ENABLE`。
+- LVGL 9 的 `LV_USE_DRAW_SW_ASM` 不是布尔项; ESP32-S3 没有 LVGL 内置 NEON/Helium/RISC-V ASM 后端, 当前应显式保持 `CONFIG_LV_DRAW_SW_ASM_NONE: "y"`。
+- 这条只升级编译框架/清理无效 Kconfig, 不修改防爆音、待机、网页控制、MSGEQ7 或 BLE HID 业务逻辑。
+
+改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, esphome min_version, esp32 sdkconfig_options), `AGENTS.md`, `README.md`, `CLAUDE.md`, `CHANGELOG.txt`
+
 
 ## 强制性规则
 
@@ -384,9 +397,9 @@ IO16 面板 LED 由 50ms interval 直接控制, 不经过 light entity。
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.55
+**固件版本:** v2.1.56
 **MCU:** ESP32-S3 @ 240MHz
-**框架:** ESPHome 2026.7.0 + LVGL v9.x managed component
+**框架:** ESPHome 2026.7.1 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---

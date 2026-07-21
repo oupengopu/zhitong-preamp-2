@@ -1,3 +1,27 @@
+v2.1.56 - 2026-07-21
+  升级: ESPHome 2026.7.1 / ESP-IDF 5.5.5
+    - 固件显示版本号更新为 v2.1.56
+    - 本地虚拟环境 ESPHome 从 2026.7.0 升级到 2026.7.1
+    - 配置增加 `esphome.min_version: 2026.7.1`, 避免用旧 ESPHome 误编译正式固件
+    - ESPHome 2026.7.1 推荐的 ESP-IDF 升级到 5.5.5; 首次编译由 ESPHome 自动重建本设备 build 目录和 IDF 工具链
+    - 替换 ESP-IDF 5.5 已改名的 Kconfig: `CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240` -> `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240`, `CONFIG_ESP32S3_SPIRAM_SUPPORT` -> `CONFIG_SPIRAM`, `CONFIG_GATTC_ENABLE` -> `CONFIG_BT_GATTC_ENABLE`
+    - 移除无效的 LVGL 9 布尔配置 `CONFIG_LV_USE_DRAW_SW_ASM` 和不存在的 `CONFIG_LV_DRAW_SW_ASM_ASSUME_VFP`; ESP32-S3 当前无 LVGL 内置 NEON/Helium/RISC-V ASM 后端, 显式保留 `CONFIG_LV_DRAW_SW_ASM_NONE: "y"`
+    - 本次不修改防爆音、待机、网页控制、MSGEQ7 频谱或 BLE HID 业务逻辑, 也没有手动删除 `.esphome`/PlatformIO/ESPHome 缓存
+  原因: 2026.7.1 编译链会使用 ESP-IDF 5.5.5。旧 Kconfig 名称仍能被 ESPHome 临时替换, 但会产生升级兼容提示; 旧 LVGL ASM 写法在 LVGL 9 下不是布尔开关, 会被忽略并产生 warning, 因此正式版本需要把这些配置改成 2026.7.1 下明确有效的写法。
+  验证:
+    - ESPHome 2026.7.1 本地 `version` 显示 `Version: 2026.7.1`
+    - `pip check` 通过: `No broken requirements found`
+    - ESPHome 2026.7.1 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.56`, `min_version: 2026.7.1`, ESP-IDF `version: 5.5.5`
+    - ESPHome 2026.7.1 本地 `compile` 通过, `build_time_str=2026-07-21 21:08:11 +0800`, `config_hash=0xb8e1a534`
+    - 固件产物生成: `firmware.factory.bin`, `firmware.ota.bin`, `firmware.elf`; `zhitong-preamp-2.bin` 大小 `0x1e7200`, app 分区剩余 `0x418e00` (68%)
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, min_version, ESP-IDF/LVGL sdkconfig_options)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.55 - 2026-07-20
   修复: 待机状态的软件静音实体没有同步为开启
     - 固件显示版本号更新为 v2.1.55

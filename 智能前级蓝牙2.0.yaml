@@ -7,11 +7,12 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.55"
+  firmware_version: "v2.1.56"
 
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  min_version: 2026.7.1
   build_flags:
     - -DUSE_ESP32_BLE_CLIENT
     - -DESPHOME_ESP32_BLE_GAP_EVENT_HANDLER_COUNT=1
@@ -207,20 +208,19 @@ esp32:
         - esp_adc
     sdkconfig_options:
       # ═══ ESP32-S3 性能极限配置 ═══
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"       # CPU 锁定 240MHz (默认可能降频 160MHz)
-      CONFIG_ESP32S3_SPIRAM_SUPPORT: "y"               # PSRAM 支持
+      CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240: "y"         # CPU 锁定 240MHz (ESP-IDF 5.5+ 新名称)
+      CONFIG_SPIRAM: "y"                               # PSRAM 支持 (ESP-IDF 5.5+ 新名称)
       CONFIG_SPIRAM_MODE_OCT: "y"                       # 八线 PSRAM
       CONFIG_SPIRAM_SPEED_80M: "y"                      # PSRAM 80MHz
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"             # ★ 从 PSRAM 取指令 (释放 Flash 带宽给 LVGL 字体渲染)
       CONFIG_SPIRAM_RODATA: "y"                         # ★ 从 PSRAM 读取只读数据 (字体 glyph 不再抢 Flash)
       CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"           # ★ 数据缓存行 64B (默认 32B, 翻倍提升 DMA/PSRAM 命中率)
       CONFIG_ESP32S3_INSTRUCTION_CACHE_LINE_64B: "y"    # ★ 指令缓存行 64B (提升高频调用函数缓存命中)
-      CONFIG_LV_USE_DRAW_SW_ASM: "y"                    # LVGL 使用 ESP32-S3 SIMD 指令加速渲染
-      CONFIG_LV_DRAW_SW_ASM_ASSUME_VFP: "y"            # 使用硬件 FPU 加速浮点渲染
+      CONFIG_LV_DRAW_SW_ASM_NONE: "y"                   # ESP32-S3 无 LVGL 内置 NEON/Helium/RISC-V ASM 后端
       CONFIG_SPIRAM_USE_MALLOC: "y"                     # 允许 malloc 使用 PSRAM (大缓冲区自动进 PSRAM)
       CONFIG_ESP32S3_DATA_CACHE_SIZE_64KB: "y"          # ★ 数据缓存 64KB (默认 32KB, 大幅减少 PSRAM 未命中)
       CONFIG_ESP32S3_INSTRUCTION_CACHE_SIZE_32KB: "y"   # 指令缓存 32KB (默认 16KB)
-      CONFIG_GATTC_ENABLE: "y"                          # 启用 GATT Client (BLE HID Host 遥控器支持)
+      CONFIG_BT_GATTC_ENABLE: "y"                       # 启用 GATT Client (BLE HID Host 遥控器支持)
 psram:
   mode: octal
   speed: 80MHz
