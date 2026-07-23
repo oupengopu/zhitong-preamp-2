@@ -379,6 +379,17 @@ ESPHome 2026.7.1 会把 ESP32 推荐 ESP-IDF 更新到 5.5.5, 首次编译会自
 
 改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, esphome min_version, esp32 sdkconfig_options), `AGENTS.md`, `README.md`, `CLAUDE.md`, `CHANGELOG.txt`
 
+**62. v2.1.57 ESPHome 2026.7.2 升级**
+
+ESPHome 2026.7.2 是 2026.7 系列补丁版, 继续使用 ESP-IDF 5.5.5。官方变更包含 `aioesphomeapi 45.7.0`、`mipi_spi` partial update 修复、bundle 绝对路径重映射修复、device-builder 1.6.9 等。
+
+**规则**:
+- 项目最低 ESPHome 版本为 `2026.7.2`, 本地虚拟环境升级后必须先跑 `esphome config`, 再跑 `esphome compile`。
+- 这条只升级 ESPHome 补丁版本和文档版本号, 不修改 ESP-IDF/LVGL Kconfig、不修改防爆音、待机、网页控制、MSGEQ7 或 BLE HID 业务逻辑。
+- 不要手动删除 `.esphome`、PlatformIO 或 ESPHome cache; 如版本变化导致 ESPHome 自动重建 build 目录, 只记录原因。
+
+改动文件: `智能前级蓝牙2.0.yaml` (firmware_version, esphome min_version), `AGENTS.md`, `README.md`, `CLAUDE.md`, `CHANGELOG.txt`
+
 
 ## 强制性规则
 
@@ -397,9 +408,9 @@ ESPHome 2026.7.1 会把 ESP32 推荐 ESP-IDF 更新到 5.5.5, 首次编译会自
 
 基于 ESP32-S3 + ESPHome 的 Hi-Fi 音频前级放大器。具备 4 路输入切换 (CD/DAC/PC/AUX)、PGA2311 音量控制、MSGEQ7 七段频谱分析、2.79 寸 TFT 彩屏显示 (LVGL)、MCP23017 I2C GPIO 扩展、温度保护等功能。
 
-**固件版本:** v2.1.56
+**固件版本:** v2.1.57
 **MCU:** ESP32-S3 @ 240MHz
-**框架:** ESPHome 2026.7.1 + LVGL v9.x managed component
+**框架:** ESPHome 2026.7.2 + LVGL v9.x managed component
 **仓库:** https://github.com/oupengopu/zhitong-preamp-2
 
 ---

@@ -7,12 +7,12 @@
   ap_password: !secret ap_password
   ota_password: !secret ota_password
   api_key: !secret api_key
-  firmware_version: "v2.1.56"
+  firmware_version: "v2.1.57"
 
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  min_version: 2026.7.1
+  min_version: 2026.7.2
   build_flags:
     - -DUSE_ESP32_BLE_CLIENT
     - -DESPHOME_ESP32_BLE_GAP_EVENT_HANDLER_COUNT=1

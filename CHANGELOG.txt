@@ -1,3 +1,27 @@
+v2.1.57 - 2026-07-23
+  升级: ESPHome 2026.7.2 最新补丁版
+    - 固件显示版本号更新为 v2.1.57
+    - 本地虚拟环境 ESPHome 从 2026.7.1 升级到 2026.7.2
+    - 配置 `esphome.min_version` 从 2026.7.1 提升到 2026.7.2, 避免用旧 ESPHome 误编译正式固件
+    - ESP-IDF 继续使用 5.5.5, 未修改 v2.1.56 已整理好的 ESP-IDF/LVGL Kconfig
+    - 官方 2026.7.2 补丁包含 `aioesphomeapi 45.7.0`、`mipi_spi` partial update 修复、bundle 绝对路径重映射修复、device-builder 1.6.9 等
+    - 本次不修改防爆音、待机、网页控制、MSGEQ7 频谱或 BLE HID 业务逻辑, 也没有手动删除 `.esphome`/PlatformIO/ESPHome 缓存
+  原因: 用户要求升级到 ESPHome 最新版。2026-07-23 通过 PyPI 确认可安装最新版为 2026.7.2, 官方 changelog 也列出 `Release 2026.7.2 - July 23`。
+  验证:
+    - `pip index versions esphome` 显示 `LATEST: 2026.7.2`
+    - ESPHome 2026.7.2 本地 `version` 显示 `Version: 2026.7.2`
+    - `pip check` 通过: `No broken requirements found`
+    - ESPHome 2026.7.2 本地 `config` 通过, 配置展开显示 `firmware_version: v2.1.57`, `min_version: 2026.7.2`, ESP-IDF `version: 5.5.5`
+    - ESPHome 2026.7.2 本地 `compile` 通过, `build_time_str=2026-07-23 22:14:06 +0800`, `config_hash=0x242ac5e7`
+    - 固件产物生成: `firmware.factory.bin`, `firmware.ota.bin`, `firmware.elf`; `zhitong-preamp-2.bin` 大小 `0x1e71f0`, app 分区剩余 `0x418e10` (68%)
+  改动文件:
+  智能前级蓝牙2.0.yaml (firmware_version, min_version)
+  CHANGELOG.txt
+  AGENTS.md
+  README.md
+  CLAUDE.md
+
+---
 v2.1.56 - 2026-07-21
   升级: ESPHome 2026.7.1 / ESP-IDF 5.5.5
     - 固件显示版本号更新为 v2.1.56
